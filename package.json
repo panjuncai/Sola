@@ -8,8 +8,17 @@
     "type-check": "turbo run type-check",
     "typecheck": "pnpm -r typecheck"
   },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "better-sqlite3",
+      "esbuild"
+    ]
+  },
   "devDependencies": {
     "turbo": "^2.6.3",
     "typescript": "^5.7.2"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.5.0"
   }
 }
