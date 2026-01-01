@@ -1,0 +1,4618 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+apps/
+  server/
+    src/
+      index.ts
+    package.json
+    tsconfig.build.json
+    tsconfig.json
+  web/
+    public/
+      vite.svg
+    src/
+      assets/
+        react.svg
+      components/
+        auth/
+          AuthGuard.tsx
+          LoginForm.tsx
+          SignUpForm.tsx
+        GlobalPlayer.tsx
+      layout/
+        AppLayout.tsx
+      lib/
+        auth-types.ts
+        schemas.ts
+        trpc.ts
+        utils.ts
+      pages/
+        auth/
+          AuthLayout.tsx
+          LoginPage.tsx
+          SignUpPage.tsx
+        ArticleList.tsx
+        DashboardPage.tsx
+        SettingsPage.tsx
+      stores/
+        useAuthStore.ts
+        usePlayerStore.ts
+      App.css
+      App.tsx
+      index.css
+      main.tsx
+    .env.example
+    .gitignore
+    components.json
+    eslint.config.js
+    index.html
+    package.json
+    postcss.config.js
+    README.md
+    tailwind.config.js
+    tsconfig.app.json
+    tsconfig.json
+    tsconfig.node.json
+    vite.config.ts
+docs/
+  sola-workflow.md
+  Sola架构方案.md
+  ui-guidelines.md
+  业务设计文档.md
+  业务需求文档.md
+packages/
+  api/
+    src/
+      routers/
+        auth.ts
+      appRouter.ts
+      auth.ts
+      index.ts
+      trpc.ts
+    package.json
+    tsconfig.build.json
+    tsconfig.json
+  db/
+    drizzle/
+      meta/
+        _journal.json
+        0000_snapshot.json
+        0001_snapshot.json
+      0000_spotty_exiles.sql
+      0001_slim_pyro.sql
+    src/
+      index.ts
+      schema.ts
+    drizzle.config.ts
+    package.json
+    tsconfig.build.json
+    tsconfig.json
+  logic/
+    src/
+      index.ts
+    package.json
+    tsconfig.json
+  shared/
+    src/
+      index.ts
+    package.json
+    tsconfig.json
+  ui/
+    src/
+      components/
+        ui/
+          button.tsx
+          card.tsx
+          dialog.tsx
+          drawer.tsx
+          form.tsx
+          input.tsx
+          label.tsx
+          sonner.tsx
+        ResponsiveOverlay.tsx
+      hooks/
+        useMediaQuery.ts
+      layout/
+        AppShell.tsx
+      lib/
+        utils.ts
+      index.ts
+    package.json
+    tsconfig.json
+.gitignore
+package.json
+pnpm-workspace.yaml
+tsconfig.base.json
+turbo.json
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="docs/Sola架构方案.md">
+Sola重构Wordlens，目的：**端到端类型安全 (E2E Type Safety)**、**极简的运维 (Serverless/Edge)** 和 **组件化设计系统**。
+
+以下是我为你设计的 **Sola 2.0 架构蓝图**：
+
+### 1. 技术栈选型：T3 Stack 变体 (The "Meta" Stack)
+
+我会放弃传统的 `REST API + Axios` 模式，全面拥抱 **类型导向** 开发。
+
+| **层级**     | **以前的选择**   | **现在的现代化选择**             | **理由**                                                     |
+| ------------ | ---------------- | -------------------------------- | ------------------------------------------------------------ |
+| **语言**     | JavaScript       | **TypeScript**                   | 必须的。全栈类型联想，重构不害怕。                           |
+| **包管理**   | npm              | **pnpm + Turborepo**             | 极速安装，Monorepo 原生支持，更好管理前后端共用代码。        |
+| **前端框架** | React + Vite     | **React + Vite** (保持)          | 对于这种重交互的 Dashboard 应用，SPA 依然是最佳选择 (Next.js 也行，但 SPA 迁移成本低)。 |
+| **API 通信** | REST + Axios     | **tRPC**                         | **这是灵魂**。像调本地函数一样调后端，没有 API 文档，参数自动校验。 |
+| **UI 库**    | Ant Design       | **Tailwind CSS + shadcn/ui**     | AntD 太重且风格固化。shadcn/ui 基于 Tailwind，极其轻量、可定制，颜值更高，是目前的业界标准。 |
+| **数据库**   | SQLite (raw SQL) | **Drizzle ORM + SQLite (Turso)** | 手写 SQL 容易出错。Drizzle 是目前最轻、最快、TS 支持最好的 ORM。Turso 是基于 SQLite 的边缘数据库，支持云同步。 |
+| **状态管理** | Zustand          | **TanStack Query + Zustand**     | 用 Query 管理服务端数据 (缓存、自动刷新)，用 Zustand 管理纯前端状态 (如播放器进度)。 |
+| **运行时**   | Node.js          | **Node.js (Fastify) 或 Bun**     | Express 有点老了。Fastify 更快，tRPC 对其支持很好。Bun 则是一体化工具链。 |
+
+------
+
+### 2. 项目结构：Monorepo (单体仓库)
+
+我会把项目结构设计成一个 **pnpm workspace**，把核心逻辑抽离出来。
+
+Plaintext
+
+```
+root/
+├── package.json
+├── pnpm-workspace.yaml
+├── turbo.json              // 任务编排
+├── apps/
+│   ├── web/                // 前端 (React + Vite)
+│   └── server/             // 后端 (Node + tRPC)
+└── packages/
+    ├── shared/             // 前后端共用的类型 (Article, User 等)
+    ├── logic/              // 核心业务逻辑 (你的 textProcessor.js 放这里！)
+    ├── db/                 // 数据库 Schema 和 Drizzle 配置
+    └── ui/                 // 自定义的 UI 组件库 (基于 shadcn)
+```
+
+**设计亮点：**
+
+- **`packages/logic`**：你的 `textProcessor.js`（分词、正则、挖空逻辑）是纯计算逻辑。把它放在这里，前端可以直接引用做实时预览，后端也可以引用做预处理。**一份代码，两端运行**。
+
+------
+
+### 3. 核心功能重构思路
+
+#### A. API 层：tRPC + Zod (抛弃防御性编程)
+
+以前你需要在 Controller 里写大量 if (!req.body.title) return error。
+
+现在，利用 Zod 进行运行时校验：
+
+TypeScript
+
+```
+// server/routers/article.ts
+export const articleRouter = t.router({
+  create: t.procedure
+    .input(z.object({
+      title: z.string().min(1, "标题不能为空"),
+      content: z.string().min(20, "文章太短了"),
+      tags: z.array(z.string()).optional()
+    }))
+    .mutation(async ({ input, ctx }) => {
+      // 这里的 input 已经被严格校验，且类型完备
+      return ctx.db.insert(articles).values(input);
+    })
+});
+```
+
+#### B. 数据层：Drizzle ORM (类型即数据库)
+
+不再手写 SQL 字符串。定义 Schema 即定义类型。
+
+TypeScript
+
+```
+// packages/db/schema.ts
+export const articles = sqliteTable('user_articles', {
+  id: integer('id').primaryKey(),
+  title: text('title').notNull(),
+  content: text('content').notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp' }).defaultNow(),
+});
+```
+
+#### C. UI 层：shadcn/ui (高颜值的保证)
+
+你的 Sola 目前界面偏“工程师风”。使用 **shadcn/ui** 可以立刻获得类似 Vercel/Notion 的设计质感。
+
+- 它不是一个组件库，而是复制代码到你的项目里，你可以随意修改。
+- 结合 `Tailwind CSS`，你可以轻松实现深色模式、响应式布局。
+
+**改造你的播放器：**
+
+TypeScript
+
+```
+// 不再写 style={{...}}
+<div className="flex items-center gap-2 p-4 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200">
+  <Button variant="ghost" size="icon">
+    <PlayIcon className="h-6 w-6 text-primary" />
+  </Button>
+  <ProgressBar value={currentProgress} className="h-2" />
+</div>
+```
+
+#### D. UI 基建规范：Mobile-First，同时兼顾桌面
+
+为了把“移动端体验”打磨到极致，同时保证桌面端效率，我会把 UI 基建明确成可执行的工程规则（并沉淀到 `@sola/ui`）。
+
+**断点与布局策略：**
+
+- Mobile-first：默认样式就是移动端样式。
+- `md`（>=768px）：开始出现桌面布局（Sidebar、多列/更宽内容）。
+- `lg`（>=1024px）：提高桌面密度（更宽容器、更复杂布局）。
+
+**组件使用边界（强约束）：**
+
+- 业务代码不直接使用 Radix / Vaul primitives。
+- 业务一律从 `@sola/ui` 引用（例如 `Button` / `AppShell` / `ResponsiveOverlay`），由封装层统一处理样式、可访问性与交互一致性。
+
+**Tokens 与样式约束：**
+
+- 统一使用 shadcn 的 CSS Variables（`--background` / `--foreground` / `--radius`…）+ Tailwind 映射。
+- 新增设计 token：先扩展 CSS variables，再扩展 Tailwind（避免业务里出现“私有颜色体系”）。
+
+**触控与移动端体验：**
+
+- 触控最小高度建议 `44px`（按钮/导航等高频交互区域尽量不小于 `h-11`）。
+- 启用 `touch-action: manipulation`，减少移动端点击延迟。
+
+**Safe Area（刘海屏/圆角屏）与固定区域：**
+
+- `viewport-fit=cover` 允许内容进入刘海区域。
+- 固定底部区域（BottomNav、Drawer）必须包含 `pb-safe`，页面容器可用 `p-safe` 系列工具类。
+
+**滚动策略：**
+
+- 页面整体维持单一主滚动容器（通常是 `main`），固定结构（Header/Sidebar/BottomNav）与主滚动分离，减少 iOS 回弹/焦点滚动异常。
+
+**统一的响应式弹层（业务只写一套）：**
+
+- `md-`：Drawer（底部弹出，触控友好）
+- `md+`：Dialog（居中对话框，键盘/焦点管理更好）
+
+示例（业务侧只写一套）：
+
+```tsx
+<AppShell ...>
+  <ResponsiveOverlay title="Title" description="Desc">
+    <div>Shared content</div>
+  </ResponsiveOverlay>
+</AppShell>
+```
+
+------
+
+### 4. 部署与运维：Docker 化与 CI/CD
+
+我会抛弃 `oneclick-deploy.sh` 这种手动脚本，转向 **容器化**。
+
+1. **Docker**：编写一个 `Dockerfile`，利用多阶段构建 (Multi-stage build)，产出一个极小的 Image。
+2. **Github Actions**：
+   - 代码推送到 `main` 分支 -> 自动运行 `tsc` 检查类型 -> 自动构建 Docker 镜像 -> 自动推送到你的服务器 (或者阿里云/AWS)。
+   - **数据库迁移**：在 CI 流程中自动运行 `drizzle-kit migrate`，再也不用手动去生产环境改表结构。
+
+### 5. AI 能力集成 (面向未来)
+
+既然叫 Sola (Lens)，未来肯定要加强 AI。
+
+我会引入 Vercel AI SDK（即使你不用 Vercel 部署也能用）。
+
+- **流式生成 (Streaming)**：当用户让 AI 解释语法时，不要等全部分析完再显示，而是像 ChatGPT 一样一个字一个字打出来。
+- **Edge TTS**：利用 Edge Functions 转发 Azure TTS 请求，隐藏真实 Key，且速度更快。
+
+------
+
+### 总结：你的行动路线图
+
+如果是我，我会按照这个顺序进行“现代化改造”：
+
+1. **地基**：初始化一个 **pnpm workspace**，引入 **TypeScript**。
+2. **搬运逻辑**：把 `textProcessor.js` 移动到 `packages/logic`，改写为 TS，并加上 **Vitest** 单元测试（保证正则永远不出错）。
+3. **重构后端**：初始化 **tRPC + Fastify**，用 **Drizzle** 替换手写 SQL。
+4. **重构前端**：引入 **Tailwind + shadcn/ui**，逐步替换 Ant Design 组件；用 `trpc-react` 替换 `axios`。
+5. **发布**：写好 `Dockerfile`，配置 CI/CD。
+
+这样做出来的项目，不仅现在好用，未来两三年内都会保持技术领先，且维护起来非常享受。
+</file>
+
+<file path="docs/业务设计文档.md">
+# WordLens 改造设计文档
+
+## 目的
+- 将现有“整段文本解析”改造为“句子为最小单元”的结构化存储与播放
+- 支持单词/短文导入、双语展示、AI 批量解释、TTS 复用与多种学习模式
+- 兼容后续多来源扩展（字幕/网页等）
+
+## 改造范围
+- 内容导入与切分
+- 句子与文章的数据结构
+- AI 解释与语音生成流程
+- 播放与学习模式配置
+- 商业化与额度策略（需求层已有，设计层提供实现落点）
+
+## 核心概念与定义
+- 文章（Article）：一段学习内容，来源类型可扩展
+- 句子（Sentence）：最小语块单位，单词/短语视为句子
+- 母语解释（Native Explanation）：句子的翻译或解释文本
+- 语音资源（TTS Asset）：外语或母语的语音文件
+
+## 功能流程设计
+### 1) 内容导入
+- 单词/短语：按换行切分为句子
+- 外语文章：按句子切分为句子列表，保留段落信息
+- 结果：生成文章 + 句子列表 + 排序号
+
+### 2) 母语解释生成
+- 单句生成：用户对某句触发 AI 解释
+- 全文生成：对整篇文章批量生成母语解释
+- 完成后以“母语 + 外语”对齐展示，可切换顺序
+
+### 3) 语音生成与复用
+- 播放前检查是否已有语音资源
+- 若不存在则生成并记录语音资源
+- 语速、音色作为语音复用的区分维度
+
+### 4) 学习模式
+- 全文循环 / 外语循环 / 单句循环 / 影子跟读
+- 可设置母语与外语朗读次数
+- 可设置句间停顿时间
+
+## 数据结构设计（逻辑层）
+### Users（现有 + 新增配置字段）
+- id
+- email
+- password_hash
+- native_language
+- target_language
+- ui_language
+- display_order（native_first / target_first）
+- playback_pause_ms
+- playback_native_repeat
+- playback_target_repeat
+- use_ai_user_key
+- use_tts_user_key
+- shadowing_speeds_json
+- user_tier（enum: free / vip）
+- ai_limit_month
+- ai_left
+- ai_reset_at
+- ai_ad_granted
+- ai_vip_bonus
+- tts_limit_month
+- tts_left
+- tts_reset_at
+- tts_ad_granted
+- tts_vip_bonus
+说明：ai_left/tts_left 为当前可用额度，包含基础额度与广告/VIP 赠送；ai_ad_granted/tts_ad_granted 为本月累计发放的广告额度，用于统计与风控。
+- study_total_ms
+- study_today_ms
+- study_today_date
+
+### UserArticles（现有 + 新增配置字段）
+- id
+- user_id
+- title
+- content
+- source_type（word_list / article / subtitle / web ）
+- native_language
+- target_language
+- display_order（native_first / target_first）
+- created_at
+- updated_at
+
+### user_article_sentences（改造后新增）
+- id
+- article_id
+- order_index
+- paragraph_index
+- target_text
+- native_text
+- created_at
+- updated_at
+
+### UserArticleSentenceTts（改造后新增）
+- id
+- user_id
+- sentence_id
+- language_code（如 zh-CN / en-US / fr-FR）
+- provider_type
+- voice_id
+- region
+- speed
+- cache_key
+- url
+- created_at
+- updated_at
+说明：cache_key 由 user_id + sentence_id + language_code + provider_type + voice_id + region + speed 生成，用于快速命中
+
+
+### PublicAiProviderConfig
+- id
+- provider_type
+- api_url
+- api_key
+- models（可用模型列表）
+- enabled
+- created_at
+- updated_at
+- 说明：api_url 为厂商 Base URL/Endpoint；api_key 为公共账号密钥
+
+### PublicTtsProviderConfig
+- id
+- provider_type
+- api_url
+- api_key
+- region
+- enabled
+- created_at
+- updated_at
+- 说明：api_url 为厂商 Base URL/Endpoint；api_key 为公共账号密钥
+
+### TtsVoiceCatalog
+- id
+- public_tts_provider_config_id
+- voice_id
+- lang
+- gender
+- name
+- created_at
+- updated_at
+- 说明：音色库，供公共与个人配置选择
+
+
+### UserAiProvider
+- id
+- user_id
+- public_ai_provider_config_id
+- models_json（可用模型列表）
+- is_default
+- created_at
+- updated_at
+- 说明：用户可配置多个 AI 服务商；自带 key 不落库，仅在客户端保存
+
+### UserTtsProvider
+- id
+- user_id
+- public_tts_provider_config_id
+- tts_voice_native
+- tts_voice_target
+- is_default
+- created_at
+- updated_at
+- 说明：用户可配置多个 TTS 服务商；自带 key 不落库，仅在客户端保存
+
+## 关键设计决策
+- 句子唯一性：句子全局 id + 文章内排序号，保证可复用与可排序
+- 段落保留：文章类保留 paragraph_index 以支持段落展示
+- 语音复用维度：语速 + 音色 + 语言 + 句子
+
+## 扩展性设计
+- 新来源只需新增解析器（字幕/网页等）
+- AI 厂商与 TTS 提供统一接口，便于切换
+
+## 商业化落点
+- 免费额度：每日配额 + 广告追加
+- VIP：自带 key + 月度额度包
+- 防薅：限频、限额、分离 AI/TTS 额度
+- 公共账号策略：先采用单一公共账号 + 用户额度隔离
+
+## 风险与应对
+- 前端存储 AI key：存在泄露风险，需要后续迁移到服务端代理
+- AI 成本波动：需明确额度与复用策略
+- 句子切分不准确：需允许用户手动调整或二次拆分
+
+## 交付清单
+- 需求对应功能列表
+- 逻辑数据模型
+- 用户流程与播放规则
+- 商业化策略与风控要点
+
+## 行动计划（循序渐进）
+1) 数据结构打底：调整 Users/UserArticles 字段设计，确认新增表结构与字段命名
+2) 内容落库拆分：实现按句子切分写入 UserArticleSentences，并保留段落索引
+3) AI 解释流程：接入 AI 配置与用户选择，支持单句/全文生成母语解释
+4) TTS 缓存命中：按 cache_key 查找 UserArticleSentenceTts，未命中才生成与落库
+5) 播放与学习模式：实现变速、循环、影子跟读，并读取用户偏好
+6) 商业化与额度：接入月度额度与广告/ VIP 赠送逻辑，完善限频与统计
+7) 迁移与兼容：处理旧数据（整段文本）到新结构的迁移策略
+</file>
+
+<file path="docs/业务需求文档.md">
+# Sola 需求文档
+
+## 目标
+- 帮助用户用极简流程进行外语单词与句子跟读和记忆
+- 支持变速跟读与循环练习
+- 支持从单词列表或短文快速导入并生成双语内容
+
+## 核心理念
+- 用户输入尽可能简单：一段外语文本即可开始学习
+- 语块最小单位是“句子”，单词视为只有一个词的句子
+- 学习内容以“母语 + 外语”成对展示，便于理解与跟读
+
+## 用户角色与语言
+- 用户可以设置母语与目标学习语言
+- 界面默认使用母语显示，且允许用户在设置中调整
+
+## 内容创建与导入
+### 1.单词短语类
+- 用户直接录入单词、短语
+- 按换行切分
+- 用户可一键生成母语解释，形成双语展示
+
+### 2. 纯外语文章导入
+- 用户输入纯外语文章
+- 系统按句子切分
+- 用户可一键生成母语解释，形成双语展示
+- 句子切分需考虑真实文本中的特殊情况（如缩写、专有名词等）
+- 句子切分优先采用成熟的 NLP 方案而非简单正则
+
+
+### 3. 来源扩展
+- 后续可扩展导入方式（如字幕、网页等）
+- 扩展不改变已有使用习惯
+
+## 句子与排序
+- 每条句子都有唯一标识
+- 句子保留原始顺序，便于复习与播放
+- 支持在列表中按顺序浏览与播放
+
+## 翻译与母语解释
+- 外语句子可一键生成母语解释
+- 生成后以“母语 + 外语”对齐展示
+- 允许用户调整展示顺序（母语在前或外语在前）
+- 支持对单个句子或全文进行母语解释生成
+- 暂时支持火山引擎、阿里千问、OpenAI、Gemini、Aihubmix 五大 AI 厂商
+- AI 秘钥存储在客户端，用于保障安全性
+
+## 语音播放与复用
+- 支持外语与母语的语音播放
+- 支持语速调节与循环播放
+- 若已生成语音，可直接复用，无需重复生成
+- Azure TTS 支持母语与外语音色选择，并提供试听功能
+
+## 学习体验
+- 用户可以按顺序或循环播放句子
+- 支持变速跟读
+- 展示内容简洁、清晰、可快速进入练习
+- 支持全文循环、外语循环、单句循环与影子跟读
+- 支持设置母语与外语朗读次数
+- 支持设置每句之间的停顿时间
+
+## 展示规则
+- 对话类与单词类：按句子换行展示
+- 文章类：保留原有段落格式展示
+
+## 商业化策略
+- 默认面向大众用户，提供每日免费额度
+- 观看广告可获得额外额度
+- 极客用户可开通 VIP，自带 AI/TTS key 使用
+- VIP 用户同时获得系统赠送的月度额度包（如每月 TTS 字符额度）
+
+## 防止滥用策略
+- 免费额度与广告额度有每日上限与领取次数限制
+- 对高频调用进行限制，避免刷量
+- AI 翻译与 TTS 额度分开管理，防止互相挤占成本
+
+## 非目标
+- 当前阶段不包含复杂的学习统计或社交功能
+- 当前阶段不强调多端同步与高级编辑
+</file>
+
+<file path="apps/server/src/index.ts">
+import cors from "@fastify/cors"
+import Fastify from "fastify"
+import { fastifyTRPCPlugin } from "@trpc/server/adapters/fastify"
+import type { CreateFastifyContextOptions } from "@trpc/server/adapters/fastify"
+
+import { appRouter, type Context } from "@sola/api"
+
+const server = Fastify({
+  logger: true,
+})
+
+await server.register(cors, {
+  origin: true,
+  credentials: true,
+})
+
+await server.register(fastifyTRPCPlugin, {
+  prefix: "/trpc",
+  trpcOptions: {
+    router: appRouter,
+    createContext: ({ req, res }: CreateFastifyContextOptions): Context => ({
+      req: req.raw,
+      res: res.raw,
+    }),
+  },
+})
+
+await server.listen({
+  port: 6001,
+  host: "0.0.0.0",
+})
+</file>
+
+<file path="apps/server/package.json">
+{
+  "name": "@sola/server",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/index.js",
+    "lint": "node -e \"console.log('apps/server lint: not configured yet')\"",
+    "type-check": "tsc -p tsconfig.json",
+    "typecheck": "pnpm run type-check"
+  },
+  "dependencies": {
+    "@sola/api": "workspace:*",
+    "@fastify/cors": "^11.2.0",
+    "@trpc/server": "^10.45.3",
+    "fastify": "^5.6.2",
+    "zod": "^4.1.13"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}
+</file>
+
+<file path="apps/server/tsconfig.build.json">
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "outDir": "./dist",
+    "sourceMap": true
+  }
+}
+</file>
+
+<file path="apps/server/tsconfig.json">
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "types": ["node"]
+  },
+  "include": ["src"]
+}
+</file>
+
+<file path="apps/web/public/vite.svg">
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" aria-hidden="true" role="img" class="iconify iconify--logos" width="31.88" height="32" preserveAspectRatio="xMidYMid meet" viewBox="0 0 256 257"><defs><linearGradient id="IconifyId1813088fe1fbc01fb466" x1="-.828%" x2="57.636%" y1="7.652%" y2="78.411%"><stop offset="0%" stop-color="#41D1FF"></stop><stop offset="100%" stop-color="#BD34FE"></stop></linearGradient><linearGradient id="IconifyId1813088fe1fbc01fb467" x1="43.376%" x2="50.316%" y1="2.242%" y2="89.03%"><stop offset="0%" stop-color="#FFEA83"></stop><stop offset="8.333%" stop-color="#FFDD35"></stop><stop offset="100%" stop-color="#FFA800"></stop></linearGradient></defs><path fill="url(#IconifyId1813088fe1fbc01fb466)" d="M255.153 37.938L134.897 252.976c-2.483 4.44-8.862 4.466-11.382.048L.875 37.958c-2.746-4.814 1.371-10.646 6.827-9.67l120.385 21.517a6.537 6.537 0 0 0 2.322-.004l117.867-21.483c5.438-.991 9.574 4.796 6.877 9.62Z"></path><path fill="url(#IconifyId1813088fe1fbc01fb467)" d="M185.432.063L96.44 17.501a3.268 3.268 0 0 0-2.634 3.014l-5.474 92.456a3.268 3.268 0 0 0 3.997 3.378l24.777-5.718c2.318-.535 4.413 1.507 3.936 3.838l-7.361 36.047c-.495 2.426 1.782 4.5 4.151 3.78l15.304-4.649c2.372-.72 4.652 1.36 4.15 3.788l-11.698 56.621c-.732 3.542 3.979 5.473 5.943 2.437l1.313-2.028l72.516-144.72c1.215-2.423-.88-5.186-3.54-4.672l-25.505 4.922c-2.396.462-4.435-1.77-3.759-4.114l16.646-57.705c.677-2.35-1.37-4.583-3.769-4.113Z"></path></svg>
+</file>
+
+<file path="apps/web/src/assets/react.svg">
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" aria-hidden="true" role="img" class="iconify iconify--logos" width="35.93" height="32" preserveAspectRatio="xMidYMid meet" viewBox="0 0 256 228"><path fill="#00D8FF" d="M210.483 73.824a171.49 171.49 0 0 0-8.24-2.597c.465-1.9.893-3.777 1.273-5.621c6.238-30.281 2.16-54.676-11.769-62.708c-13.355-7.7-35.196.329-57.254 19.526a171.23 171.23 0 0 0-6.375 5.848a155.866 155.866 0 0 0-4.241-3.917C100.759 3.829 77.587-4.822 63.673 3.233C50.33 10.957 46.379 33.89 51.995 62.588a170.974 170.974 0 0 0 1.892 8.48c-3.28.932-6.445 1.924-9.474 2.98C17.309 83.498 0 98.307 0 113.668c0 15.865 18.582 31.778 46.812 41.427a145.52 145.52 0 0 0 6.921 2.165a167.467 167.467 0 0 0-2.01 9.138c-5.354 28.2-1.173 50.591 12.134 58.266c13.744 7.926 36.812-.22 59.273-19.855a145.567 145.567 0 0 0 5.342-4.923a168.064 168.064 0 0 0 6.92 6.314c21.758 18.722 43.246 26.282 56.54 18.586c13.731-7.949 18.194-32.003 12.4-61.268a145.016 145.016 0 0 0-1.535-6.842c1.62-.48 3.21-.974 4.76-1.488c29.348-9.723 48.443-25.443 48.443-41.52c0-15.417-17.868-30.326-45.517-39.844Zm-6.365 70.984c-1.4.463-2.836.91-4.3 1.345c-3.24-10.257-7.612-21.163-12.963-32.432c5.106-11 9.31-21.767 12.459-31.957c2.619.758 5.16 1.557 7.61 2.4c23.69 8.156 38.14 20.213 38.14 29.504c0 9.896-15.606 22.743-40.946 31.14Zm-10.514 20.834c2.562 12.94 2.927 24.64 1.23 33.787c-1.524 8.219-4.59 13.698-8.382 15.893c-8.067 4.67-25.32-1.4-43.927-17.412a156.726 156.726 0 0 1-6.437-5.87c7.214-7.889 14.423-17.06 21.459-27.246c12.376-1.098 24.068-2.894 34.671-5.345a134.17 134.17 0 0 1 1.386 6.193ZM87.276 214.515c-7.882 2.783-14.16 2.863-17.955.675c-8.075-4.657-11.432-22.636-6.853-46.752a156.923 156.923 0 0 1 1.869-8.499c10.486 2.32 22.093 3.988 34.498 4.994c7.084 9.967 14.501 19.128 21.976 27.15a134.668 134.668 0 0 1-4.877 4.492c-9.933 8.682-19.886 14.842-28.658 17.94ZM50.35 144.747c-12.483-4.267-22.792-9.812-29.858-15.863c-6.35-5.437-9.555-10.836-9.555-15.216c0-9.322 13.897-21.212 37.076-29.293c2.813-.98 5.757-1.905 8.812-2.773c3.204 10.42 7.406 21.315 12.477 32.332c-5.137 11.18-9.399 22.249-12.634 32.792a134.718 134.718 0 0 1-6.318-1.979Zm12.378-84.26c-4.811-24.587-1.616-43.134 6.425-47.789c8.564-4.958 27.502 2.111 47.463 19.835a144.318 144.318 0 0 1 3.841 3.545c-7.438 7.987-14.787 17.08-21.808 26.988c-12.04 1.116-23.565 2.908-34.161 5.309a160.342 160.342 0 0 1-1.76-7.887Zm110.427 27.268a347.8 347.8 0 0 0-7.785-12.803c8.168 1.033 15.994 2.404 23.343 4.08c-2.206 7.072-4.956 14.465-8.193 22.045a381.151 381.151 0 0 0-7.365-13.322Zm-45.032-43.861c5.044 5.465 10.096 11.566 15.065 18.186a322.04 322.04 0 0 0-30.257-.006c4.974-6.559 10.069-12.652 15.192-18.18ZM82.802 87.83a323.167 323.167 0 0 0-7.227 13.238c-3.184-7.553-5.909-14.98-8.134-22.152c7.304-1.634 15.093-2.97 23.209-3.984a321.524 321.524 0 0 0-7.848 12.897Zm8.081 65.352c-8.385-.936-16.291-2.203-23.593-3.793c2.26-7.3 5.045-14.885 8.298-22.6a321.187 321.187 0 0 0 7.257 13.246c2.594 4.48 5.28 8.868 8.038 13.147Zm37.542 31.03c-5.184-5.592-10.354-11.779-15.403-18.433c4.902.192 9.899.29 14.978.29c5.218 0 10.376-.117 15.453-.343c-4.985 6.774-10.018 12.97-15.028 18.486Zm52.198-57.817c3.422 7.8 6.306 15.345 8.596 22.52c-7.422 1.694-15.436 3.058-23.88 4.071a382.417 382.417 0 0 0 7.859-13.026a347.403 347.403 0 0 0 7.425-13.565Zm-16.898 8.101a358.557 358.557 0 0 1-12.281 19.815a329.4 329.4 0 0 1-23.444.823c-7.967 0-15.716-.248-23.178-.732a310.202 310.202 0 0 1-12.513-19.846h.001a307.41 307.41 0 0 1-10.923-20.627a310.278 310.278 0 0 1 10.89-20.637l-.001.001a307.318 307.318 0 0 1 12.413-19.761c7.613-.576 15.42-.876 23.31-.876H128c7.926 0 15.743.303 23.354.883a329.357 329.357 0 0 1 12.335 19.695a358.489 358.489 0 0 1 11.036 20.54a329.472 329.472 0 0 1-11 20.722Zm22.56-122.124c8.572 4.944 11.906 24.881 6.52 51.026c-.344 1.668-.73 3.367-1.15 5.09c-10.622-2.452-22.155-4.275-34.23-5.408c-7.034-10.017-14.323-19.124-21.64-27.008a160.789 160.789 0 0 1 5.888-5.4c18.9-16.447 36.564-22.941 44.612-18.3ZM128 90.808c12.625 0 22.86 10.235 22.86 22.86s-10.235 22.86-22.86 22.86s-22.86-10.235-22.86-22.86s10.235-22.86 22.86-22.86Z"></path></svg>
+</file>
+
+<file path="apps/web/src/components/auth/AuthGuard.tsx">
+import * as React from "react"
+import { Navigate, useLocation } from "react-router-dom"
+
+import { trpc } from "@/lib/trpc"
+import { useAuthStore } from "@/stores/useAuthStore"
+
+type AuthGuardProps = {
+  children: React.ReactNode
+}
+
+export function AuthGuard({ children }: AuthGuardProps) {
+  const location = useLocation()
+  const setUser = useAuthStore((s) => s.setUser)
+  const isLoading = useAuthStore((s) => s.isLoading)
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+
+  const sessionQuery = trpc.auth.getSession.useQuery(undefined, {
+    retry: false,
+  })
+
+  React.useEffect(() => {
+    if (sessionQuery.status === "success") {
+      setUser(sessionQuery.data?.user ?? null)
+      useAuthStore.setState({ isLoading: false })
+    }
+    if (sessionQuery.status === "error") {
+      setUser(null)
+      useAuthStore.setState({ isLoading: false })
+    }
+  }, [sessionQuery.status, sessionQuery.data, setUser])
+
+  if (isLoading || sessionQuery.isLoading) {
+    return (
+      <div className="min-h-[50vh] flex items-center justify-center text-sm text-muted-foreground">
+        Checking session...
+      </div>
+    )
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <Navigate
+        to="/auth/login"
+        replace
+        state={{ from: location.pathname }}
+      />
+    )
+  }
+
+  return <>{children}</>
+}
+</file>
+
+<file path="apps/web/src/components/auth/LoginForm.tsx">
+import { zodResolver } from "@hookform/resolvers/zod"
+import { Link, useLocation, useNavigate } from "react-router-dom"
+import { useForm } from "react-hook-form"
+import { z } from "zod"
+
+import {
+  Button,
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+  Input,
+  toast,
+} from "@sola/ui"
+
+import { loginSchema } from "@/lib/schemas"
+import { trpc } from "@/lib/trpc"
+import { useAuthStore } from "@/stores/useAuthStore"
+
+export function LoginForm() {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const utils = trpc.useUtils()
+  const signIn = trpc.auth.signIn.useMutation({
+    onSuccess: async () => {
+      // Immediately sync session to avoid redirect loops (AuthGuard) and ensure navigation works.
+      const session = await utils.auth.getSession.fetch().catch(() => null)
+      useAuthStore.getState().setUser(session?.user ?? null)
+      utils.auth.getSession.invalidate()
+      toast.success("Signed in")
+      const from = (location.state as { from?: string } | null)?.from
+      navigate(from || "/", { replace: true })
+    },
+    onError: (err) => {
+      toast.error(err.message)
+    },
+  })
+
+  const form = useForm<z.infer<typeof loginSchema>>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: { email: "", password: "" },
+    mode: "onBlur",
+  })
+
+  const onSubmit = form.handleSubmit((data) => {
+    console.log(data)
+    signIn.mutate(data)
+  })
+
+  return (
+    <Form {...form}>
+      <form onSubmit={onSubmit} className="space-y-4">
+        <FormField
+          control={form.control}
+          name="email"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Email</FormLabel>
+              <FormControl>
+                <Input
+                  placeholder="you@example.com"
+                  autoComplete="email"
+                  inputMode="email"
+                  {...field}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="password"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Password</FormLabel>
+              <FormControl>
+                <Input type="password" autoComplete="current-password" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <Button
+          type="submit"
+          className="w-full"
+          disabled={form.formState.isSubmitting || signIn.isPending}
+        >
+          Sign in
+        </Button>
+
+        <div className="text-sm text-muted-foreground text-center">
+          Don't have an account?{" "}
+          <Link to="/auth/sign-up" className="text-foreground underline underline-offset-4">
+            Sign up
+          </Link>
+        </div>
+      </form>
+    </Form>
+  )
+}
+</file>
+
+<file path="apps/web/src/components/auth/SignUpForm.tsx">
+import { zodResolver } from "@hookform/resolvers/zod"
+import { Link, useNavigate } from "react-router-dom"
+import { useForm } from "react-hook-form"
+import { z } from "zod"
+
+import {
+  Button,
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+  Input,
+  toast,
+} from "@sola/ui"
+
+import { signUpSchema } from "@/lib/schemas"
+import { trpc } from "@/lib/trpc"
+
+export function SignUpForm() {
+  const navigate = useNavigate()
+  const signUp = trpc.auth.signUp.useMutation({
+    onSuccess: () => {
+      toast.success("Account created. Check your email to verify.")
+      navigate("/auth/login", { replace: true })
+    },
+    onError: (err) => {
+      toast.error(err.message)
+    },
+  })
+
+  const form = useForm<z.infer<typeof signUpSchema>>({
+    resolver: zodResolver(signUpSchema),
+    defaultValues: { name: "", email: "", password: "" },
+    mode: "onChange",
+  })
+
+  const onSubmit = form.handleSubmit((data) => {
+    console.log(data)
+    signUp.mutate(data)
+  })
+
+  return (
+    <Form {...form}>
+      <form onSubmit={onSubmit} className="space-y-4">
+        <FormField
+          control={form.control}
+          name="name"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Name</FormLabel>
+              <FormControl>
+                <Input placeholder="Your name" autoComplete="name" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="email"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Email</FormLabel>
+              <FormControl>
+                <Input
+                  placeholder="you@example.com"
+                  autoComplete="email"
+                  inputMode="email"
+                  {...field}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="password"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Password</FormLabel>
+              <FormControl>
+                <Input type="password" autoComplete="new-password" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <Button
+          type="submit"
+          className="w-full"
+          disabled={form.formState.isSubmitting || signUp.isPending}
+        >
+          Create account
+        </Button>
+
+        <div className="text-sm text-muted-foreground text-center">
+          Already have an account?{" "}
+          <Link to="/auth/login" className="text-foreground underline underline-offset-4">
+            Sign in
+          </Link>
+        </div>
+      </form>
+    </Form>
+  )
+}
+</file>
+
+<file path="apps/web/src/components/GlobalPlayer.tsx">
+import { Button, Card, CardContent } from "@sola/ui"
+
+import { usePlayerStore } from "@/stores/usePlayerStore"
+
+export function GlobalPlayer() {
+  const currentArticleId = usePlayerStore((state) => state.currentArticleId)
+  const isPlaying = usePlayerStore((state) => state.isPlaying)
+  const { pause, play } = usePlayerStore((state) => state.actions)
+
+  if (currentArticleId == null) return null
+
+  return (
+    <div className="fixed inset-x-0 bottom-16 md:bottom-0 z-50 pb-safe">
+      <div className="mx-auto w-full max-w-2xl p-3">
+        <Card className="shadow-lg">
+          <CardContent className="flex items-center justify-between gap-3 py-3">
+            <div className="min-w-0">
+              <div className="text-sm font-medium truncate">
+                Playing Article: {currentArticleId}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {isPlaying ? "Playing" : "Paused"}
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              onClick={() => {
+                if (isPlaying) pause()
+                else play(currentArticleId)
+              }}
+            >
+              {isPlaying ? "Pause" : "Play"}
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  )
+}
+</file>
+
+<file path="apps/web/src/layout/AppLayout.tsx">
+import { Link, Outlet, useLocation } from "react-router-dom"
+
+import { AppShell } from "@sola/ui"
+
+import { GlobalPlayer } from "@/components/GlobalPlayer"
+
+const navItems = [
+  { to: "/dashboard", label: "Dashboard" },
+  { to: "/articles", label: "Articles" },
+  { to: "/settings", label: "Settings" },
+]
+
+export function AppLayout() {
+  const { pathname } = useLocation()
+
+  return (
+    <AppShell
+      brand="Sola"
+      navItems={navItems}
+      pathname={pathname}
+      LinkComponent={Link}
+      header={<div className="text-sm text-muted-foreground">Mobile-first UI</div>}
+    >
+      <Outlet />
+      <GlobalPlayer />
+    </AppShell>
+  )
+}
+</file>
+
+<file path="apps/web/src/lib/auth-types.ts">
+import type { AppRouter } from "@sola/api"
+import type { inferRouterOutputs } from "@trpc/server"
+
+type RouterOutput = inferRouterOutputs<AppRouter>
+
+export type AuthSession = RouterOutput["auth"]["getSession"]
+export type User = NonNullable<AuthSession>["user"]
+</file>
+
+<file path="apps/web/src/lib/schemas.ts">
+import { z } from "zod"
+
+export const loginSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(1),
+})
+
+export const signUpSchema = z.object({
+  name: z.string().min(2),
+  email: z.string().email(),
+  password: z.string().min(1),
+})
+</file>
+
+<file path="apps/web/src/lib/trpc.ts">
+import { createTRPCReact } from "@trpc/react-query"
+
+import type { AppRouter } from "@sola/api"
+
+export const trpc = createTRPCReact<AppRouter>()
+</file>
+
+<file path="apps/web/src/lib/utils.ts">
+export { cn } from "@sola/ui"
+</file>
+
+<file path="apps/web/src/pages/auth/AuthLayout.tsx">
+import { Outlet } from "react-router-dom"
+
+export function AuthLayout() {
+  return (
+    <div className="min-h-screen bg-zinc-50 flex items-center justify-center p-6">
+      <div className="w-full max-w-sm">
+        <Outlet />
+      </div>
+    </div>
+  )
+}
+</file>
+
+<file path="apps/web/src/pages/auth/LoginPage.tsx">
+import { Card, CardContent, CardHeader, CardTitle } from "@sola/ui"
+
+import { LoginForm } from "@/components/auth/LoginForm"
+
+export function LoginPage() {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Sign in</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <LoginForm />
+      </CardContent>
+    </Card>
+  )
+}
+</file>
+
+<file path="apps/web/src/pages/auth/SignUpPage.tsx">
+import { Card, CardContent, CardHeader, CardTitle } from "@sola/ui"
+
+import { SignUpForm } from "@/components/auth/SignUpForm"
+
+export function SignUpPage() {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Create account</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <SignUpForm />
+      </CardContent>
+    </Card>
+  )
+}
+</file>
+
+<file path="apps/web/src/pages/ArticleList.tsx">
+export function ArticleList() {
+  return (
+    <div className="mx-auto w-full max-w-2xl space-y-2">
+      <h1 className="text-2xl font-semibold">Articles</h1>
+      <p className="text-sm text-muted-foreground">Placeholder page.</p>
+    </div>
+  )
+}
+</file>
+
+<file path="apps/web/src/pages/DashboardPage.tsx">
+import * as React from "react"
+
+import { Button, ResponsiveOverlay } from "@sola/ui"
+
+import { trpc } from "@/lib/trpc"
+import { usePlayerStore } from "@/stores/usePlayerStore"
+
+export function DashboardPage() {
+  const { data, isLoading } = trpc.health.useQuery()
+  const [overlayOpen, setOverlayOpen] = React.useState(false)
+  const { play } = usePlayerStore((state) => state.actions)
+
+  return (
+    <div className="mx-auto w-full max-w-2xl space-y-6">
+      <div className="space-y-2">
+        <h1 className="text-2xl font-semibold">Dashboard</h1>
+        <p className="text-sm text-muted-foreground">
+          tRPC health check + responsive overlay demo.
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <Button className="bg-blue-500 hover:bg-blue-700" disabled={isLoading}>
+          {isLoading ? "Connecting..." : data}
+        </Button>
+        <Button variant="outline" type="button" onClick={() => setOverlayOpen(true)}>
+          Open Responsive Overlay
+        </Button>
+        <Button type="button" variant="secondary" onClick={() => play(1)}>
+          Play Demo Article #1
+        </Button>
+      </div>
+
+      <ResponsiveOverlay
+        open={overlayOpen}
+        onOpenChange={setOverlayOpen}
+        title="ResponsiveOverlay"
+        description="Mobile uses Drawer; desktop uses Dialog."
+      >
+        <div className="space-y-2 text-sm">
+          <p>This content is shared across breakpoints.</p>
+          <p className="text-muted-foreground">
+            Try resizing the window to see Drawer/Dialog switch at <code>md</code>.
+          </p>
+        </div>
+      </ResponsiveOverlay>
+    </div>
+  )
+}
+</file>
+
+<file path="apps/web/src/pages/SettingsPage.tsx">
+import { Button, Card, CardContent, CardHeader, CardTitle } from "@sola/ui"
+
+import { trpc } from "@/lib/trpc"
+
+function formatUserAgent(userAgent: string | null | undefined) {
+  if (!userAgent) return "Unknown device"
+  const short = userAgent.replace(/\s+/g, " ").trim()
+  return short.length > 48 ? `${short.slice(0, 48)}…` : short
+}
+
+function formatTime(ms: number) {
+  try {
+    return new Date(ms).toLocaleString()
+  } catch {
+    return String(ms)
+  }
+}
+
+export function SettingsPage() {
+  const utils = trpc.useUtils()
+  const { data, isLoading, isError } = trpc.auth.getMySessions.useQuery()
+  const signOutOtherDevices = trpc.auth.signOutOtherDevices.useMutation({
+    onSuccess: async () => {
+      await utils.auth.getMySessions.invalidate()
+    },
+  })
+
+  const sessions = data ?? []
+
+  return (
+    <div className="mx-auto w-full max-w-2xl space-y-6">
+      <h1 className="text-2xl font-semibold">Settings</h1>
+
+      <Card>
+        <CardHeader className="space-y-1">
+          <CardTitle>Device Management</CardTitle>
+          <p className="text-sm text-muted-foreground">Active Devices (Max 3)</p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-end">
+            <Button
+              variant="outline"
+              disabled={signOutOtherDevices.isPending || sessions.length === 0}
+              onClick={() => signOutOtherDevices.mutate()}
+            >
+              Sign out other devices
+            </Button>
+          </div>
+
+          {isLoading ? (
+            <p className="text-sm text-muted-foreground">Loading devices…</p>
+          ) : isError ? (
+            <p className="text-sm text-destructive">Failed to load devices.</p>
+          ) : sessions.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No active sessions.</p>
+          ) : (
+            <div className="space-y-3">
+              {sessions.map((session) => (
+                <div
+                  key={session.id}
+                  className="flex items-start justify-between gap-3 rounded-md border p-3"
+                >
+                  <div className="min-w-0 space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">Device</span>
+                      {session.isCurrent ? (
+                        <span className="rounded bg-primary/10 px-2 py-0.5 text-xs text-primary">
+                          Current
+                        </span>
+                      ) : null}
+                    </div>
+                    <p className="break-words text-sm text-muted-foreground">
+                      {formatUserAgent(session.userAgent)}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Signed in: {formatTime(session.createdAt)}
+                    </p>
+                  </div>
+
+                  <div className="text-right text-xs text-muted-foreground">
+                    {session.ipAddress ? <div>IP: {session.ipAddress}</div> : <div>IP: —</div>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+</file>
+
+<file path="apps/web/src/stores/useAuthStore.ts">
+import { create } from "zustand"
+
+import type { User } from "@/lib/auth-types"
+
+interface AuthState {
+  user: User | null
+  isAuthenticated: boolean
+  isLoading: boolean
+  setUser: (user: User | null) => void
+  checkSession: () => Promise<void>
+  logout: () => Promise<void>
+}
+
+export const useAuthStore = create<AuthState>((set) => ({
+  user: null,
+  isAuthenticated: false,
+  isLoading: true,
+
+  setUser: (user) => set({ user, isAuthenticated: !!user }),
+
+  checkSession: async () => {
+    set({ isLoading: false })
+  },
+
+  logout: async () => {
+    set({ user: null, isAuthenticated: false })
+  },
+}))
+</file>
+
+<file path="apps/web/src/stores/usePlayerStore.ts">
+import { create } from "zustand"
+
+export interface PlayerState {
+  isPlaying: boolean
+  currentArticleId: number | null
+  volume: number
+  actions: {
+    play: (id: number) => void
+    pause: () => void
+    setVolume: (volume: number) => void
+  }
+}
+
+function clamp01(value: number) {
+  return Math.min(1, Math.max(0, value))
+}
+
+export const usePlayerStore = create<PlayerState>((set) => ({
+  isPlaying: false,
+  currentArticleId: null,
+  volume: 1,
+  actions: {
+    play: (id) =>
+      set({
+        isPlaying: true,
+        currentArticleId: id,
+      }),
+    pause: () =>
+      set({
+        isPlaying: false,
+      }),
+    setVolume: (volume) =>
+      set({
+        volume: clamp01(volume),
+      }),
+  },
+}))
+</file>
+
+<file path="apps/web/src/App.css">
+#root {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+}
+
+.logo {
+  height: 6em;
+  padding: 1.5em;
+  will-change: filter;
+  transition: filter 300ms;
+}
+.logo:hover {
+  filter: drop-shadow(0 0 2em #646cffaa);
+}
+.logo.react:hover {
+  filter: drop-shadow(0 0 2em #61dafbaa);
+}
+
+@keyframes logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  a:nth-of-type(2) .logo {
+    animation: logo-spin infinite 20s linear;
+  }
+}
+
+.card {
+  padding: 2em;
+}
+
+.read-the-docs {
+  color: #888;
+}
+</file>
+
+<file path="apps/web/src/App.tsx">
+import { Navigate, Route, Routes } from "react-router-dom"
+
+import { AppLayout } from "./layout/AppLayout"
+import { ArticleList } from "./pages/ArticleList"
+import { DashboardPage } from "./pages/DashboardPage"
+import { SettingsPage } from "./pages/SettingsPage"
+import { AuthLayout } from "./pages/auth/AuthLayout"
+import { LoginPage } from "./pages/auth/LoginPage"
+import { SignUpPage } from "./pages/auth/SignUpPage"
+import { AuthGuard } from "./components/auth/AuthGuard"
+
+export default function App() {
+  return (
+    <Routes>
+      <Route
+        path="/"
+        element={
+          <AuthGuard>
+            <Navigate to="/dashboard" replace />
+          </AuthGuard>
+        }
+      />
+
+      <Route path="/auth" element={<AuthLayout />}>
+        <Route path="login" element={<LoginPage />} />
+        <Route path="sign-up" element={<SignUpPage />} />
+      </Route>
+
+      <Route element={<AuthGuard><AppLayout /></AuthGuard>}>
+        <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/articles" element={<ArticleList />} />
+        <Route path="/settings" element={<SettingsPage />} />
+      </Route>
+    </Routes>
+  )
+}
+</file>
+
+<file path="apps/web/src/index.css">
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+}
+
+html,
+body {
+  touch-action: manipulation;
+}
+
+img,
+a {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 3.9%;
+    --primary: 0 0% 9%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 0 0% 96.1%;
+    --secondary-foreground: 0 0% 9%;
+    --muted: 0 0% 96.1%;
+    --muted-foreground: 0 0% 45.1%;
+    --accent: 0 0% 96.1%;
+    --accent-foreground: 0 0% 9%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 89.8%;
+    --input: 0 0% 89.8%;
+    --ring: 0 0% 3.9%;
+    --chart-1: 12 76% 61%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+    --radius: 0.5rem;
+  }
+  .dark {
+    --background: 0 0% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 0 0% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 0 0% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 0 0% 9%;
+    --secondary: 0 0% 14.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 0 0% 14.9%;
+    --muted-foreground: 0 0% 63.9%;
+    --accent: 0 0% 14.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 14.9%;
+    --input: 0 0% 14.9%;
+    --ring: 0 0% 83.1%;
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+  }
+}
+
+
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+</file>
+
+<file path="apps/web/src/main.tsx">
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import { BrowserRouter } from "react-router-dom"
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { httpBatchLink } from '@trpc/client'
+import './index.css'
+import App from './App.tsx'
+import { trpc } from './lib/trpc'
+import { Toaster } from "@sola/ui"
+
+const queryClient = new QueryClient()
+const apiBaseUrl = import.meta.env.VITE_API_URL?.replace(/\/$/, "")
+const trpcClient = trpc.createClient({
+  links: [
+    httpBatchLink({
+      url: !import.meta.env.DEV && apiBaseUrl ? `${apiBaseUrl}/trpc` : "/trpc",
+      fetch(url, options) {
+        return fetch(url, {
+          ...options,
+          credentials: "include",
+        })
+      },
+    }),
+  ],
+})
+
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <BrowserRouter>
+      <trpc.Provider client={trpcClient} queryClient={queryClient}>
+        <QueryClientProvider client={queryClient}>
+          <App />
+          <Toaster />
+        </QueryClientProvider>
+      </trpc.Provider>
+    </BrowserRouter>
+  </StrictMode>,
+)
+</file>
+
+<file path="apps/web/.env.example">
+VITE_API_URL=http://localhost:6001
+BETTER_AUTH_TRUSTED_ORIGINS=http://a.com,https://b.com
+DEV=true
+</file>
+
+<file path="apps/web/.gitignore">
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+</file>
+
+<file path="apps/web/components.json">
+{
+  "$schema": "https://ui.shadcn.com/schema.json",
+  "style": "new-york",
+  "rsc": false,
+  "tsx": true,
+  "tailwind": {
+    "config": "tailwind.config.js",
+    "css": "src/index.css",
+    "baseColor": "neutral",
+    "cssVariables": true,
+    "prefix": ""
+  },
+  "iconLibrary": "lucide",
+  "aliases": {
+    "components": "@/components",
+    "utils": "@/lib/utils",
+    "ui": "@/components/ui",
+    "lib": "@/lib",
+    "hooks": "@/hooks"
+  },
+  "registries": {}
+}
+</file>
+
+<file path="apps/web/eslint.config.js">
+import js from '@eslint/js'
+import globals from 'globals'
+import reactHooks from 'eslint-plugin-react-hooks'
+import reactRefresh from 'eslint-plugin-react-refresh'
+import tseslint from 'typescript-eslint'
+import { defineConfig, globalIgnores } from 'eslint/config'
+
+export default defineConfig([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{ts,tsx}'],
+    extends: [
+      js.configs.recommended,
+      tseslint.configs.recommended,
+      reactHooks.configs.flat.recommended,
+      reactRefresh.configs.vite,
+    ],
+    languageOptions: {
+      ecmaVersion: 2020,
+      globals: globals.browser,
+    },
+  },
+])
+</file>
+
+<file path="apps/web/index.html">
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no"
+    />
+    <meta name="theme-color" content="#ffffff" />
+
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Sola" />
+    <title>Sola2</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+</file>
+
+<file path="apps/web/package.json">
+{
+  "name": "@sola/web",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "eslint .",
+    "type-check": "tsc -b",
+    "typecheck": "pnpm run type-check",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@hookform/resolvers": "^5.2.2",
+    "@sola/api": "workspace:*",
+    "@sola/ui": "workspace:*",
+    "@tanstack/react-query": "^4.42.0",
+    "@trpc/client": "^10.45.3",
+    "@trpc/react-query": "^10.45.3",
+    "@trpc/server": "^10.45.3",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-hook-form": "^7.68.0",
+    "react-router-dom": "^6.30.2",
+    "sonner": "^2.0.7",
+    "tailwindcss-animate": "^1.0.7",
+    "tailwindcss-safe-area": "^0.8.0",
+    "zod": "^4.1.13",
+    "zustand": "^5.0.9"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@types/node": "^24.10.1",
+    "@types/react": "^19.2.5",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.1",
+    "autoprefixer": "^10.4.23",
+    "eslint": "^9.39.1",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.4.24",
+    "globals": "^16.5.0",
+    "postcss": "^8.5.6",
+    "tailwindcss": "3.4.17",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.46.4",
+    "vite": "^7.2.4",
+    "vite-plugin-pwa": "^1.2.0"
+  }
+}
+</file>
+
+<file path="apps/web/postcss.config.js">
+export default {
+  plugins: {
+    tailwindcss: {},
+    autoprefixer: {},
+  },
+}
+</file>
+
+<file path="apps/web/README.md">
+# React + TypeScript + Vite
+
+This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+
+Currently, two official plugins are available:
+
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+
+## React Compiler
+
+The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+
+## Expanding the ESLint configuration
+
+If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+
+```js
+export default defineConfig([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{ts,tsx}'],
+    extends: [
+      // Other configs...
+
+      // Remove tseslint.configs.recommended and replace with this
+      tseslint.configs.recommendedTypeChecked,
+      // Alternatively, use this for stricter rules
+      tseslint.configs.strictTypeChecked,
+      // Optionally, add this for stylistic rules
+      tseslint.configs.stylisticTypeChecked,
+
+      // Other configs...
+    ],
+    languageOptions: {
+      parserOptions: {
+        project: ['./tsconfig.node.json', './tsconfig.app.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+      // other options...
+    },
+  },
+])
+```
+
+You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+
+```js
+// eslint.config.js
+import reactX from 'eslint-plugin-react-x'
+import reactDom from 'eslint-plugin-react-dom'
+
+export default defineConfig([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{ts,tsx}'],
+    extends: [
+      // Other configs...
+      // Enable lint rules for React
+      reactX.configs['recommended-typescript'],
+      // Enable lint rules for React DOM
+      reactDom.configs.recommended,
+    ],
+    languageOptions: {
+      parserOptions: {
+        project: ['./tsconfig.node.json', './tsconfig.app.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+      // other options...
+    },
+  },
+])
+```
+</file>
+
+<file path="apps/web/tailwind.config.js">
+/** @type {import('tailwindcss').Config} */
+import tailwindcssAnimate from "tailwindcss-animate"
+import safeArea from "tailwindcss-safe-area"
+
+export default {
+    darkMode: ['class'],
+    content: [
+      './index.html',
+      './src/**/*.{js,ts,jsx,tsx}',
+      '../../packages/ui/src/**/*.{js,ts,jsx,tsx}',
+    ],
+  theme: {
+  	extend: {
+  		borderRadius: {
+  			lg: 'var(--radius)',
+  			md: 'calc(var(--radius) - 2px)',
+  			sm: 'calc(var(--radius) - 4px)'
+  		},
+  		colors: {
+  			background: 'hsl(var(--background))',
+  			foreground: 'hsl(var(--foreground))',
+  			card: {
+  				DEFAULT: 'hsl(var(--card))',
+  				foreground: 'hsl(var(--card-foreground))'
+  			},
+  			popover: {
+  				DEFAULT: 'hsl(var(--popover))',
+  				foreground: 'hsl(var(--popover-foreground))'
+  			},
+  			primary: {
+  				DEFAULT: 'hsl(var(--primary))',
+  				foreground: 'hsl(var(--primary-foreground))'
+  			},
+  			secondary: {
+  				DEFAULT: 'hsl(var(--secondary))',
+  				foreground: 'hsl(var(--secondary-foreground))'
+  			},
+  			muted: {
+  				DEFAULT: 'hsl(var(--muted))',
+  				foreground: 'hsl(var(--muted-foreground))'
+  			},
+  			accent: {
+  				DEFAULT: 'hsl(var(--accent))',
+  				foreground: 'hsl(var(--accent-foreground))'
+  			},
+  			destructive: {
+  				DEFAULT: 'hsl(var(--destructive))',
+  				foreground: 'hsl(var(--destructive-foreground))'
+  			},
+  			border: 'hsl(var(--border))',
+  			input: 'hsl(var(--input))',
+  			ring: 'hsl(var(--ring))',
+  			chart: {
+  				'1': 'hsl(var(--chart-1))',
+  				'2': 'hsl(var(--chart-2))',
+  				'3': 'hsl(var(--chart-3))',
+  				'4': 'hsl(var(--chart-4))',
+  				'5': 'hsl(var(--chart-5))'
+  			}
+  		}
+  	}
+  },
+  plugins: [tailwindcssAnimate, safeArea],
+}
+</file>
+
+<file path="apps/web/tsconfig.app.json">
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+    "target": "ES2022",
+    "useDefineForClassFields": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+    "module": "ESNext",
+    "types": ["vite/client"],
+    "skipLibCheck": true,
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "jsx": "react-jsx",
+
+    /* Linting */
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true
+  },
+  "include": ["src"]
+}
+</file>
+
+<file path="apps/web/tsconfig.json">
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "files": [],
+  "references": [
+    { "path": "./tsconfig.app.json" },
+    { "path": "./tsconfig.node.json" }
+  ]
+}
+</file>
+
+<file path="apps/web/tsconfig.node.json">
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+    "module": "ESNext",
+    "types": ["node"],
+    "skipLibCheck": true,
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+
+    /* Linting */
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true
+  },
+  "include": ["vite.config.ts"]
+}
+</file>
+
+<file path="apps/web/vite.config.ts">
+import { defineConfig, loadEnv } from "vite"
+import react from '@vitejs/plugin-react'
+import { VitePWA } from "vite-plugin-pwa"
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+
+// https://vite.dev/config/
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), "")
+
+  return {
+    plugins: [
+      react(),
+      VitePWA({
+        registerType: "autoUpdate",
+        manifest: {
+          name: "Sola WordLens",
+          short_name: "Sola",
+          display: "standalone",
+          background_color: "#ffffff",
+          theme_color: "#ffffff",
+        },
+      }),
+    ],
+    resolve: {
+      alias: {
+        "@": path.resolve(__dirname, "./src"),
+      },
+    },
+    server: {
+      proxy: {
+        "/trpc": {
+          target: env.VITE_API_URL || "http://localhost:6001",
+          changeOrigin: true,
+          secure: false,
+        },
+      },
+    },
+  }
+})
+</file>
+
+<file path="docs/sola-workflow.md">
+```mermaid
+flowchart LR
+  U[User/Browser] --> W[apps/web<br/>React + Vite SPA]
+  W -->|tRPC over HTTP<br/>httpBatchLink| API[apps/server<br/>Fastify + tRPC]
+  API --> R[appRouter<br/>tRPC procedures]
+  R -->|returns JSON| W
+
+  W --> UI[packages/ui<br/>shadcnuiwrappers<br/>Radix/Vaul]
+  W --> S[packages/shared<br/>planned shared types]
+  R -.-> L[packages/logic<br/>planned domain logic]
+  R -.-> DBP[packagesdb<br/>planned Drizzle + SQLite/Turso]
+  DBP -.-> DB[(SQLiteTurso)]
+
+```
+</file>
+
+<file path="docs/ui-guidelines.md">
+# Sola UI Guidelines (Mobile-First + Desktop)
+
+本项目目标是 **移动端体验优先**，同时保证桌面 Web 的信息密度与效率。为避免风格漂移与交互割裂，业务开发需遵循以下 UI 基建规范。
+
+## 断点与布局策略
+
+- Mobile-first：默认样式即移动端样式。
+- `md`（>= 768px）：切换为桌面布局（Sidebar + 更宽的内容区）。
+- `lg`（>= 1024px）：允许提升桌面信息密度（更宽容器、多列）。
+
+推荐规则：
+- 仅在 `md+` 引入“永久可见”的桌面结构（Sidebar、表格多列等）。
+- 移动端优先保证：单列内容、触控友好（按钮/列表项更高、间距更大）。
+
+## 组件使用边界
+
+业务代码 **不直接使用** Radix / Vaul primitives：
+- ✅ 使用：`@sola/ui` 导出的封装组件（例如 `Button`、`ResponsiveOverlay`、`AppShell`）。
+- ❌ 禁止：在业务里直接 `import * as Dialog from "@radix-ui/react-dialog"` 或直接使用 `vaul`。
+
+目的：
+- 统一 API/样式/可访问性处理（focus、aria、滚动锁定等）
+- 方便后续整体替换/升级 primitives
+
+## Tokens 与样式约束
+
+- 颜色与圆角：沿用 shadcn 的 CSS Variables（`--background`、`--foreground`、`--radius`…）以及 Tailwind 映射。
+- 不在业务里写“新的一套颜色系统”。如果需要新增 token，先加到全局 CSS variables，再在 Tailwind 扩展。
+
+## 触控与可用性
+
+- 最小触控高度建议：`44px`（本项目 `Button` 默认高度为 `h-11`）。
+- 对“行项/按钮/导航”等高频交互区域：避免小于 `h-11`。
+- 移动端 `touch-action` 已全局设为 `manipulation`（减少点击延迟）。
+
+## Safe Area（刘海屏/圆角屏）
+
+- `index.html` 使用了 `viewport-fit=cover`，允许内容进入刘海区域。
+- Tailwind 已启用 safe-area utilities：
+  - 布局容器可使用 `p-safe` / `pt-safe` / `pb-safe` 等
+  - 底部固定区域（BottomNav、Drawer）务必包含 `pb-safe`
+
+## 滚动策略
+
+- 页面整体使用 **单一主滚动容器**（通常是 `main`）。
+- 固定区域（BottomNav / Header / Sidebar）与主滚动分离，避免 iOS 回弹与焦点滚动异常。
+
+## 响应式 Overlay：统一写法
+
+使用 `ResponsiveOverlay`，业务只写一套内容：
+- `md-`：Drawer（底部弹出，触控友好）
+- `md+`：Dialog（居中对话框，鼠标/键盘友好，焦点管理由 Radix 处理）
+
+示例（伪代码）：
+```tsx
+<ResponsiveOverlay
+  open={open}
+  onOpenChange={setOpen}
+  title="Title"
+  description="Desc"
+>
+  <div>Shared content</div>
+</ResponsiveOverlay>
+```
+
+## 新页面模板（建议）
+
+- 在 `apps/web` 中新增一个 `pageKey`，加入 `AppShell.navItems`
+- 页面内容保持 `max-w-*` 容器 + `space-y-*` 间距
+- 所有交互组件优先从 `@sola/ui` 引入
+</file>
+
+<file path="packages/api/src/routers/auth.ts">
+import { TRPCError } from "@trpc/server"
+import { and, asc, desc, eq, ne } from "drizzle-orm"
+import { z } from "zod"
+
+import { auth, applySetCookieHeaders } from "../auth.js"
+import { router, publicProcedure } from "../trpc.js"
+
+import { db, sessions, users } from "@sola/db"
+
+const authUserSchema = z
+  .object({
+    id: z.string(),
+    email: z.string().email(),
+    name: z.string(),
+    image: z.string().nullable().optional(),
+    emailVerified: z.boolean().optional(),
+    createdAt: z.unknown().optional(),
+    updatedAt: z.unknown().optional(),
+  })
+  .passthrough()
+
+const authSessionSchema = z.object({}).passthrough()
+
+const authSessionResponseSchema = z
+  .object({
+    session: authSessionSchema,
+    user: authUserSchema,
+  })
+  .nullable()
+
+async function requireAuthSession(ctx: {
+  req: import("node:http").IncomingMessage
+  res: import("node:http").ServerResponse
+}) {
+  const result = await callAuthEndpoint(ctx, "/get-session", { method: "GET" })
+  const parsed = authSessionResponseSchema.parse(result)
+  if (!parsed) {
+    throw new TRPCError({ code: "UNAUTHORIZED", message: "Not authenticated" })
+  }
+  return parsed
+}
+
+function toHeaders(input: import("node:http").IncomingHttpHeaders) {
+  const headers = new Headers()
+  for (const [key, value] of Object.entries(input)) {
+    if (value == null) continue
+    if (Array.isArray(value)) headers.set(key, value.join(","))
+    else headers.set(key, value)
+  }
+  return headers
+}
+
+function resolveAuthUrl(path: string) {
+  const baseURL = auth.options.baseURL ?? "http://localhost:6001"
+  const basePath = auth.options.basePath ?? "/api/auth"
+  const normalizedBase = baseURL.replace(/\/$/, "")
+  const normalizedPath = `${basePath.replace(/\/$/, "")}${path.startsWith("/") ? "" : "/"}${path}`
+  return `${normalizedBase}${normalizedPath}`
+}
+
+async function callAuthEndpoint<T>(
+  ctx: { req: import("node:http").IncomingMessage; res: import("node:http").ServerResponse },
+  path: string,
+  init: RequestInit & { json?: unknown } = {}
+): Promise<T> {
+  const headers = toHeaders(ctx.req.headers)
+
+  if (init.json !== undefined) {
+    headers.set("content-type", "application/json")
+  }
+
+  const request = new Request(resolveAuthUrl(path), {
+    method: init.method ?? "GET",
+    headers,
+    ...(init.json !== undefined
+      ? { body: JSON.stringify(init.json) }
+      : init.body !== undefined
+        ? { body: init.body }
+        : {}),
+  })
+
+  const response = await auth.handler(request)
+  applySetCookieHeaders(response, ctx.res)
+
+  const text = await response.text()
+  const data = text ? (JSON.parse(text) as unknown) : null
+
+  if (!response.ok) {
+    const message =
+      (data &&
+        typeof data === "object" &&
+        "message" in data &&
+        typeof (data as any).message === "string" &&
+        (data as any).message) ||
+      `Auth request failed (${response.status})`
+
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message,
+    })
+  }
+
+  return data as T
+}
+
+export const authRouter = router({
+  signUp: publicProcedure
+    .input(
+      z.object({
+        email: z.string().email(),
+        password: z.string().min(1),
+        name: z.string().min(1),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      return callAuthEndpoint(ctx, "/sign-up/email", {
+        method: "POST",
+        json: {
+          email: input.email,
+          password: input.password,
+          name: input.name,
+        },
+      })
+    }),
+
+  signIn: publicProcedure
+    .input(
+      z.object({
+        email: z.string().email(),
+        password: z.string().min(1),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      // Device limit (max 3 sessions): before creating a new session, evict the oldest one.
+      const user = await db.query.users
+        .findFirst({
+          where: eq(users.email, input.email),
+          columns: { id: true },
+        })
+        .execute()
+
+      if (user) {
+        const existing = await db.query.sessions
+          .findMany({
+            where: eq(sessions.userId, user.id),
+            orderBy: asc(sessions.createdAt),
+            columns: { id: true },
+          })
+          .execute()
+
+        if (existing.length >= 3) {
+          await db.delete(sessions).where(eq(sessions.id, existing[0]!.id)).run()
+        }
+      }
+
+      return callAuthEndpoint(ctx, "/sign-in/email", {
+        method: "POST",
+        json: {
+          email: input.email,
+          password: input.password,
+        },
+      })
+    }),
+
+  signOut: publicProcedure.mutation(async ({ ctx }) => {
+    return callAuthEndpoint(ctx, "/sign-out", {
+      method: "POST",
+    })
+  }),
+
+  getSession: publicProcedure
+    .output(authSessionResponseSchema)
+    .query(async ({ ctx }) => {
+      const result = await callAuthEndpoint(ctx, "/get-session", {
+        method: "GET",
+      })
+      return authSessionResponseSchema.parse(result)
+    }),
+
+  getMySessions: publicProcedure
+    .output(
+      z.array(
+        z.object({
+          id: z.string(),
+          ipAddress: z.string().nullable().optional(),
+          userAgent: z.string().nullable().optional(),
+          createdAt: z.number(),
+          isCurrent: z.boolean(),
+        })
+      )
+    )
+    .query(async ({ ctx }) => {
+      const session = await requireAuthSession(ctx)
+      const currentToken = (session.session as any)?.token as string | undefined
+
+      const rows = await db.query.sessions
+        .findMany({
+          where: eq(sessions.userId, session.user.id),
+          orderBy: desc(sessions.createdAt),
+        })
+        .execute()
+
+      return rows.map((row) => ({
+        id: row.id,
+        ipAddress: row.ipAddress ?? null,
+        userAgent: row.userAgent ?? null,
+        createdAt: row.createdAt instanceof Date ? row.createdAt.getTime() : Number(row.createdAt),
+        isCurrent: currentToken ? row.token === currentToken : false,
+      }))
+    }),
+
+  signOutOtherDevices: publicProcedure.mutation(async ({ ctx }) => {
+    const session = await requireAuthSession(ctx)
+    const currentToken = (session.session as any)?.token as string | undefined
+    if (!currentToken) {
+      throw new TRPCError({
+        code: "BAD_REQUEST",
+        message: "Unable to resolve current session token",
+      })
+    }
+
+    db.delete(sessions)
+      .where(and(eq(sessions.userId, session.user.id), ne(sessions.token, currentToken)))
+      .run()
+
+    return { ok: true }
+  }),
+})
+</file>
+
+<file path="packages/api/src/appRouter.ts">
+import { router, publicProcedure } from "./trpc.js"
+import { authRouter } from "./routers/auth.js"
+
+export const appRouter = router({
+  health: publicProcedure.query(() => "Sola API (Fastify) is running"),
+  auth: authRouter,
+})
+
+export type AppRouter = typeof appRouter
+</file>
+
+<file path="packages/api/src/auth.ts">
+import { betterAuth } from "better-auth"
+import { drizzleAdapter } from "better-auth/adapters/drizzle"
+
+import { db, users, sessions, accounts, verifications } from "@sola/db"
+
+const baseURL = process.env.BETTER_AUTH_URL ?? "http://localhost:6001"
+const basePath = process.env.BETTER_AUTH_BASE_PATH ?? "/api/auth"
+const secret =
+  process.env.BETTER_AUTH_SECRET ??
+  "better-auth-secret-that-is-long-enough-for-dev"
+
+const trustedOrigins = (() => {
+  const env = process.env.BETTER_AUTH_TRUSTED_ORIGINS
+  if (env) return env.split(",").map((s) => s.trim()).filter(Boolean)
+  if (process.env.NODE_ENV === "production") return undefined
+  return ["http://localhost:5173", "http://127.0.0.1:5173"]
+})()
+
+export const auth = betterAuth({
+  baseURL,
+  basePath,
+  secret,
+  trustedOrigins,
+  database: drizzleAdapter(db, {
+    provider: "sqlite",
+    schema: {
+      users,
+      sessions,
+      accounts,
+      verifications,
+    },
+    usePlural: true,
+    camelCase: true,
+  }),
+  emailAndPassword: {
+    enabled: true,
+    requireEmailVerification: false,
+    minPasswordLength: 1,
+  },
+  emailVerification: {
+    sendOnSignUp: true,
+    sendOnSignIn: true,
+    sendVerificationEmail: async ({ user, url, token }) => {
+      console.log("[BetterAuth] verification email (mock)", {
+        to: user.email,
+        url,
+        token,
+      })
+    },
+  },
+})
+
+export function applySetCookieHeaders(
+  response: Response,
+  res: import("node:http").ServerResponse
+) {
+  const anyHeaders = response.headers as unknown as {
+    getSetCookie?: () => string[]
+  }
+
+  const setCookies =
+    typeof anyHeaders.getSetCookie === "function"
+      ? anyHeaders.getSetCookie()
+      : (() => {
+          const header = response.headers.get("set-cookie")
+          return header ? [header] : []
+        })()
+
+  if (setCookies.length === 0) return
+
+  const existing = res.getHeader("set-cookie")
+  if (!existing) {
+    res.setHeader("set-cookie", setCookies)
+    return
+  }
+  const existingArray = Array.isArray(existing) ? existing : [String(existing)]
+  res.setHeader("set-cookie", [...existingArray, ...setCookies])
+}
+</file>
+
+<file path="packages/api/src/index.ts">
+export { appRouter } from "./appRouter.js"
+export type { AppRouter } from "./appRouter.js"
+export type { Context } from "./trpc.js"
+</file>
+
+<file path="packages/api/src/trpc.ts">
+import type { IncomingMessage, ServerResponse } from "node:http"
+import { initTRPC } from "@trpc/server"
+
+export type Context = {
+  req: IncomingMessage
+  res: ServerResponse
+}
+
+export const t = initTRPC.context<Context>().create()
+
+export const router = t.router
+export const publicProcedure = t.procedure
+</file>
+
+<file path="packages/api/package.json">
+{
+  "name": "@sola/api",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "dev": "tsc -p tsconfig.build.json -w --preserveWatchOutput",
+    "build": "tsc -p tsconfig.build.json",
+    "type-check": "tsc -p tsconfig.json",
+    "typecheck": "pnpm run type-check"
+  },
+  "dependencies": {
+    "@sola/db": "workspace:*",
+    "@sola/logic": "workspace:*",
+    "@trpc/server": "^10.45.3",
+    "better-auth": "^1.4.7",
+    "drizzle-orm": "^0.45.1",
+    "superjson": "^2.2.2",
+    "zod": "^4.1.13"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "typescript": "^5.9.3"
+  }
+}
+</file>
+
+<file path="packages/api/tsconfig.build.json">
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "outDir": "./dist",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true
+  }
+}
+</file>
+
+<file path="packages/api/tsconfig.json">
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "types": ["node"]
+  },
+  "include": ["src"]
+}
+</file>
+
+<file path="packages/db/drizzle/meta/_journal.json">
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1765934428190,
+      "tag": "0000_spotty_exiles",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1765955382300,
+      "tag": "0001_slim_pyro",
+      "breakpoints": true
+    }
+  ]
+}
+</file>
+
+<file path="packages/db/drizzle/meta/0000_snapshot.json">
+{
+  "version": "6",
+  "dialect": "sqlite",
+  "id": "3bc7c50a-45ed-4f93-8166-bf8cf9bbda8c",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "tables": {
+    "accounts": {
+      "name": "accounts",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "account_id": {
+          "name": "account_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "provider_id": {
+          "name": "provider_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "access_token": {
+          "name": "access_token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "refresh_token": {
+          "name": "refresh_token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "password": {
+          "name": "password",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "accounts_user_id_users_id_fk": {
+          "name": "accounts_user_id_users_id_fk",
+          "tableFrom": "accounts",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "sessions": {
+      "name": "sessions",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "token": {
+          "name": "token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "ip_address": {
+          "name": "ip_address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "user_agent": {
+          "name": "user_agent",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "sessions_token_unique": {
+          "name": "sessions_token_unique",
+          "columns": [
+            "token"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "sessions_user_id_users_id_fk": {
+          "name": "sessions_user_id_users_id_fk",
+          "tableFrom": "sessions",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "users": {
+      "name": "users",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "email_verified": {
+          "name": "email_verified",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        },
+        "image": {
+          "name": "image",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(cast((julianday('now') - 2440587.5)*86400000 as integer))"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(cast((julianday('now') - 2440587.5)*86400000 as integer))"
+        }
+      },
+      "indexes": {
+        "users_email_unique": {
+          "name": "users_email_unique",
+          "columns": [
+            "email"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "verifications": {
+      "name": "verifications",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "identifier": {
+          "name": "identifier",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "value": {
+          "name": "value",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    }
+  },
+  "views": {},
+  "enums": {},
+  "_meta": {
+    "schemas": {},
+    "tables": {},
+    "columns": {}
+  },
+  "internal": {
+    "indexes": {}
+  }
+}
+</file>
+
+<file path="packages/db/drizzle/meta/0001_snapshot.json">
+{
+  "version": "6",
+  "dialect": "sqlite",
+  "id": "69f6a308-5680-41f1-a7f6-c11210a6ea02",
+  "prevId": "3bc7c50a-45ed-4f93-8166-bf8cf9bbda8c",
+  "tables": {
+    "accounts": {
+      "name": "accounts",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "account_id": {
+          "name": "account_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "provider_id": {
+          "name": "provider_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "access_token": {
+          "name": "access_token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "refresh_token": {
+          "name": "refresh_token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "id_token": {
+          "name": "id_token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "access_token_expires_at": {
+          "name": "access_token_expires_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "refresh_token_expires_at": {
+          "name": "refresh_token_expires_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "scope": {
+          "name": "scope",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "password": {
+          "name": "password",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(cast((julianday('now') - 2440587.5)*86400000 as integer))"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(cast((julianday('now') - 2440587.5)*86400000 as integer))"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "accounts_user_id_users_id_fk": {
+          "name": "accounts_user_id_users_id_fk",
+          "tableFrom": "accounts",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "sessions": {
+      "name": "sessions",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "token": {
+          "name": "token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(cast((julianday('now') - 2440587.5)*86400000 as integer))"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(cast((julianday('now') - 2440587.5)*86400000 as integer))"
+        },
+        "ip_address": {
+          "name": "ip_address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "user_agent": {
+          "name": "user_agent",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "sessions_token_unique": {
+          "name": "sessions_token_unique",
+          "columns": [
+            "token"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "sessions_user_id_users_id_fk": {
+          "name": "sessions_user_id_users_id_fk",
+          "tableFrom": "sessions",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "users": {
+      "name": "users",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "email_verified": {
+          "name": "email_verified",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        },
+        "image": {
+          "name": "image",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(cast((julianday('now') - 2440587.5)*86400000 as integer))"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(cast((julianday('now') - 2440587.5)*86400000 as integer))"
+        }
+      },
+      "indexes": {
+        "users_email_unique": {
+          "name": "users_email_unique",
+          "columns": [
+            "email"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "verifications": {
+      "name": "verifications",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "identifier": {
+          "name": "identifier",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "value": {
+          "name": "value",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(cast((julianday('now') - 2440587.5)*86400000 as integer))"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(cast((julianday('now') - 2440587.5)*86400000 as integer))"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    }
+  },
+  "views": {},
+  "enums": {},
+  "_meta": {
+    "schemas": {},
+    "tables": {},
+    "columns": {}
+  },
+  "internal": {
+    "indexes": {}
+  }
+}
+</file>
+
+<file path="packages/db/drizzle/0000_spotty_exiles.sql">
+CREATE TABLE `accounts` (
+	`id` text PRIMARY KEY NOT NULL,
+	`user_id` text NOT NULL,
+	`account_id` text NOT NULL,
+	`provider_id` text NOT NULL,
+	`access_token` text,
+	`refresh_token` text,
+	`expires_at` integer,
+	`password` text,
+	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
+CREATE TABLE `sessions` (
+	`id` text PRIMARY KEY NOT NULL,
+	`user_id` text NOT NULL,
+	`token` text NOT NULL,
+	`expires_at` integer NOT NULL,
+	`ip_address` text,
+	`user_agent` text,
+	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
+CREATE UNIQUE INDEX `sessions_token_unique` ON `sessions` (`token`);--> statement-breakpoint
+CREATE TABLE `users` (
+	`id` text PRIMARY KEY NOT NULL,
+	`name` text,
+	`email` text NOT NULL,
+	`email_verified` integer DEFAULT false NOT NULL,
+	`image` text,
+	`created_at` integer DEFAULT (cast((julianday('now') - 2440587.5)*86400000 as integer)) NOT NULL,
+	`updated_at` integer DEFAULT (cast((julianday('now') - 2440587.5)*86400000 as integer)) NOT NULL
+);
+--> statement-breakpoint
+CREATE UNIQUE INDEX `users_email_unique` ON `users` (`email`);--> statement-breakpoint
+CREATE TABLE `verifications` (
+	`id` text PRIMARY KEY NOT NULL,
+	`identifier` text NOT NULL,
+	`value` text NOT NULL,
+	`expires_at` integer NOT NULL
+);
+</file>
+
+<file path="packages/db/drizzle/0001_slim_pyro.sql">
+PRAGMA foreign_keys=OFF;--> statement-breakpoint
+CREATE TABLE `__new_users` (
+	`id` text PRIMARY KEY NOT NULL,
+	`name` text NOT NULL,
+	`email` text NOT NULL,
+	`email_verified` integer DEFAULT false NOT NULL,
+	`image` text,
+	`created_at` integer DEFAULT (cast((julianday('now') - 2440587.5)*86400000 as integer)) NOT NULL,
+	`updated_at` integer DEFAULT (cast((julianday('now') - 2440587.5)*86400000 as integer)) NOT NULL
+);
+--> statement-breakpoint
+INSERT INTO `__new_users`("id", "name", "email", "email_verified", "image", "created_at", "updated_at") SELECT "id", "name", "email", "email_verified", "image", "created_at", "updated_at" FROM `users`;--> statement-breakpoint
+DROP TABLE `users`;--> statement-breakpoint
+ALTER TABLE `__new_users` RENAME TO `users`;--> statement-breakpoint
+PRAGMA foreign_keys=ON;--> statement-breakpoint
+CREATE UNIQUE INDEX `users_email_unique` ON `users` (`email`);--> statement-breakpoint
+ALTER TABLE `accounts` ADD `id_token` text;--> statement-breakpoint
+ALTER TABLE `accounts` ADD `access_token_expires_at` integer;--> statement-breakpoint
+ALTER TABLE `accounts` ADD `refresh_token_expires_at` integer;--> statement-breakpoint
+ALTER TABLE `accounts` ADD `scope` text;--> statement-breakpoint
+ALTER TABLE `accounts` ADD `created_at` integer DEFAULT (cast((julianday('now') - 2440587.5)*86400000 as integer)) NOT NULL;--> statement-breakpoint
+ALTER TABLE `accounts` ADD `updated_at` integer DEFAULT (cast((julianday('now') - 2440587.5)*86400000 as integer)) NOT NULL;--> statement-breakpoint
+ALTER TABLE `sessions` ADD `created_at` integer DEFAULT (cast((julianday('now') - 2440587.5)*86400000 as integer)) NOT NULL;--> statement-breakpoint
+ALTER TABLE `sessions` ADD `updated_at` integer DEFAULT (cast((julianday('now') - 2440587.5)*86400000 as integer)) NOT NULL;--> statement-breakpoint
+ALTER TABLE `verifications` ADD `created_at` integer DEFAULT (cast((julianday('now') - 2440587.5)*86400000 as integer)) NOT NULL;--> statement-breakpoint
+ALTER TABLE `verifications` ADD `updated_at` integer DEFAULT (cast((julianday('now') - 2440587.5)*86400000 as integer)) NOT NULL;
+</file>
+
+<file path="packages/db/src/index.ts">
+import Database from "better-sqlite3"
+import { drizzle } from "drizzle-orm/better-sqlite3"
+import fs from "node:fs"
+import path from "node:path"
+import { fileURLToPath } from "node:url"
+
+import * as schema from "./schema.js"
+
+function findPackageRoot(startDir: string) {
+  let currentDir = startDir
+  for (let i = 0; i < 8; i++) {
+    if (fs.existsSync(path.join(currentDir, "package.json"))) return currentDir
+    const parent = path.dirname(currentDir)
+    if (parent === currentDir) break
+    currentDir = parent
+  }
+  return startDir
+}
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+const packageRoot = findPackageRoot(__dirname)
+
+export const dbFilePath =
+  process.env.SOLA_DB_URL ??
+  process.env.SOLA_DB_PATH ??
+  path.join(packageRoot, "sola.db")
+
+const sqlite = new Database(dbFilePath)
+
+export const db = drizzle(sqlite, { schema })
+
+export * from "./schema.js"
+</file>
+
+<file path="packages/db/src/schema.ts">
+import * as crypto from "node:crypto"
+import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core"
+
+export const users = sqliteTable("users", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  name: text("name").notNull(),
+  email: text("email").notNull().unique(),
+  emailVerified: integer("email_verified", { mode: "boolean" })
+    .notNull()
+    .default(false),
+  image: text("image"),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().defaultNow(),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+})
+
+export const sessions = sqliteTable("sessions", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  token: text("token").notNull().unique(),
+  expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().defaultNow(),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+})
+
+export const accounts = sqliteTable("accounts", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  accountId: text("account_id").notNull(),
+  providerId: text("provider_id").notNull(),
+  accessToken: text("access_token"),
+  refreshToken: text("refresh_token"),
+  idToken: text("id_token"),
+  accessTokenExpiresAt: integer("access_token_expires_at", {
+    mode: "timestamp",
+  }),
+  refreshTokenExpiresAt: integer("refresh_token_expires_at", {
+    mode: "timestamp",
+  }),
+  scope: text("scope"),
+  expiresAt: integer("expires_at", { mode: "timestamp" }),
+  password: text("password"),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().defaultNow(),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+})
+
+export const verifications = sqliteTable("verifications", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  identifier: text("identifier").notNull(),
+  value: text("value").notNull(),
+  expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().defaultNow(),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+})
+</file>
+
+<file path="packages/db/drizzle.config.ts">
+import { defineConfig } from "drizzle-kit"
+
+export default defineConfig({
+  schema: "./src/schema.ts",
+  out: "./drizzle",
+  dialect: "sqlite",
+  dbCredentials: {
+    url: "sola.db",
+  },
+})
+</file>
+
+<file path="packages/db/package.json">
+{
+  "name": "@sola/db",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "dev": "tsc -p tsconfig.build.json -w --preserveWatchOutput",
+    "build": "tsc -p tsconfig.build.json",
+    "db:generate": "drizzle-kit generate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio",
+    "type-check": "tsc -p tsconfig.json",
+    "typecheck": "pnpm run type-check"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.5.0",
+    "drizzle-orm": "^0.45.1"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^24.10.1",
+    "drizzle-kit": "^0.31.8",
+    "typescript": "^5.9.3",
+    "tsx": "^4.21.0"
+  }
+}
+</file>
+
+<file path="packages/db/tsconfig.build.json">
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "outDir": "./dist",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true
+  }
+}
+</file>
+
+<file path="packages/db/tsconfig.json">
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "types": ["node"]
+  },
+  "include": ["src"]
+}
+</file>
+
+<file path="packages/logic/src/index.ts">
+export {};
+</file>
+
+<file path="packages/logic/package.json">
+{
+  "name": "@sola/logic",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "type-check": "tsc -p tsconfig.json",
+    "typecheck": "pnpm run type-check"
+  }
+}
+</file>
+
+<file path="packages/logic/tsconfig.json">
+{
+  "extends": "../../tsconfig.base.json",
+  "include": ["src"]
+}
+</file>
+
+<file path="packages/shared/src/index.ts">
+export {};
+</file>
+
+<file path="packages/shared/package.json">
+{
+  "name": "@sola/shared",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "type-check": "tsc -p tsconfig.json",
+    "typecheck": "pnpm run type-check"
+  }
+}
+</file>
+
+<file path="packages/shared/tsconfig.json">
+{
+  "extends": "../../tsconfig.base.json",
+  "include": ["src"]
+}
+</file>
+
+<file path="packages/ui/src/components/ui/button.tsx">
+import * as React from "react"
+import { Slot } from "@radix-ui/react-slot"
+import { cva, type VariantProps } from "class-variance-authority"
+
+import { cn } from "../../lib/utils"
+
+const buttonVariants = cva(
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  {
+    variants: {
+      variant: {
+        default: "bg-primary text-primary-foreground shadow hover:bg-primary/90",
+        destructive:
+          "bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90",
+        outline:
+          "border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground",
+        secondary:
+          "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80",
+        ghost: "hover:bg-accent hover:text-accent-foreground",
+        link: "text-primary underline-offset-4 hover:underline",
+      },
+      size: {
+        default: "h-11 px-4 py-2",
+        sm: "h-9 rounded-md px-3 text-xs",
+        lg: "h-12 rounded-md px-8",
+        icon: "h-11 w-11",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+      size: "default",
+    },
+  }
+)
+
+export interface ButtonProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+    VariantProps<typeof buttonVariants> {
+  asChild?: boolean
+}
+
+const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ className, variant, size, asChild = false, ...props }, ref) => {
+    const Comp = asChild ? Slot : "button"
+    return (
+      <Comp
+        className={cn(buttonVariants({ variant, size, className }))}
+        ref={ref}
+        {...props}
+      />
+    )
+  }
+)
+Button.displayName = "Button"
+
+export { Button, buttonVariants }
+</file>
+
+<file path="packages/ui/src/components/ui/card.tsx">
+import * as React from "react"
+
+import { cn } from "../../lib/utils"
+
+const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
+  ({ className, ...props }, ref) => (
+    <div
+      ref={ref}
+      className={cn("rounded-lg border bg-card text-card-foreground", className)}
+      {...props}
+    />
+  )
+)
+Card.displayName = "Card"
+
+const CardHeader = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => (
+  <div ref={ref} className={cn("flex flex-col gap-1.5 p-4", className)} {...props} />
+))
+CardHeader.displayName = "CardHeader"
+
+const CardTitle = React.forwardRef<
+  HTMLParagraphElement,
+  React.HTMLAttributes<HTMLHeadingElement>
+>(({ className, ...props }, ref) => (
+  <h3
+    ref={ref}
+    className={cn("text-lg font-semibold leading-none tracking-tight", className)}
+    {...props}
+  />
+))
+CardTitle.displayName = "CardTitle"
+
+const CardDescription = React.forwardRef<
+  HTMLParagraphElement,
+  React.HTMLAttributes<HTMLParagraphElement>
+>(({ className, ...props }, ref) => (
+  <p ref={ref} className={cn("text-sm text-muted-foreground", className)} {...props} />
+))
+CardDescription.displayName = "CardDescription"
+
+const CardContent = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => (
+  <div ref={ref} className={cn("p-4 pt-0", className)} {...props} />
+))
+CardContent.displayName = "CardContent"
+
+const CardFooter = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => (
+  <div ref={ref} className={cn("flex items-center p-4 pt-0", className)} {...props} />
+))
+CardFooter.displayName = "CardFooter"
+
+export { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
+</file>
+
+<file path="packages/ui/src/components/ui/dialog.tsx">
+import * as React from "react"
+import * as DialogPrimitive from "@radix-ui/react-dialog"
+
+import { cn } from "../../lib/utils"
+
+const Dialog = DialogPrimitive.Root
+const DialogTrigger = DialogPrimitive.Trigger
+const DialogPortal = DialogPrimitive.Portal
+const DialogClose = DialogPrimitive.Close
+
+const DialogOverlay = React.forwardRef<
+  React.ElementRef<typeof DialogPrimitive.Overlay>,
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Overlay>
+>(({ className, ...props }, ref) => (
+  <DialogPrimitive.Overlay
+    ref={ref}
+    className={cn(
+      "fixed inset-0 z-50 bg-black/60 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+      className
+    )}
+    {...props}
+  />
+))
+DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
+
+const DialogContent = React.forwardRef<
+  React.ElementRef<typeof DialogPrimitive.Content>,
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
+>(({ className, children, ...props }, ref) => (
+  <DialogPortal>
+    <DialogOverlay />
+    <DialogPrimitive.Content
+      ref={ref}
+      className={cn(
+        "fixed left-1/2 top-1/2 z-50 w-[calc(100vw-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-lg border bg-background p-6 shadow-lg outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
+        className
+      )}
+      {...props}
+    >
+      {children}
+    </DialogPrimitive.Content>
+  </DialogPortal>
+))
+DialogContent.displayName = DialogPrimitive.Content.displayName
+
+const DialogHeader = ({
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement>) => (
+  <div className={cn("flex flex-col gap-1.5", className)} {...props} />
+)
+DialogHeader.displayName = "DialogHeader"
+
+const DialogFooter = ({
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement>) => (
+  <div className={cn("mt-6 flex flex-col gap-2 sm:flex-row sm:justify-end", className)} {...props} />
+)
+DialogFooter.displayName = "DialogFooter"
+
+const DialogTitle = React.forwardRef<
+  React.ElementRef<typeof DialogPrimitive.Title>,
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Title>
+>(({ className, ...props }, ref) => (
+  <DialogPrimitive.Title
+    ref={ref}
+    className={cn("text-lg font-semibold leading-none tracking-tight", className)}
+    {...props}
+  />
+))
+DialogTitle.displayName = DialogPrimitive.Title.displayName
+
+const DialogDescription = React.forwardRef<
+  React.ElementRef<typeof DialogPrimitive.Description>,
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Description>
+>(({ className, ...props }, ref) => (
+  <DialogPrimitive.Description
+    ref={ref}
+    className={cn("text-sm text-muted-foreground", className)}
+    {...props}
+  />
+))
+DialogDescription.displayName = DialogPrimitive.Description.displayName
+
+export {
+  Dialog,
+  DialogTrigger,
+  DialogPortal,
+  DialogOverlay,
+  DialogContent,
+  DialogClose,
+  DialogHeader,
+  DialogFooter,
+  DialogTitle,
+  DialogDescription,
+}
+</file>
+
+<file path="packages/ui/src/components/ui/drawer.tsx">
+import * as React from "react"
+import { Drawer as DrawerPrimitive } from "vaul"
+
+import { cn } from "../../lib/utils"
+
+const Drawer = ({
+  shouldScaleBackground = true,
+  ...props
+}: React.ComponentProps<typeof DrawerPrimitive.Root>) => (
+  <DrawerPrimitive.Root
+    shouldScaleBackground={shouldScaleBackground}
+    {...props}
+  />
+)
+Drawer.displayName = "Drawer"
+
+const DrawerTrigger = DrawerPrimitive.Trigger
+const DrawerPortal = DrawerPrimitive.Portal
+const DrawerClose = DrawerPrimitive.Close
+
+const DrawerOverlay = React.forwardRef<
+  React.ElementRef<typeof DrawerPrimitive.Overlay>,
+  React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Overlay>
+>(({ className, ...props }, ref) => (
+  <DrawerPrimitive.Overlay
+    ref={ref}
+    className={cn("fixed inset-0 z-50 bg-black/80", className)}
+    {...props}
+  />
+))
+DrawerOverlay.displayName = DrawerPrimitive.Overlay.displayName
+
+const DrawerContent = React.forwardRef<
+  React.ElementRef<typeof DrawerPrimitive.Content>,
+  React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Content>
+>(({ className, children, ...props }, ref) => (
+  <DrawerPortal>
+    <DrawerOverlay />
+    <DrawerPrimitive.Content
+      ref={ref}
+      className={cn(
+        "fixed inset-x-0 bottom-0 z-50 mt-24 flex h-auto flex-col rounded-t-[10px] border bg-background",
+        className
+      )}
+      {...props}
+    >
+      <div className="mx-auto mt-4 h-2 w-[100px] rounded-full bg-muted" />
+      {children}
+    </DrawerPrimitive.Content>
+  </DrawerPortal>
+))
+DrawerContent.displayName = "DrawerContent"
+
+const DrawerHeader = ({
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement>) => (
+  <div
+    className={cn("grid gap-1.5 p-4 text-center sm:text-left", className)}
+    {...props}
+  />
+)
+DrawerHeader.displayName = "DrawerHeader"
+
+const DrawerFooter = ({
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement>) => (
+  <div
+    className={cn("mt-auto flex flex-col gap-2 p-4", className)}
+    {...props}
+  />
+)
+DrawerFooter.displayName = "DrawerFooter"
+
+const DrawerTitle = React.forwardRef<
+  React.ElementRef<typeof DrawerPrimitive.Title>,
+  React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Title>
+>(({ className, ...props }, ref) => (
+  <DrawerPrimitive.Title
+    ref={ref}
+    className={cn("text-lg font-semibold leading-none tracking-tight", className)}
+    {...props}
+  />
+))
+DrawerTitle.displayName = DrawerPrimitive.Title.displayName
+
+const DrawerDescription = React.forwardRef<
+  React.ElementRef<typeof DrawerPrimitive.Description>,
+  React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Description>
+>(({ className, ...props }, ref) => (
+  <DrawerPrimitive.Description
+    ref={ref}
+    className={cn("text-sm text-muted-foreground", className)}
+    {...props}
+  />
+))
+DrawerDescription.displayName = DrawerPrimitive.Description.displayName
+
+export {
+  Drawer,
+  DrawerPortal,
+  DrawerOverlay,
+  DrawerTrigger,
+  DrawerClose,
+  DrawerContent,
+  DrawerHeader,
+  DrawerFooter,
+  DrawerTitle,
+  DrawerDescription,
+}
+</file>
+
+<file path="packages/ui/src/components/ui/form.tsx">
+import * as React from "react"
+import { Slot } from "@radix-ui/react-slot"
+import {
+  Controller,
+  FormProvider,
+  useFormContext,
+  type ControllerProps,
+  type FieldPath,
+  type FieldValues,
+} from "react-hook-form"
+
+import { cn } from "../../lib/utils"
+import { Label } from "./label"
+
+const Form = FormProvider
+
+type FormFieldContextValue<
+  TFieldValues extends FieldValues = FieldValues,
+  TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
+> = {
+  name: TName
+}
+
+const FormFieldContext = React.createContext<FormFieldContextValue>(
+  {} as FormFieldContextValue
+)
+
+const FormField = <
+  TFieldValues extends FieldValues = FieldValues,
+  TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
+>({
+  ...props
+}: ControllerProps<TFieldValues, TName>) => {
+  return (
+    <FormFieldContext.Provider value={{ name: props.name }}>
+      <Controller {...props} />
+    </FormFieldContext.Provider>
+  )
+}
+
+type FormItemContextValue = {
+  id: string
+}
+
+const FormItemContext = React.createContext<FormItemContextValue>(
+  {} as FormItemContextValue
+)
+
+function useFormField() {
+  const fieldContext = React.useContext(FormFieldContext)
+  const itemContext = React.useContext(FormItemContext)
+  const { getFieldState, formState } = useFormContext()
+
+  const fieldState = getFieldState(fieldContext.name, formState)
+
+  if (!fieldContext) {
+    throw new Error("useFormField should be used within <FormField>")
+  }
+
+  const { id } = itemContext
+
+  return {
+    id,
+    name: fieldContext.name,
+    formItemId: `${id}-form-item`,
+    formDescriptionId: `${id}-form-item-description`,
+    formMessageId: `${id}-form-item-message`,
+    ...fieldState,
+  }
+}
+
+const FormItem = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
+  ({ className, ...props }, ref) => {
+    const id = React.useId()
+    return (
+      <FormItemContext.Provider value={{ id }}>
+        <div ref={ref} className={cn("space-y-2", className)} {...props} />
+      </FormItemContext.Provider>
+    )
+  }
+)
+FormItem.displayName = "FormItem"
+
+const FormLabel = React.forwardRef<
+  React.ElementRef<typeof Label>,
+  React.ComponentPropsWithoutRef<typeof Label>
+>(({ className, ...props }, ref) => {
+  const { error, formItemId } = useFormField()
+  return (
+    <Label
+      ref={ref}
+      className={cn(error && "text-destructive", className)}
+      htmlFor={formItemId}
+      {...props}
+    />
+  )
+})
+FormLabel.displayName = "FormLabel"
+
+const FormControl = React.forwardRef<
+  React.ElementRef<typeof Slot>,
+  React.ComponentPropsWithoutRef<typeof Slot>
+>(({ ...props }, ref) => {
+  const { error, formItemId, formDescriptionId, formMessageId } = useFormField()
+
+  return (
+    <Slot
+      ref={ref}
+      id={formItemId}
+      aria-describedby={
+        !error ? formDescriptionId : `${formDescriptionId} ${formMessageId}`
+      }
+      aria-invalid={!!error}
+      {...props}
+    />
+  )
+})
+FormControl.displayName = "FormControl"
+
+const FormDescription = React.forwardRef<
+  HTMLParagraphElement,
+  React.HTMLAttributes<HTMLParagraphElement>
+>(({ className, ...props }, ref) => {
+  const { formDescriptionId } = useFormField()
+  return (
+    <p
+      ref={ref}
+      id={formDescriptionId}
+      className={cn("text-sm text-muted-foreground", className)}
+      {...props}
+    />
+  )
+})
+FormDescription.displayName = "FormDescription"
+
+const FormMessage = React.forwardRef<
+  HTMLParagraphElement,
+  React.HTMLAttributes<HTMLParagraphElement>
+>(({ className, children, ...props }, ref) => {
+  const { error, formMessageId } = useFormField()
+  const body = error ? String(error.message ?? "") : children
+
+  if (!body) return null
+
+  return (
+    <p
+      ref={ref}
+      id={formMessageId}
+      className={cn("text-sm font-medium text-destructive", className)}
+      {...props}
+    >
+      {body}
+    </p>
+  )
+})
+FormMessage.displayName = "FormMessage"
+
+export {
+  Form,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormDescription,
+  FormMessage,
+  useFormField,
+}
+</file>
+
+<file path="packages/ui/src/components/ui/input.tsx">
+import * as React from "react"
+
+import { cn } from "../../lib/utils"
+
+const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
+  ({ className, type, ...props }, ref) => (
+    <input
+      ref={ref}
+      type={type}
+      className={cn(
+        "flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
+        className
+      )}
+      {...props}
+    />
+  )
+)
+Input.displayName = "Input"
+
+export { Input }
+</file>
+
+<file path="packages/ui/src/components/ui/label.tsx">
+import * as React from "react"
+
+import { cn } from "../../lib/utils"
+
+const Label = React.forwardRef<HTMLLabelElement, React.ComponentProps<"label">>(
+  ({ className, ...props }, ref) => (
+    <label
+      ref={ref}
+      className={cn(
+        "text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70",
+        className
+      )}
+      {...props}
+    />
+  )
+)
+Label.displayName = "Label"
+
+export { Label }
+</file>
+
+<file path="packages/ui/src/components/ui/sonner.tsx">
+import * as React from "react"
+import { Toaster as SonnerToaster, toast } from "sonner"
+
+type ToasterProps = React.ComponentProps<typeof SonnerToaster>
+
+function Toaster(props: ToasterProps) {
+  return (
+    <SonnerToaster
+      theme="light"
+      position="top-center"
+      toastOptions={{
+        classNames: {
+          toast: "bg-background text-foreground border shadow-lg",
+          title: "text-sm font-medium",
+          description: "text-sm text-muted-foreground",
+          actionButton: "bg-primary text-primary-foreground",
+          cancelButton: "bg-muted text-muted-foreground",
+        },
+      }}
+      {...props}
+    />
+  )
+}
+
+export { Toaster, toast }
+</file>
+
+<file path="packages/ui/src/components/ResponsiveOverlay.tsx">
+import * as React from "react"
+
+import { useMediaQuery } from "../hooks/useMediaQuery"
+import { cn } from "../lib/utils"
+import { Button } from "./ui/button"
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "./ui/drawer"
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "./ui/dialog"
+
+export type ResponsiveOverlayProps = {
+  open?: boolean
+  defaultOpen?: boolean
+  onOpenChange?: (open: boolean) => void
+  trigger?: React.ReactNode
+  title?: React.ReactNode
+  description?: React.ReactNode
+  children: React.ReactNode
+  footer?: React.ReactNode
+  closeLabel?: string
+  contentClassName?: string
+}
+
+export function ResponsiveOverlay({
+  open,
+  defaultOpen,
+  onOpenChange,
+  trigger,
+  title,
+  description,
+  children,
+  footer,
+  closeLabel = "Close",
+  contentClassName,
+}: ResponsiveOverlayProps) {
+  const isDesktop = useMediaQuery("(min-width: 768px)")
+  const rootProps = {
+    ...(open !== undefined ? { open } : {}),
+    ...(defaultOpen !== undefined ? { defaultOpen } : {}),
+    ...(onOpenChange ? { onOpenChange } : {}),
+  }
+
+  if (isDesktop) {
+    return (
+      <Dialog {...rootProps}>
+        {trigger ? <DialogTrigger asChild>{trigger}</DialogTrigger> : null}
+        <DialogContent className={cn(contentClassName)}>
+          {title || description ? (
+            <DialogHeader>
+              {title ? <DialogTitle>{title}</DialogTitle> : null}
+              {description ? (
+                <DialogDescription>{description}</DialogDescription>
+              ) : null}
+            </DialogHeader>
+          ) : null}
+          <div className="mt-4">{children}</div>
+          <DialogFooter>
+            {footer}
+            <DialogClose asChild>
+              <Button variant="outline" type="button">
+                {closeLabel}
+              </Button>
+            </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    )
+  }
+
+  return (
+    <Drawer {...rootProps}>
+      {trigger ? <DrawerTrigger asChild>{trigger}</DrawerTrigger> : null}
+      <DrawerContent className={cn(contentClassName)}>
+        {title || description ? (
+          <DrawerHeader>
+            {title ? <DrawerTitle>{title}</DrawerTitle> : null}
+            {description ? (
+              <DrawerDescription>{description}</DrawerDescription>
+            ) : null}
+          </DrawerHeader>
+        ) : null}
+        <div className="px-4 pb-4">{children}</div>
+        <DrawerFooter>
+          {footer}
+          <DrawerClose asChild>
+            <Button variant="outline" type="button">
+              {closeLabel}
+            </Button>
+          </DrawerClose>
+        </DrawerFooter>
+      </DrawerContent>
+    </Drawer>
+  )
+}
+</file>
+
+<file path="packages/ui/src/hooks/useMediaQuery.ts">
+import * as React from "react"
+
+export function useMediaQuery(query: string) {
+  const [matches, setMatches] = React.useState(() => {
+    if (typeof window === "undefined") return false
+    return window.matchMedia(query).matches
+  })
+
+  React.useEffect(() => {
+    const mediaQueryList = window.matchMedia(query)
+    const onChange = () => setMatches(mediaQueryList.matches)
+    onChange()
+
+    if (typeof mediaQueryList.addEventListener === "function") {
+      mediaQueryList.addEventListener("change", onChange)
+      return () => mediaQueryList.removeEventListener("change", onChange)
+    }
+
+    mediaQueryList.addListener(onChange)
+    return () => mediaQueryList.removeListener(onChange)
+  }, [query])
+
+  return matches
+}
+</file>
+
+<file path="packages/ui/src/layout/AppShell.tsx">
+import * as React from "react"
+
+import { cn } from "../lib/utils"
+import { Button } from "../components/ui/button"
+
+export type AppNavItem = {
+  to: string
+  label: string
+  icon?: React.ReactNode
+}
+
+export type AppShellLinkComponent = React.ComponentType<{
+  to: string
+  className?: string
+  children: React.ReactNode
+  "aria-current"?: "page" | undefined
+}>
+
+export type AppShellProps = {
+  brand?: React.ReactNode
+  navItems: AppNavItem[]
+  pathname?: string
+  LinkComponent?: AppShellLinkComponent
+  header?: React.ReactNode
+  children: React.ReactNode
+  className?: string
+}
+
+function isActivePath(pathname: string, to: string) {
+  if (to === "/") return pathname === "/"
+  return pathname === to || pathname.startsWith(`${to}/`)
+}
+
+export function AppShell({
+  brand = "Sola",
+  navItems,
+  pathname,
+  LinkComponent,
+  header,
+  children,
+  className,
+}: AppShellProps) {
+  return (
+    <div className={cn("min-h-screen bg-background text-foreground", className)}>
+      <div className="md:flex">
+        <aside className="hidden md:flex md:w-64 md:flex-col md:border-r md:min-h-screen md:sticky md:top-0">
+          <div className="h-14 px-4 flex items-center border-b">
+            <div className="font-semibold">{brand}</div>
+          </div>
+          <nav className="p-2">
+            <div className="grid gap-1">
+              {navItems.map((item) => {
+                const isActive = pathname ? isActivePath(pathname, item.to) : false
+                const LinkOrAnchor = LinkComponent
+
+                return (
+                  <Button
+                    key={item.to}
+                    asChild
+                    variant={isActive ? "secondary" : "ghost"}
+                    className="justify-start h-11"
+                  >
+                    {LinkOrAnchor ? (
+                      <LinkOrAnchor
+                        to={item.to}
+                        className="w-full flex items-center"
+                        aria-current={isActive ? "page" : undefined}
+                      >
+                        {item.icon ? (
+                          <span className="mr-2">{item.icon}</span>
+                        ) : null}
+                        {item.label}
+                      </LinkOrAnchor>
+                    ) : (
+                      <a
+                        href={item.to}
+                        className="w-full flex items-center"
+                        aria-current={isActive ? "page" : undefined}
+                      >
+                        {item.icon ? (
+                          <span className="mr-2">{item.icon}</span>
+                        ) : null}
+                        {item.label}
+                      </a>
+                    )}
+                  </Button>
+                )
+              })}
+            </div>
+          </nav>
+        </aside>
+
+        <div className="flex-1 min-w-0">
+          {header ? (
+            <header className="hidden md:flex h-14 items-center border-b px-4">
+              {header}
+            </header>
+          ) : null}
+
+          <main className="min-h-screen md:min-h-[calc(100vh-3.5rem)] px-4 py-4 pb-24 md:pb-6">
+            {children}
+          </main>
+        </div>
+      </div>
+
+      <nav className="md:hidden fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 pb-safe">
+        <div className="grid grid-flow-col auto-cols-fr h-16">
+          {navItems.map((item) => {
+            const isActive = pathname ? isActivePath(pathname, item.to) : false
+            const LinkOrAnchor = LinkComponent
+
+            const className = cn(
+              "min-h-11 px-2 py-2 flex flex-col items-center justify-center gap-1 text-xs font-medium",
+              isActive ? "text-foreground" : "text-muted-foreground"
+            )
+
+            return LinkOrAnchor ? (
+              <LinkOrAnchor
+                key={item.to}
+                to={item.to}
+                className={className}
+                aria-current={isActive ? "page" : undefined}
+              >
+                {item.icon ? (
+                  <span className="h-5 w-5 flex items-center justify-center">
+                    {item.icon}
+                  </span>
+                ) : null}
+                <span>{item.label}</span>
+              </LinkOrAnchor>
+            ) : (
+              <a
+                key={item.to}
+                href={item.to}
+                className={className}
+                aria-current={isActive ? "page" : undefined}
+              >
+                {item.icon ? (
+                  <span className="h-5 w-5 flex items-center justify-center">
+                    {item.icon}
+                  </span>
+                ) : null}
+                <span>{item.label}</span>
+              </a>
+            )
+          })}
+        </div>
+      </nav>
+    </div>
+  )
+}
+</file>
+
+<file path="packages/ui/src/lib/utils.ts">
+import { clsx, type ClassValue } from "clsx"
+import { twMerge } from "tailwind-merge"
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs))
+}
+</file>
+
+<file path="packages/ui/src/index.ts">
+export * from "./components/ui/button"
+export * from "./components/ui/card"
+export * from "./components/ui/form"
+export * from "./components/ui/input"
+export * from "./components/ui/label"
+export * from "./components/ui/sonner"
+export * from "./components/ui/dialog"
+export * from "./components/ui/drawer"
+export * from "./components/ResponsiveOverlay"
+export * from "./hooks/useMediaQuery"
+export * from "./layout/AppShell"
+export * from "./lib/utils"
+</file>
+
+<file path="packages/ui/package.json">
+{
+  "name": "@sola/ui",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "type-check": "tsc -p tsconfig.json",
+    "typecheck": "pnpm run type-check"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "@hookform/resolvers": "^5.0.0",
+    "react-hook-form": "^7.0.0",
+    "sonner": "^2.0.0",
+    "zod": "^4.0.0"
+  },
+  "dependencies": {
+    "@radix-ui/react-dialog": "^1.1.15",
+    "@radix-ui/react-slot": "^1.2.4",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.561.0",
+    "tailwind-merge": "^3.4.0",
+    "vaul": "^1.1.2"
+  },
+  "devDependencies": {
+    "@hookform/resolvers": "^5.2.2",
+    "@types/react": "^19.2.5",
+    "@types/react-dom": "^19.2.3",
+    "react-hook-form": "^7.68.0",
+    "sonner": "^2.0.7",
+    "typescript": "^5.9.3"
+  }
+}
+</file>
+
+<file path="packages/ui/tsconfig.json">
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx"
+  },
+  "include": ["src"]
+}
+</file>
+
+<file path=".gitignore">
+# Dependencies
+node_modules/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build outputs
+dist/
+build/
+out/
+coverage/
+.vite/
+*.tsbuildinfo
+
+# Env files (keep examples)
+.env
+.env.*
+!.env.example
+
+# Local databases / SQLite artifacts
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite-journal
+*.sqlite-shm
+*.sqlite-wal
+*.sqlite3
+
+# OS / Editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Turborepo
+.turbo/
+</file>
+
+<file path="package.json">
+{
+  "name": "sola_template",
+  "private": true,
+  "packageManager": "pnpm@10.0.0",
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "type-check": "turbo run type-check",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "devDependencies": {
+    "turbo": "^2.6.3",
+    "typescript": "^5.7.2"
+  }
+}
+</file>
+
+<file path="pnpm-workspace.yaml">
+packages:
+  - "apps/*"
+  - "packages/*"
+</file>
+
+<file path="tsconfig.base.json">
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "useUnknownInCatchVariables": true,
+    "forceConsistentCasingInFileNames": true,
+    "verbatimModuleSyntax": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "skipLibCheck": true
+  }
+}
+</file>
+
+<file path="turbo.json">
+{
+  "$schema": "https://turbo.build/schema.json",
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", ".next/**"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "lint": {},
+    "type-check": {}
+  }
+}
+</file>
+
+</files>
