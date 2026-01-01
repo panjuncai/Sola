@@ -1,0 +1,15 @@
+{
+  "name": "sola_template",
+  "private": true,
+  "packageManager": "pnpm@10.0.0",
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "type-check": "turbo run type-check",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "devDependencies": {
+    "turbo": "^2.6.3",
+    "typescript": "^5.7.2"
+  }
+}
