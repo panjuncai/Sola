@@ -217,6 +217,10 @@ export function ArticleList() {
     }
   }, [activeArticleId, articles, showCreate])
 
+  React.useEffect(() => {
+    stopLoopPlayback()
+  }, [activeArticleId, showCreate])
+
   const handleCreate = () => {
     const trimmed = content.trim()
     if (!trimmed) return
