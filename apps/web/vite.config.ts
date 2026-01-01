@@ -17,7 +17,7 @@ export default defineConfig(({ mode }) => {
       VitePWA({
         registerType: "autoUpdate",
         manifest: {
-          name: "Sola WordLens",
+          name: "Sola",
           short_name: "Sola",
           display: "standalone",
           background_color: "#ffffff",

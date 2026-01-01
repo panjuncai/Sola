@@ -6,9 +6,10 @@ import { fileURLToPath } from "node:url"
 
 import * as schema from "./schema.js"
 
-function findPackageRoot(startDir: string) {
+function findWorkspaceRoot(startDir: string) {
   let currentDir = startDir
   for (let i = 0; i < 8; i++) {
+    if (fs.existsSync(path.join(currentDir, "pnpm-workspace.yaml"))) return currentDir
     if (fs.existsSync(path.join(currentDir, "package.json"))) return currentDir
     const parent = path.dirname(currentDir)
     if (parent === currentDir) break
@@ -19,12 +20,12 @@ function findPackageRoot(startDir: string) {
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
-const packageRoot = findPackageRoot(__dirname)
+const workspaceRoot = findWorkspaceRoot(__dirname)
 
 export const dbFilePath =
   process.env.SOLA_DB_URL ??
   process.env.SOLA_DB_PATH ??
-  path.join(packageRoot, "sola.db")
+  path.join(workspaceRoot, "sola.db")
 
 const sqlite = new Database(dbFilePath)
 

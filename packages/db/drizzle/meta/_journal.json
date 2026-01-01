@@ -15,6 +15,13 @@
       "when": 1765955382300,
       "tag": "0001_slim_pyro",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1767236715953,
+      "tag": "0002_icy_unicorn",
+      "breakpoints": true
     }
   ]
 }
