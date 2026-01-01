@@ -14,9 +14,9 @@
   "scripts": {
     "dev": "tsc -p tsconfig.build.json -w --preserveWatchOutput",
     "build": "tsc -p tsconfig.build.json",
-    "db:generate": "drizzle-kit generate",
-    "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio",
+    "db:generate": "dotenv -e ../../.env -- drizzle-kit generate",
+    "db:push": "dotenv -e ../../.env -- drizzle-kit push",
+    "db:studio": "dotenv -e ../../.env -- drizzle-kit studio",
     "type-check": "tsc -p tsconfig.json",
     "typecheck": "pnpm run type-check"
   },
@@ -28,6 +28,7 @@
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^24.10.1",
     "drizzle-kit": "^0.31.8",
+    "dotenv-cli": "^7.4.2",
     "typescript": "^5.9.3",
     "tsx": "^4.21.0"
   }

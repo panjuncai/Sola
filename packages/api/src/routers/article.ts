@@ -1,7 +1,9 @@
 import * as crypto from "node:crypto"
+import { TRPCError } from "@trpc/server"
+import { and, asc, desc, eq, inArray } from "drizzle-orm"
 import { z } from "zod"
 
-import { db, userArticles, userArticleSentences } from "@sola/db"
+import { db, userArticles, userArticleSentences, users } from "@sola/db"
 
 import { requireAuthSession } from "../auth-session.js"
 import { router, publicProcedure } from "../trpc.js"
@@ -10,9 +12,17 @@ const createArticleInput = z.object({
   title: z.string().trim().min(1).optional(),
   content: z.string().trim().min(1),
   sourceType: z.enum(["word_list", "article"]),
-  nativeLanguage: z.string().min(1),
-  targetLanguage: z.string().min(1),
+  nativeLanguage: z.string().min(1).optional(),
+  targetLanguage: z.string().min(1).optional(),
   displayOrder: z.enum(["native_first", "target_first"]).optional(),
+})
+
+const getArticleInput = z.object({
+  articleId: z.string().min(1),
+})
+
+const deleteManyInput = z.object({
+  articleIds: z.array(z.string().min(1)).min(1),
 })
 
 type SentenceDraft = {
@@ -37,29 +47,34 @@ function splitArticleContent(content: string): SentenceDraft[] {
   let orderIndex = 0
 
   paragraphs.forEach((paragraph, paragraphIndex) => {
-    const merged = paragraph.replace(/\n+/g, " ").trim()
-    if (!merged) return
-
-    const parts = merged
-      .split(/(?<=[.!?。！？])\s+/)
-      .map((part) => part.trim())
+    const lines = paragraph
+      .split(/\n+/)
+      .map((line) => line.trim())
       .filter(Boolean)
+    if (lines.length === 0) return
 
-    if (parts.length === 0) {
-      sentences.push({
-        orderIndex: orderIndex++,
-        paragraphIndex,
-        targetText: merged,
-      })
-      return
-    }
+    for (const line of lines) {
+      const parts = line
+        .split(/(?<=[.!?。！？])\s+/)
+        .map((part) => part.trim())
+        .filter(Boolean)
 
-    for (const part of parts) {
-      sentences.push({
-        orderIndex: orderIndex++,
-        paragraphIndex,
-        targetText: part,
-      })
+      if (parts.length === 0) {
+        sentences.push({
+          orderIndex: orderIndex++,
+          paragraphIndex,
+          targetText: line,
+        })
+        continue
+      }
+
+      for (const part of parts) {
+        sentences.push({
+          orderIndex: orderIndex++,
+          paragraphIndex,
+          targetText: part,
+        })
+      }
     }
   })
 
@@ -74,11 +89,30 @@ function splitArticleContent(content: string): SentenceDraft[] {
   return sentences
 }
 
+function deriveTitle(content: string) {
+  return content.trim().slice(0, 10)
+}
+
+function toTimestamp(value: unknown) {
+  if (value instanceof Date) return value.getTime()
+  if (typeof value === "number") return value
+  return Number(value)
+}
+
 export const articleRouter = router({
   create: publicProcedure.input(createArticleInput).mutation(async ({ input, ctx }) => {
     const session = await requireAuthSession(ctx)
     const articleId = crypto.randomUUID()
-    const displayOrder = input.displayOrder ?? "native_first"
+    const user = await db.query.users
+      .findFirst({
+        where: eq(users.id, session.user.id),
+      })
+      .execute()
+
+    const displayOrder = input.displayOrder ?? user?.displayOrder ?? "native_first"
+    const title = input.title?.trim() || deriveTitle(input.content)
+    const nativeLanguage = input.nativeLanguage ?? user?.nativeLanguage ?? "zh-CN"
+    const targetLanguage = input.targetLanguage ?? user?.targetLanguage ?? "en-US"
 
     const sentenceDrafts =
       input.sourceType === "word_list"
@@ -90,11 +124,11 @@ export const articleRouter = router({
       .values({
         id: articleId,
         userId: session.user.id,
-        title: input.title ?? null,
+        title,
         content: input.content,
         sourceType: input.sourceType,
-        nativeLanguage: input.nativeLanguage,
-        targetLanguage: input.targetLanguage,
+        nativeLanguage,
+        targetLanguage,
         displayOrder,
       })
       .run()
@@ -117,5 +151,93 @@ export const articleRouter = router({
       articleId,
       sentenceCount: sentenceDrafts.length,
     }
+  }),
+
+  list: publicProcedure.query(async ({ ctx }) => {
+    const session = await requireAuthSession(ctx)
+
+    const rows = await db.query.userArticles
+      .findMany({
+        where: eq(userArticles.userId, session.user.id),
+        orderBy: desc(userArticles.createdAt),
+      })
+      .execute()
+
+    return rows.map((row) => ({
+      id: row.id,
+      title: row.title,
+      sourceType: row.sourceType,
+      nativeLanguage: row.nativeLanguage,
+      targetLanguage: row.targetLanguage,
+      displayOrder: row.displayOrder,
+      createdAt: toTimestamp(row.createdAt),
+      updatedAt: toTimestamp(row.updatedAt),
+    }))
+  }),
+
+  get: publicProcedure.input(getArticleInput).query(async ({ input, ctx }) => {
+    const session = await requireAuthSession(ctx)
+
+    const article = await db.query.userArticles
+      .findFirst({
+        where: and(
+          eq(userArticles.id, input.articleId),
+          eq(userArticles.userId, session.user.id)
+        ),
+      })
+      .execute()
+
+    if (!article) {
+      throw new TRPCError({
+        code: "NOT_FOUND",
+        message: "Article not found",
+      })
+    }
+
+    const sentences = await db.query.userArticleSentences
+      .findMany({
+        where: eq(userArticleSentences.articleId, article.id),
+        orderBy: asc(userArticleSentences.orderIndex),
+      })
+      .execute()
+
+    return {
+      article: {
+        id: article.id,
+        title: article.title,
+        content: article.content,
+        sourceType: article.sourceType,
+        nativeLanguage: article.nativeLanguage,
+        targetLanguage: article.targetLanguage,
+        displayOrder: article.displayOrder,
+        createdAt: toTimestamp(article.createdAt),
+        updatedAt: toTimestamp(article.updatedAt),
+      },
+      sentences: sentences.map((row) => ({
+        id: row.id,
+        orderIndex: row.orderIndex,
+        paragraphIndex: row.paragraphIndex,
+        targetText: row.targetText,
+        nativeText: row.nativeText,
+        createdAt: toTimestamp(row.createdAt),
+        updatedAt: toTimestamp(row.updatedAt),
+      })),
+    }
+  }),
+
+  deleteMany: publicProcedure.input(deleteManyInput).mutation(async ({ input, ctx }) => {
+    const session = await requireAuthSession(ctx)
+
+    await db
+      .delete(userArticles)
+      .where(
+        and(
+          eq(userArticles.userId, session.user.id),
+          inArray(userArticles.id, input.articleIds)
+        )
+      )
+      .run()
+
+    return { ok: true }
   }),
 })

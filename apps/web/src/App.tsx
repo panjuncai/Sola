@@ -1,13 +1,22 @@
-import { Navigate, Route, Routes } from "react-router-dom"
+import { Navigate, Outlet, Route, Routes } from "react-router-dom"
 
-import { AppLayout } from "./layout/AppLayout"
 import { ArticleList } from "./pages/ArticleList"
-import { DashboardPage } from "./pages/DashboardPage"
+import { ArticleDetail } from "./pages/ArticleDetail"
 import { SettingsPage } from "./pages/SettingsPage"
 import { AuthLayout } from "./pages/auth/AuthLayout"
 import { LoginPage } from "./pages/auth/LoginPage"
 import { SignUpPage } from "./pages/auth/SignUpPage"
 import { AuthGuard } from "./components/auth/AuthGuard"
+import { GlobalPlayer } from "./components/GlobalPlayer"
+
+function AppFrame() {
+  return (
+    <div className="min-h-screen bg-background text-foreground">
+      <Outlet />
+      <GlobalPlayer />
+    </div>
+  )
+}
 
 export default function App() {
   return (
@@ -16,7 +25,7 @@ export default function App() {
         path="/"
         element={
           <AuthGuard>
-            <Navigate to="/dashboard" replace />
+            <Navigate to="/articles" replace />
           </AuthGuard>
         }
       />
@@ -26,10 +35,11 @@ export default function App() {
         <Route path="sign-up" element={<SignUpPage />} />
       </Route>
 
-      <Route element={<AuthGuard><AppLayout /></AuthGuard>}>
-        <Route path="/dashboard" element={<DashboardPage />} />
+      <Route element={<AuthGuard><AppFrame /></AuthGuard>}>
         <Route path="/articles" element={<ArticleList />} />
+        <Route path="/articles/:articleId" element={<ArticleDetail />} />
         <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/dashboard" element={<Navigate to="/articles" replace />} />
       </Route>
     </Routes>
   )
