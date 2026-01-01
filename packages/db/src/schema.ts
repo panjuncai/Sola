@@ -15,7 +15,7 @@ export const users = sqliteTable("users", {
   targetLanguage: text("target_language").notNull().default("en-US"),
   uiLanguage: text("ui_language").notNull().default("zh-CN"),
   displayOrder: text("display_order").default("native_first"),
-  playbackPauseMs: integer("playback_pause_ms").notNull().default(0),
+  playbackPauseMs: integer("playback_pause_ms").notNull().default(1000),
   playbackNativeRepeat: integer("playback_native_repeat").notNull().default(1),
   playbackTargetRepeat: integer("playback_target_repeat").notNull().default(1),
   useAiUserKey: integer("use_ai_user_key", { mode: "boolean" })

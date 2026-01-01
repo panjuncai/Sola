@@ -22,6 +22,7 @@
   "dependencies": {
     "@sola/db": "workspace:*",
     "@sola/logic": "workspace:*",
+    "@sola/shared": "workspace:*",
     "@trpc/server": "^10.45.3",
     "better-auth": "^1.4.7",
     "drizzle-orm": "^0.45.1",

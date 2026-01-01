@@ -35,6 +35,8 @@ const ttsVoiceOption = z.object({
 
 const ttsOptionsOutput = z.object({
   providerId: z.string(),
+  providerType: z.string(),
+  providerRegion: z.string().nullable(),
   nativeOptions: z.array(ttsVoiceOption),
   targetOptions: z.array(ttsVoiceOption),
   nativeVoiceId: z.string().nullable(),
@@ -62,7 +64,7 @@ export const userRouter = router({
       displayOrder: "native_first",
       playbackNativeRepeat: 1,
       playbackTargetRepeat: 1,
-      playbackPauseMs: 0,
+      playbackPauseMs: 1000,
     } as const
 
     if (!row) {
@@ -174,6 +176,8 @@ export const userRouter = router({
 
       return {
         providerId: provider.id,
+        providerType: provider.providerType,
+        providerRegion: provider.region ?? null,
         nativeOptions: sortVoices(nativeOptions).map((row) => ({
           id: row.id,
           name: row.name,

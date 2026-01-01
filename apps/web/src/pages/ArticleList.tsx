@@ -11,11 +11,14 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  toast,
   cn,
 } from "@sola/ui"
+import { buildTtsCacheKey } from "@sola/shared"
 
 import { trpc } from "@/lib/trpc"
 import { useArticleStore } from "@/stores/useArticleStore"
+import { useAuthStore } from "@/stores/useAuthStore"
 
 function deriveTitle(content: string) {
   return content.trim().slice(0, 10)
@@ -37,6 +40,18 @@ export function ArticleList() {
   const [settingsOpen, setSettingsOpen] = React.useState(false)
   const [deleteAccountOpen, setDeleteAccountOpen] = React.useState(false)
   const [languageDialogOpen, setLanguageDialogOpen] = React.useState(false)
+  const [isLoopingAll, setIsLoopingAll] = React.useState(false)
+  const loopTokenRef = React.useRef(0)
+  const audioRef = React.useRef<HTMLAudioElement | null>(null)
+  const [playingSentenceId, setPlayingSentenceId] = React.useState<string | null>(null)
+  const [playingRole, setPlayingRole] = React.useState<"native" | "target" | null>(null)
+  const ttsCacheRef = React.useRef<Record<string, string>>({})
+  const apiBaseUrl = React.useMemo(() => {
+    const envBase = import.meta.env.VITE_API_URL?.replace(/\/$/, "")
+    if (envBase) return envBase
+    if (import.meta.env.DEV) return "http://localhost:6001"
+    return window.location.origin
+  }, [])
   const settingsPanelRef = React.useRef<HTMLDivElement>(null)
   const settingsButtonRef = React.useRef<HTMLButtonElement>(null)
   const [darkMode, setDarkMode] = React.useState(false)
@@ -52,6 +67,7 @@ export function ArticleList() {
   const [playbackPauseSeconds, setPlaybackPauseSeconds] = React.useState(0)
   const [nativeVoiceId, setNativeVoiceId] = React.useState<string | null>(null)
   const [targetVoiceId, setTargetVoiceId] = React.useState<string | null>(null)
+  const userId = useAuthStore((state) => state.user?.id ?? null)
   const ttsInitRef = React.useRef<string>("")
   const ttsOptionsQuery = trpc.user.getTtsOptions.useQuery(
     {
@@ -86,6 +102,7 @@ export function ArticleList() {
     },
   })
   const deleteAccountMutation = trpc.user.deleteAccount.useMutation()
+  const sentenceAudioMutation = trpc.tts.getSentenceAudio.useMutation()
 
   React.useEffect(() => {
     if (listQuery.data) setArticles(listQuery.data)
@@ -211,6 +228,212 @@ export function ArticleList() {
     updateSettings.mutate(payload)
   }
 
+  const stopLoopPlayback = () => {
+    loopTokenRef.current += 1
+    setIsLoopingAll(false)
+    if (audioRef.current) {
+      audioRef.current.pause()
+      audioRef.current.currentTime = 0
+      audioRef.current = null
+    }
+  }
+
+  React.useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem("sola-tts-cache")
+      if (raw) {
+        const parsed = JSON.parse(raw) as Record<string, string>
+        if (parsed && typeof parsed === "object") {
+          ttsCacheRef.current = parsed
+        }
+      }
+    } catch {
+      ttsCacheRef.current = {}
+    }
+  }, [])
+
+  const persistTtsCache = () => {
+    try {
+      window.localStorage.setItem(
+        "sola-tts-cache",
+        JSON.stringify(ttsCacheRef.current)
+      )
+    } catch {
+      // ignore quota errors
+    }
+  }
+
+  const getCachedAudioUrl = (cacheKey: string) => {
+    const cached = ttsCacheRef.current[cacheKey]
+    if (!cached) return undefined
+    if (cached.startsWith("/")) {
+      const upgraded = `${apiBaseUrl}${cached}`
+      ttsCacheRef.current[cacheKey] = upgraded
+      persistTtsCache()
+      return upgraded
+    }
+    return cached
+  }
+  const setCachedAudioUrl = (cacheKey: string, url: string) => {
+    ttsCacheRef.current[cacheKey] = url
+    persistTtsCache()
+  }
+
+  const resolveVoiceId = (role: "native" | "target") => {
+    const data = ttsOptionsQuery.data
+    if (!data) return null
+    const selectedId = role === "native" ? nativeVoiceId : targetVoiceId
+    const options = role === "native" ? data.nativeOptions : data.targetOptions
+    const match = options.find((voice) => voice.id === selectedId)
+    return match?.voiceId ?? null
+  }
+
+  const buildLocalCacheKey = (sentenceId: string, role: "native" | "target") => {
+    if (!userId || !detailQuery.data || !ttsOptionsQuery.data) return null
+    const voiceId = resolveVoiceId(role)
+    if (!voiceId) return null
+    const languageCode =
+      role === "native"
+        ? detailQuery.data.article.nativeLanguage
+        : detailQuery.data.article.targetLanguage
+    return buildTtsCacheKey({
+      userId,
+      sentenceId,
+      languageCode,
+      providerType: ttsOptionsQuery.data.providerType,
+      voiceId,
+      region: ttsOptionsQuery.data.providerRegion ?? "",
+      speed: 1,
+    })
+  }
+
+  const playAudioUrl = (url: string) =>
+    new Promise<boolean>((resolve) => {
+      if (audioRef.current) {
+        audioRef.current.pause()
+      }
+      const audio = new Audio(url)
+      audioRef.current = audio
+      const finalize = () => {
+        audio.onended = null
+        audio.onerror = null
+        resolve(true)
+      }
+      const fail = () => {
+        audio.onended = null
+        audio.onerror = null
+        resolve(false)
+      }
+      audio.onended = finalize
+      audio.onerror = fail
+      audio.play().catch(fail)
+    })
+
+  const waitMs = (ms: number) =>
+    new Promise<void>((resolve) => {
+      if (!ms) return resolve()
+      setTimeout(resolve, ms)
+    })
+
+  const startLoopAll = async () => {
+    if (!detailQuery.data) return
+    stopLoopPlayback()
+    const token = loopTokenRef.current + 1
+    loopTokenRef.current = token
+    setIsLoopingAll(true)
+
+    const sentences = detailQuery.data.sentences
+    const orderSetting = detailQuery.data.article.displayOrder ?? "native_first"
+    const pauseMs = Math.max(0, Math.round(playbackPauseSeconds * 1000))
+
+    while (loopTokenRef.current === token) {
+      for (let sIndex = 0; sIndex < sentences.length; sIndex += 1) {
+        const sentence = sentences[sIndex]
+        if (loopTokenRef.current !== token) break
+        const order =
+          orderSetting === "native_first" ? ["native", "target"] : ["target", "native"]
+
+        const prefetch = () => {
+          const upcoming = sentences.slice(sIndex + 1, sIndex + 6)
+          for (const next of upcoming) {
+            for (const role of order) {
+              const text =
+                role === "native" ? next.nativeText ?? "" : next.targetText ?? ""
+              if (!text) continue
+              const localKey = buildLocalCacheKey(next.id, role as "native" | "target")
+              if (localKey) {
+                const cached = getCachedAudioUrl(localKey)
+                if (cached) continue
+              }
+              sentenceAudioMutation
+                .mutateAsync({
+                  sentenceId: next.id,
+                  role: role as "native" | "target",
+                })
+                .then((result) => {
+                  setCachedAudioUrl(result.cacheKey, result.url)
+                })
+                .catch(() => {})
+            }
+          }
+        }
+
+        for (const role of order) {
+          if (loopTokenRef.current !== token) break
+          const text =
+            role === "native" ? sentence.nativeText ?? "" : sentence.targetText ?? ""
+          if (!text) continue
+
+          const repeatTimes =
+            role === "native" ? playbackNativeRepeat : playbackTargetRepeat
+
+          for (let i = 0; i < Math.max(1, repeatTimes); i += 1) {
+            if (loopTokenRef.current !== token) break
+            const localKey = buildLocalCacheKey(sentence.id, role as "native" | "target")
+            if (localKey) {
+              const cached = getCachedAudioUrl(localKey)
+              if (cached) {
+                setPlayingSentenceId(sentence.id)
+                setPlayingRole(role as "native" | "target")
+                const ok = await playAudioUrl(cached)
+                if (!ok) {
+                  stopLoopPlayback()
+                  toast.error("音频播放失败，请检查 TTS 配置或音频路径。")
+                  return
+                }
+                if (pauseMs > 0) {
+                  await waitMs(pauseMs)
+                }
+                continue
+              }
+            }
+
+            const result = await sentenceAudioMutation.mutateAsync({
+              sentenceId: sentence.id,
+              role: role as "native" | "target",
+            })
+            let url = getCachedAudioUrl(result.cacheKey)
+            if (!url) {
+              url = result.url
+              setCachedAudioUrl(result.cacheKey, url)
+            }
+            setPlayingSentenceId(sentence.id)
+            setPlayingRole(role as "native" | "target")
+            const ok = await playAudioUrl(url)
+            if (!ok) {
+              stopLoopPlayback()
+              toast.error("音频播放失败，请检查 TTS 配置或音频路径。")
+              return
+            }
+            if (pauseMs > 0) {
+              await waitMs(pauseMs)
+            }
+          }
+        }
+        prefetch()
+      }
+    }
+  }
   const deleteTargets =
     selectedIds.length > 0 ? selectedIds : activeArticleId ? [activeArticleId] : []
 
@@ -523,6 +746,20 @@ export function ArticleList() {
                 <div className="text-sm text-muted-foreground">加载文章中...</div>
               ) : detailQuery.data ? (
                 <div className="space-y-4">
+                  <div className="sticky top-0 z-30 -mx-4 md:-mx-12 mb-4 border-b bg-background/95 px-4 md:px-12 py-2 backdrop-blur">
+                    <div className="flex items-center justify-end gap-2">
+                      <Button
+                        type="button"
+                        variant={isLoopingAll ? "secondary" : "outline"}
+                        onClick={() => {
+                          if (isLoopingAll) stopLoopPlayback()
+                          else startLoopAll()
+                        }}
+                      >
+                        🔁 全文循环
+                      </Button>
+                    </div>
+                  </div>
                   <div className="text-center space-y-2">
                     <h1 className="text-3xl font-semibold">
                       {detailQuery.data.article.title ?? "未命名"}
@@ -546,7 +783,16 @@ export function ArticleList() {
                       detailQuery.data.sentences.map((sentence) => (
                         <Card key={sentence.id}>
                           <CardContent className="py-4 text-sm">
-                            <div className="text-base">{sentence.targetText}</div>
+                            <div
+                              className={cn(
+                                "text-base",
+                                sentence.id === playingSentenceId &&
+                                  playingRole === "target" &&
+                                  "text-orange-500 font-medium"
+                              )}
+                            >
+                              {sentence.targetText}
+                            </div>
                           </CardContent>
                         </Card>
                       ))

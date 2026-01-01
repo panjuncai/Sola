@@ -17,6 +17,11 @@ coverage/
 .vite/
 *.tsbuildinfo
 
+# TTS audio cache
+public/tts/
+**/public/tts/
+*.mp3
+
 # Env files (keep examples)
 .env
 .env.*

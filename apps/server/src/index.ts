@@ -1,5 +1,6 @@
 import { config as loadEnv } from "dotenv"
 import cors from "@fastify/cors"
+import fastifyStatic from "@fastify/static"
 import Fastify from "fastify"
 import { fastifyTRPCPlugin } from "@trpc/server/adapters/fastify"
 import type { CreateFastifyContextOptions } from "@trpc/server/adapters/fastify"
@@ -26,6 +27,11 @@ const server = Fastify({
 await server.register(cors, {
   origin: true,
   credentials: true,
+})
+
+await server.register(fastifyStatic, {
+  root: path.resolve(__dirname, "../public"),
+  prefix: "/",
 })
 
 await server.register(fastifyTRPCPlugin, {
