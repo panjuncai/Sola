@@ -67,6 +67,8 @@ export function ArticleList() {
   const mobileSettingsPanelRef = React.useRef<HTMLDivElement>(null)
   const mobileSettingsButtonRef = React.useRef<HTMLButtonElement>(null)
   const [darkMode, setDarkMode] = React.useState(false)
+  const [blurTarget, setBlurTarget] = React.useState(false)
+  const [blurNative, setBlurNative] = React.useState(false)
 
   const settingsQuery = trpc.user.getSettings.useQuery()
   const updateSettings = trpc.user.updateSettings.useMutation()
@@ -817,6 +819,44 @@ export function ArticleList() {
                 </div>
 
                 <div className="flex items-center justify-between">
+                  <span>遮挡外语</span>
+                  <button
+                    type="button"
+                    className={cn(
+                      "relative h-5 w-10 rounded-full transition",
+                      blurTarget ? "bg-primary" : "bg-muted"
+                    )}
+                    onClick={() => setBlurTarget((prev) => !prev)}
+                  >
+                    <span
+                      className={cn(
+                        "absolute top-0.5 h-4 w-4 rounded-full bg-background shadow transition",
+                        blurTarget ? "left-5" : "left-1"
+                      )}
+                    />
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span>遮挡母语</span>
+                  <button
+                    type="button"
+                    className={cn(
+                      "relative h-5 w-10 rounded-full transition",
+                      blurNative ? "bg-primary" : "bg-muted"
+                    )}
+                    onClick={() => setBlurNative((prev) => !prev)}
+                  >
+                    <span
+                      className={cn(
+                        "absolute top-0.5 h-4 w-4 rounded-full bg-background shadow transition",
+                        blurNative ? "left-5" : "left-1"
+                      )}
+                    />
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between">
                   <span>UI 语言</span>
                   <select
                     className="h-8 rounded-md border bg-background px-2 text-sm"
@@ -1061,6 +1101,44 @@ export function ArticleList() {
                 </div>
 
                 <div className="flex items-center justify-between">
+                  <span>遮挡外语</span>
+                  <button
+                    type="button"
+                    className={cn(
+                      "relative h-5 w-10 rounded-full transition",
+                      blurTarget ? "bg-primary" : "bg-muted"
+                    )}
+                    onClick={() => setBlurTarget((prev) => !prev)}
+                  >
+                    <span
+                      className={cn(
+                        "absolute top-0.5 h-4 w-4 rounded-full bg-background shadow transition",
+                        blurTarget ? "left-5" : "left-1"
+                      )}
+                    />
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span>遮挡母语</span>
+                  <button
+                    type="button"
+                    className={cn(
+                      "relative h-5 w-10 rounded-full transition",
+                      blurNative ? "bg-primary" : "bg-muted"
+                    )}
+                    onClick={() => setBlurNative((prev) => !prev)}
+                  >
+                    <span
+                      className={cn(
+                        "absolute top-0.5 h-4 w-4 rounded-full bg-background shadow transition",
+                        blurNative ? "left-5" : "left-1"
+                      )}
+                    />
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between">
                   <span>UI 语言</span>
                   <select
                     className="h-8 rounded-md border bg-background px-2 text-sm"
@@ -1271,7 +1349,7 @@ export function ArticleList() {
               ) : detailQuery.data ? (
                 <div className="space-y-4">
                   <div className="sticky top-0 z-30 -mx-4 md:-mx-12 mb-4 border-b bg-background/95 px-4 md:px-12 py-2 backdrop-blur">
-                    <div className="flex items-center justify-end gap-2">
+                    <div className="flex items-center justify-center gap-2">
                       <Button
                         type="button"
                         variant={isLoopingAll ? "secondary" : "outline"}
@@ -1313,18 +1391,6 @@ export function ArticleList() {
                         🌫️ 影子跟读
                       </Button>
                     </div>
-                  </div>
-                  <div className="text-center space-y-2">
-                    <h1 className="text-3xl font-semibold">
-                      {detailQuery.data.article.title ?? "未命名"}
-                    </h1>
-                    <p className="text-sm text-muted-foreground">
-                      {detailQuery.data.article.sourceType === "word_list"
-                        ? "单词列表"
-                        : "文章"}{" "}
-                      · {detailQuery.data.article.nativeLanguage} →{" "}
-                      {detailQuery.data.article.targetLanguage}
-                    </p>
                   </div>
                   <div className="space-y-4">
                     {detailQuery.data.sentences.length === 0 ? (
@@ -1422,7 +1488,9 @@ export function ArticleList() {
                                         isPlaying &&
                                           (item.role === "native"
                                             ? "text-blue-600"
-                                            : "text-orange-500")
+                                            : "text-orange-500"),
+                                        item.role === "native" && blurNative && "blur-sm",
+                                        item.role === "target" && blurTarget && "blur-sm"
                                       )}
                                     >
                                       {item.text}
