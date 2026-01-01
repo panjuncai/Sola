@@ -9,7 +9,14 @@ import {
   requireAuthSession,
 } from "../auth-session.js"
 
-import { db, sessions, users } from "@sola/db"
+import {
+  db,
+  publicTtsProviderConfig,
+  sessions,
+  ttsVoiceCatalog,
+  userTtsProvider,
+  users,
+} from "@sola/db"
 
 
 export const authRouter = router({
@@ -19,10 +26,12 @@ export const authRouter = router({
         email: z.string().email(),
         password: z.string().min(1),
         name: z.string().min(1),
+        nativeLanguage: z.enum(["zh-CN", "en-US", "fr-FR"]),
+        targetLanguage: z.enum(["zh-CN", "en-US", "fr-FR"]),
       })
     )
     .mutation(async ({ input, ctx }) => {
-      return callAuthEndpoint(ctx, "/sign-up/email", {
+      const result = await callAuthEndpoint(ctx, "/sign-up/email", {
         method: "POST",
         json: {
           email: input.email,
@@ -30,6 +39,102 @@ export const authRouter = router({
           name: input.name,
         },
       })
+
+      const user = await db.query.users
+        .findFirst({
+          where: eq(users.email, input.email),
+        })
+        .execute()
+
+      if (!user) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "User record not found after sign-up",
+        })
+      }
+
+      await db
+        .update(users)
+        .set({
+          nativeLanguage: input.nativeLanguage,
+          targetLanguage: input.targetLanguage,
+        })
+        .where(eq(users.id, user.id))
+        .run()
+
+      const provider = await db.query.publicTtsProviderConfig
+        .findFirst({
+          where: eq(publicTtsProviderConfig.id, "1"),
+        })
+        .execute()
+
+      if (!provider) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Default public TTS provider (id=1) is missing",
+        })
+      }
+
+      const nativeVoice = await db.query.ttsVoiceCatalog
+        .findFirst({
+          where: and(
+            eq(ttsVoiceCatalog.publicTtsProviderConfigId, provider.id),
+            eq(ttsVoiceCatalog.lang, input.nativeLanguage)
+          ),
+          orderBy: asc(ttsVoiceCatalog.voiceId),
+        })
+        .execute()
+
+      const targetVoice = await db.query.ttsVoiceCatalog
+        .findFirst({
+          where: and(
+            eq(ttsVoiceCatalog.publicTtsProviderConfigId, provider.id),
+            eq(ttsVoiceCatalog.lang, input.targetLanguage)
+          ),
+          orderBy: asc(ttsVoiceCatalog.voiceId),
+        })
+        .execute()
+
+      if (!nativeVoice || !targetVoice) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "No default TTS voice available for the selected languages",
+        })
+      }
+
+      const existingProvider = await db.query.userTtsProvider
+        .findFirst({
+          where: and(
+            eq(userTtsProvider.userId, user.id),
+            eq(userTtsProvider.publicTtsProviderConfigId, provider.id)
+          ),
+        })
+        .execute()
+
+      if (existingProvider) {
+        await db
+          .update(userTtsProvider)
+          .set({
+            ttsVoiceNative: nativeVoice.id,
+            ttsVoiceTarget: targetVoice.id,
+            isDefault: true,
+          })
+          .where(eq(userTtsProvider.id, existingProvider.id))
+          .run()
+      } else {
+        await db
+          .insert(userTtsProvider)
+          .values({
+            userId: user.id,
+            publicTtsProviderConfigId: provider.id,
+            ttsVoiceNative: nativeVoice.id,
+            ttsVoiceTarget: targetVoice.id,
+            isDefault: true,
+          })
+          .run()
+      }
+
+      return result
     }),
 
   signIn: publicProcedure

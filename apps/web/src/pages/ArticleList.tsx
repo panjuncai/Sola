@@ -35,6 +35,8 @@ export function ArticleList() {
   const [isCreating, setIsCreating] = React.useState(false)
   const [confirmOpen, setConfirmOpen] = React.useState(false)
   const [settingsOpen, setSettingsOpen] = React.useState(false)
+  const [deleteAccountOpen, setDeleteAccountOpen] = React.useState(false)
+  const [languageDialogOpen, setLanguageDialogOpen] = React.useState(false)
   const settingsPanelRef = React.useRef<HTMLDivElement>(null)
   const settingsButtonRef = React.useRef<HTMLButtonElement>(null)
   const [darkMode, setDarkMode] = React.useState(false)
@@ -48,6 +50,17 @@ export function ArticleList() {
   const [playbackNativeRepeat, setPlaybackNativeRepeat] = React.useState(1)
   const [playbackTargetRepeat, setPlaybackTargetRepeat] = React.useState(1)
   const [playbackPauseSeconds, setPlaybackPauseSeconds] = React.useState(0)
+  const [nativeVoiceId, setNativeVoiceId] = React.useState<string | null>(null)
+  const [targetVoiceId, setTargetVoiceId] = React.useState<string | null>(null)
+  const ttsInitRef = React.useRef<string>("")
+  const ttsOptionsQuery = trpc.user.getTtsOptions.useQuery(
+    {
+      nativeLanguage: nativeLanguageSetting as "zh-CN" | "en-US" | "fr-FR",
+      targetLanguage: targetLanguageSetting as "zh-CN" | "en-US" | "fr-FR",
+    },
+    { enabled: settingsQuery.isSuccess }
+  )
+  const updateTtsVoices = trpc.user.updateTtsVoices.useMutation()
 
   const showCreate = isCreating || articles.length === 0
   const detailQuery = trpc.article.get.useQuery(
@@ -72,6 +85,7 @@ export function ArticleList() {
       setActiveArticleId(null)
     },
   })
+  const deleteAccountMutation = trpc.user.deleteAccount.useMutation()
 
   React.useEffect(() => {
     if (listQuery.data) setArticles(listQuery.data)
@@ -88,6 +102,29 @@ export function ArticleList() {
       setPlaybackPauseSeconds(settingsQuery.data.playbackPauseMs / 1000)
     }
   }, [settingsQuery.data])
+
+  React.useEffect(() => {
+    if (!ttsOptionsQuery.data) return
+    const langKey = `${nativeLanguageSetting}|${targetLanguageSetting}`
+    if (ttsInitRef.current === langKey) return
+    ttsInitRef.current = langKey
+
+    const { nativeOptions, targetOptions, nativeVoiceId, targetVoiceId } =
+      ttsOptionsQuery.data
+
+    const nextNative = nativeVoiceId ?? nativeOptions[0]?.id ?? null
+    const nextTarget = targetVoiceId ?? targetOptions[0]?.id ?? null
+
+    setNativeVoiceId(nextNative)
+    setTargetVoiceId(nextTarget)
+
+    if (!nativeVoiceId && !targetVoiceId && nextNative && nextTarget) {
+      updateTtsVoices.mutate({
+        nativeVoiceId: nextNative,
+        targetVoiceId: nextTarget,
+      })
+    }
+  }, [ttsOptionsQuery.data, nativeLanguageSetting, targetLanguageSetting, updateTtsVoices])
 
   React.useEffect(() => {
     const stored = window.localStorage.getItem("sola-theme")
@@ -291,41 +328,15 @@ export function ArticleList() {
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <span>母语</span>
-                  <select
-                    className="h-8 rounded-md border bg-background px-2 text-sm"
-                    value={nativeLanguageSetting}
-                    onChange={(event) => {
-                      const value = event.target.value
-                      setNativeLanguageSetting(value)
-                      persistSettings({ nativeLanguage: value })
-                    }}
+                  <span>语言设置</span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-8"
+                    onClick={() => setLanguageDialogOpen(true)}
                   >
-                    {languages.map((lang) => (
-                      <option key={lang.value} value={lang.value}>
-                        {lang.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <span>外语</span>
-                  <select
-                    className="h-8 rounded-md border bg-background px-2 text-sm"
-                    value={targetLanguageSetting}
-                    onChange={(event) => {
-                      const value = event.target.value
-                      setTargetLanguageSetting(value)
-                      persistSettings({ targetLanguage: value })
-                    }}
-                  >
-                    {languages.map((lang) => (
-                      <option key={lang.value} value={lang.value}>
-                        {lang.label}
-                      </option>
-                    ))}
-                  </select>
+                    语言设置
+                  </Button>
                 </div>
 
                 <div className="flex items-center justify-between">
@@ -391,6 +402,37 @@ export function ArticleList() {
                       persistSettings({ playbackPauseSeconds: next })
                     }}
                   />
+                </div>
+
+                <div className="pt-2">
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    className="w-full justify-center"
+                    onClick={() => {
+                      setDeleteAccountOpen(true)
+                    }}
+                  >
+                    注销账号
+                  </Button>
+                </div>
+
+                <div className="pt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full justify-center"
+                    onClick={() => {
+                      trpc.auth.signOut
+                        .mutateAsync()
+                        .catch(() => {})
+                        .finally(() => {
+                          window.location.href = "/auth/login"
+                        })
+                    }}
+                  >
+                    登出
+                  </Button>
                 </div>
               </div>
             </div>
@@ -583,6 +625,149 @@ export function ArticleList() {
             >
               确认删除
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={deleteAccountOpen} onOpenChange={setDeleteAccountOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>确认注销账号</DialogTitle>
+            <DialogDescription>
+              注销后将删除所有数据，且不可恢复。请谨慎操作。
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <DialogClose asChild>
+              <Button type="button" variant="outline">
+                取消
+              </Button>
+            </DialogClose>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={deleteAccountMutation.isLoading}
+              onClick={() => {
+                deleteAccountMutation
+                  .mutateAsync()
+                  .catch(() => {})
+                  .finally(() => {
+                    window.location.href = "/auth/login"
+                  })
+                setDeleteAccountOpen(false)
+              }}
+            >
+              确认注销
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={languageDialogOpen} onOpenChange={setLanguageDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>语言设置</DialogTitle>
+            <DialogDescription>设置母语/外语与语音偏好。</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 text-sm">
+            <div className="space-y-2">
+              <div className="text-xs font-semibold text-muted-foreground">母语</div>
+              <div className="flex flex-wrap items-center gap-2">
+                <select
+                  className="h-9 rounded-md border bg-background px-2 text-sm"
+                  value={nativeLanguageSetting}
+                  onChange={(event) => {
+                    const value = event.target.value
+                    setNativeLanguageSetting(value)
+                    persistSettings({ nativeLanguage: value })
+                  }}
+                >
+                  {languages.map((lang) => (
+                    <option key={lang.value} value={lang.value}>
+                      {lang.label}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  className="h-9 min-w-[200px] rounded-md border bg-background px-2 text-sm"
+                  value={nativeVoiceId ?? ""}
+                  onChange={(event) => {
+                    const value = event.target.value || null
+                    setNativeVoiceId(value)
+                    if (value && targetVoiceId) {
+                      updateTtsVoices.mutate({
+                        nativeVoiceId: value,
+                        targetVoiceId,
+                      })
+                    }
+                  }}
+                >
+                  <option value="" disabled>
+                    语音
+                  </option>
+                  {ttsOptionsQuery.data?.nativeOptions.map((voice) => (
+                    <option key={voice.id} value={voice.id}>
+                      {(voice.gender === "Female" ? "女" : voice.gender === "Male" ? "男" : "语音")} ·{" "}
+                      {voice.name ?? voice.voiceId}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="text-xs font-semibold text-muted-foreground">外语</div>
+              <div className="flex flex-wrap items-center gap-2">
+                <select
+                  className="h-9 rounded-md border bg-background px-2 text-sm"
+                  value={targetLanguageSetting}
+                  onChange={(event) => {
+                    const value = event.target.value
+                    setTargetLanguageSetting(value)
+                    persistSettings({ targetLanguage: value })
+                  }}
+                >
+                  {languages.map((lang) => (
+                    <option key={lang.value} value={lang.value}>
+                      {lang.label}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  className="h-9 min-w-[200px] rounded-md border bg-background px-2 text-sm"
+                  value={targetVoiceId ?? ""}
+                  onChange={(event) => {
+                    const value = event.target.value || null
+                    setTargetVoiceId(value)
+                    if (nativeVoiceId && value) {
+                      updateTtsVoices.mutate({
+                        nativeVoiceId,
+                        targetVoiceId: value,
+                      })
+                    }
+                  }}
+                >
+                  <option value="" disabled>
+                    语音
+                  </option>
+                  {ttsOptionsQuery.data?.targetOptions.map((voice) => (
+                    <option key={voice.id} value={voice.id}>
+                      {(voice.gender === "Female" ? "女" : voice.gender === "Male" ? "男" : "语音")} ·{" "}
+                      {voice.name ?? voice.voiceId}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button type="button" variant="outline">
+                关闭
+              </Button>
+            </DialogClose>
           </DialogFooter>
         </DialogContent>
       </Dialog>

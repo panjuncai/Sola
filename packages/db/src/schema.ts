@@ -143,3 +143,81 @@ export const userArticleSentences = sqliteTable("user_article_sentences", {
     .defaultNow()
     .$onUpdate(() => new Date()),
 })
+
+export const publicTtsProviderConfig = sqliteTable("public_tts_provider_config", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  providerType: text("provider_type").notNull(),
+  apiUrl: text("api_url").notNull(),
+  apiKey: text("api_key"),
+  region: text("region"),
+  enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().defaultNow(),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+})
+
+export const ttsVoiceCatalog = sqliteTable("tts_voice_catalog", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  publicTtsProviderConfigId: text("public_tts_provider_config_id")
+    .notNull()
+    .references(() => publicTtsProviderConfig.id, { onDelete: "cascade" }),
+  voiceId: text("voice_id").notNull(),
+  lang: text("lang").notNull(),
+  gender: text("gender"),
+  name: text("name"),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().defaultNow(),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+})
+
+export const userTtsProvider = sqliteTable("user_tts_provider", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  publicTtsProviderConfigId: text("public_tts_provider_config_id")
+    .notNull()
+    .references(() => publicTtsProviderConfig.id, { onDelete: "cascade" }),
+  ttsVoiceNative: text("tts_voice_native"),
+  ttsVoiceTarget: text("tts_voice_target"),
+  isDefault: integer("is_default", { mode: "boolean" }).notNull().default(false),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().defaultNow(),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+})
+
+export const userArticleSentenceTts = sqliteTable("user_article_sentence_tts", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  sentenceId: text("sentence_id")
+    .notNull()
+    .references(() => userArticleSentences.id, { onDelete: "cascade" }),
+  languageCode: text("language_code").notNull(),
+  providerType: text("provider_type").notNull(),
+  voiceId: text("voice_id"),
+  region: text("region"),
+  speed: text("speed"),
+  cacheKey: text("cache_key").notNull(),
+  url: text("url").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().defaultNow(),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+})

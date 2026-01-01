@@ -32,7 +32,13 @@ export function SignUpForm() {
 
   const form = useForm<z.infer<typeof signUpSchema>>({
     resolver: zodResolver(signUpSchema),
-    defaultValues: { name: "", email: "", password: "" },
+    defaultValues: {
+      name: "",
+      email: "",
+      password: "",
+      nativeLanguage: "zh-CN",
+      targetLanguage: "en-US",
+    },
     mode: "onChange",
   })
 
@@ -85,6 +91,48 @@ export function SignUpForm() {
               <FormLabel>Password</FormLabel>
               <FormControl>
                 <Input type="password" autoComplete="new-password" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="nativeLanguage"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>母语</FormLabel>
+              <FormControl>
+                <select
+                  className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                  {...field}
+                >
+                  <option value="zh-CN">中文</option>
+                  <option value="en-US">English</option>
+                  <option value="fr-FR">Français</option>
+                </select>
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="targetLanguage"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>外语</FormLabel>
+              <FormControl>
+                <select
+                  className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                  {...field}
+                >
+                  <option value="en-US">English</option>
+                  <option value="zh-CN">中文</option>
+                  <option value="fr-FR">Français</option>
+                </select>
               </FormControl>
               <FormMessage />
             </FormItem>
