@@ -41,6 +41,16 @@ export function ArticleList() {
   const [deleteAccountOpen, setDeleteAccountOpen] = React.useState(false)
   const [languageDialogOpen, setLanguageDialogOpen] = React.useState(false)
   const [isLoopingAll, setIsLoopingAll] = React.useState(false)
+  const [isLoopingTarget, setIsLoopingTarget] = React.useState(false)
+  const [isLoopingSingle, setIsLoopingSingle] = React.useState(false)
+  const [isLoopingShadowing, setIsLoopingShadowing] = React.useState(false)
+  const [selectedSentenceId, setSelectedSentenceId] = React.useState<string | null>(
+    null
+  )
+  const [selectedSentenceRole, setSelectedSentenceRole] = React.useState<
+    "native" | "target" | null
+  >(null)
+  const [playingSpeed, setPlayingSpeed] = React.useState<number | null>(null)
   const loopTokenRef = React.useRef(0)
   const audioRef = React.useRef<HTMLAudioElement | null>(null)
   const [playingSentenceId, setPlayingSentenceId] = React.useState<string | null>(null)
@@ -54,6 +64,8 @@ export function ArticleList() {
   }, [])
   const settingsPanelRef = React.useRef<HTMLDivElement>(null)
   const settingsButtonRef = React.useRef<HTMLButtonElement>(null)
+  const mobileSettingsPanelRef = React.useRef<HTMLDivElement>(null)
+  const mobileSettingsButtonRef = React.useRef<HTMLButtonElement>(null)
   const [darkMode, setDarkMode] = React.useState(false)
 
   const settingsQuery = trpc.user.getSettings.useQuery()
@@ -67,7 +79,18 @@ export function ArticleList() {
   const [playbackPauseSeconds, setPlaybackPauseSeconds] = React.useState(0)
   const [nativeVoiceId, setNativeVoiceId] = React.useState<string | null>(null)
   const [targetVoiceId, setTargetVoiceId] = React.useState<string | null>(null)
+  const [shadowingDialogOpen, setShadowingDialogOpen] = React.useState(false)
+  const [clearCacheOpen, setClearCacheOpen] = React.useState(false)
+  const [shadowingEnabled, setShadowingEnabled] = React.useState(false)
+  const [shadowingSpeeds, setShadowingSpeeds] = React.useState<number[]>([
+    0.2, 0.4, 0.6, 0.8,
+  ])
+  const [shadowingDraftEnabled, setShadowingDraftEnabled] = React.useState(false)
+  const [shadowingDraftSpeeds, setShadowingDraftSpeeds] = React.useState<number[]>([
+    0.2, 0.4, 0.6, 0.8,
+  ])
   const userId = useAuthStore((state) => state.user?.id ?? null)
+  const lastLoopModeRef = React.useRef<"all" | "target">("all")
   const ttsInitRef = React.useRef<string>("")
   const ttsOptionsQuery = trpc.user.getTtsOptions.useQuery(
     {
@@ -117,8 +140,16 @@ export function ArticleList() {
       setPlaybackNativeRepeat(settingsQuery.data.playbackNativeRepeat)
       setPlaybackTargetRepeat(settingsQuery.data.playbackTargetRepeat)
       setPlaybackPauseSeconds(settingsQuery.data.playbackPauseMs / 1000)
+      setShadowingEnabled(settingsQuery.data.shadowing.enabled)
+      setShadowingSpeeds(settingsQuery.data.shadowing.speeds)
     }
   }, [settingsQuery.data])
+
+  React.useEffect(() => {
+    if (!shadowingDialogOpen) return
+    setShadowingDraftEnabled(shadowingEnabled)
+    setShadowingDraftSpeeds(shadowingSpeeds)
+  }, [shadowingDialogOpen, shadowingEnabled, shadowingSpeeds])
 
   React.useEffect(() => {
     if (!ttsOptionsQuery.data) return
@@ -170,6 +201,8 @@ export function ArticleList() {
       const target = event.target as Node
       if (settingsPanelRef.current?.contains(target)) return
       if (settingsButtonRef.current?.contains(target)) return
+      if (mobileSettingsPanelRef.current?.contains(target)) return
+      if (mobileSettingsButtonRef.current?.contains(target)) return
       setSettingsOpen(false)
     }
     document.addEventListener("mousedown", handleOutside)
@@ -212,6 +245,7 @@ export function ArticleList() {
     playbackNativeRepeat: number
     playbackTargetRepeat: number
     playbackPauseSeconds: number
+    shadowing: { enabled: boolean; speeds: number[] }
   }>) => {
     if (!settingsQuery.data) return
     const payload = {
@@ -224,6 +258,10 @@ export function ArticleList() {
       playbackPauseMs: Math.round(
         ((next?.playbackPauseSeconds ?? playbackPauseSeconds) || 0) * 1000
       ),
+      shadowing: next?.shadowing ?? {
+        enabled: shadowingEnabled,
+        speeds: shadowingSpeeds,
+      },
     }
     updateSettings.mutate(payload)
   }
@@ -231,6 +269,9 @@ export function ArticleList() {
   const stopLoopPlayback = () => {
     loopTokenRef.current += 1
     setIsLoopingAll(false)
+    setIsLoopingTarget(false)
+    setIsLoopingSingle(false)
+    setIsLoopingShadowing(false)
     if (audioRef.current) {
       audioRef.current.pause()
       audioRef.current.currentTime = 0
@@ -263,6 +304,23 @@ export function ArticleList() {
     }
   }
 
+  const clearTtsCache = async () => {
+    ttsCacheRef.current = {}
+    try {
+      window.localStorage.removeItem("sola-tts-cache")
+    } catch {
+      // ignore
+    }
+    if ("caches" in window) {
+      try {
+        await caches.delete("sola-tts-audio")
+      } catch {
+        // ignore
+      }
+    }
+    toast.success("已清理本地音频缓存")
+  }
+
   const getCachedAudioUrl = (cacheKey: string) => {
     const cached = ttsCacheRef.current[cacheKey]
     if (!cached) return undefined
@@ -288,7 +346,11 @@ export function ArticleList() {
     return match?.voiceId ?? null
   }
 
-  const buildLocalCacheKey = (sentenceId: string, role: "native" | "target") => {
+  const buildLocalCacheKey = (
+    sentenceId: string,
+    role: "native" | "target",
+    speed?: number
+  ) => {
     if (!userId || !detailQuery.data || !ttsOptionsQuery.data) return null
     const voiceId = resolveVoiceId(role)
     if (!voiceId) return null
@@ -303,31 +365,106 @@ export function ArticleList() {
       providerType: ttsOptionsQuery.data.providerType,
       voiceId,
       region: ttsOptionsQuery.data.providerRegion ?? "",
-      speed: 1,
+      speed: speed ?? 1,
     })
   }
 
-  const playAudioUrl = (url: string) =>
-    new Promise<boolean>((resolve) => {
+  const playSentenceRole = async (
+    sentence: (typeof detailQuery.data)["sentences"][number],
+    role: "native" | "target",
+    speed?: number
+  ) => {
+    const text = role === "native" ? sentence.nativeText ?? "" : sentence.targetText ?? ""
+    if (!text) return false
+    const localKey = buildLocalCacheKey(sentence.id, role, speed)
+    if (localKey) {
+      const cached = getCachedAudioUrl(localKey)
+      if (cached) {
+        setPlayingSentenceId(sentence.id)
+        setPlayingRole(role)
+        setPlayingSpeed(speed ?? 1)
+        return playAudioUrl(cached)
+      }
+    }
+    const result = await sentenceAudioMutation.mutateAsync({
+      sentenceId: sentence.id,
+      role,
+      speed,
+    })
+    let url = getCachedAudioUrl(result.cacheKey)
+    if (!url) {
+      url = result.url
+      setCachedAudioUrl(result.cacheKey, url)
+    }
+    setPlayingSentenceId(sentence.id)
+    setPlayingRole(role)
+    setPlayingSpeed(speed ?? 1)
+    return playAudioUrl(url)
+  }
+
+  const playAudioUrl = async (url: string) => {
+    let objectUrl: string | null = null
+    if ("caches" in window) {
+      try {
+        const cache = await caches.open("sola-tts-audio")
+        const cached = await cache.match(url)
+        if (cached) {
+          const blob = await cached.blob()
+          objectUrl = URL.createObjectURL(blob)
+        } else {
+          try {
+            const response = await fetch(url, { credentials: "include" })
+            if (response.ok) {
+              await cache.put(url, response.clone())
+              const blob = await response.blob()
+              objectUrl = URL.createObjectURL(blob)
+            }
+          } catch {
+            objectUrl = null
+          }
+        }
+      } catch {
+        objectUrl = null
+      }
+    }
+
+    return new Promise<boolean>((resolve) => {
       if (audioRef.current) {
         audioRef.current.pause()
       }
-      const audio = new Audio(url)
-      audioRef.current = audio
-      const finalize = () => {
-        audio.onended = null
-        audio.onerror = null
-        resolve(true)
+      let retried = false
+      const play = (src: string) => {
+        const audio = new Audio(src)
+        audioRef.current = audio
+        const cleanup = () => {
+          audio.onended = null
+          audio.onerror = null
+          if (objectUrl) {
+            URL.revokeObjectURL(objectUrl)
+            objectUrl = null
+          }
+        }
+        const finalize = () => {
+          cleanup()
+          resolve(true)
+        }
+        const fail = () => {
+          cleanup()
+          if (objectUrl && !retried) {
+            retried = true
+            play(url)
+            return
+          }
+          resolve(false)
+        }
+        audio.onended = finalize
+        audio.onerror = fail
+        audio.play().catch(fail)
       }
-      const fail = () => {
-        audio.onended = null
-        audio.onerror = null
-        resolve(false)
-      }
-      audio.onended = finalize
-      audio.onerror = fail
-      audio.play().catch(fail)
+
+      play(objectUrl ?? url)
     })
+  }
 
   const waitMs = (ms: number) =>
     new Promise<void>((resolve) => {
@@ -341,17 +478,33 @@ export function ArticleList() {
     const token = loopTokenRef.current + 1
     loopTokenRef.current = token
     setIsLoopingAll(true)
+    lastLoopModeRef.current = "all"
 
     const sentences = detailQuery.data.sentences
+    const startIndex =
+      selectedSentenceId != null
+        ? Math.max(
+            0,
+            sentences.findIndex((sentence) => sentence.id === selectedSentenceId)
+          )
+        : 0
     const orderSetting = detailQuery.data.article.displayOrder ?? "native_first"
     const pauseMs = Math.max(0, Math.round(playbackPauseSeconds * 1000))
 
     while (loopTokenRef.current === token) {
-      for (let sIndex = 0; sIndex < sentences.length; sIndex += 1) {
+      for (let sIndex = startIndex; sIndex < sentences.length; sIndex += 1) {
         const sentence = sentences[sIndex]
         if (loopTokenRef.current !== token) break
         const order =
           orderSetting === "native_first" ? ["native", "target"] : ["target", "native"]
+        const isFirstSentence = sIndex === startIndex
+        const orderedRoles =
+          isFirstSentence && selectedSentenceRole
+            ? [
+                selectedSentenceRole,
+                ...order.filter((role) => role !== selectedSentenceRole),
+              ]
+            : order
 
         const prefetch = () => {
           const upcoming = sentences.slice(sIndex + 1, sIndex + 6)
@@ -378,7 +531,7 @@ export function ArticleList() {
           }
         }
 
-        for (const role of order) {
+        for (const role of orderedRoles) {
           if (loopTokenRef.current !== token) break
           const text =
             role === "native" ? sentence.nativeText ?? "" : sentence.targetText ?? ""
@@ -389,37 +542,7 @@ export function ArticleList() {
 
           for (let i = 0; i < Math.max(1, repeatTimes); i += 1) {
             if (loopTokenRef.current !== token) break
-            const localKey = buildLocalCacheKey(sentence.id, role as "native" | "target")
-            if (localKey) {
-              const cached = getCachedAudioUrl(localKey)
-              if (cached) {
-                setPlayingSentenceId(sentence.id)
-                setPlayingRole(role as "native" | "target")
-                const ok = await playAudioUrl(cached)
-                if (!ok) {
-                  stopLoopPlayback()
-                  toast.error("音频播放失败，请检查 TTS 配置或音频路径。")
-                  return
-                }
-                if (pauseMs > 0) {
-                  await waitMs(pauseMs)
-                }
-                continue
-              }
-            }
-
-            const result = await sentenceAudioMutation.mutateAsync({
-              sentenceId: sentence.id,
-              role: role as "native" | "target",
-            })
-            let url = getCachedAudioUrl(result.cacheKey)
-            if (!url) {
-              url = result.url
-              setCachedAudioUrl(result.cacheKey, url)
-            }
-            setPlayingSentenceId(sentence.id)
-            setPlayingRole(role as "native" | "target")
-            const ok = await playAudioUrl(url)
+            const ok = await playSentenceRole(sentence, role as "native" | "target")
             if (!ok) {
               stopLoopPlayback()
               toast.error("音频播放失败，请检查 TTS 配置或音频路径。")
@@ -432,6 +555,168 @@ export function ArticleList() {
         }
         prefetch()
       }
+    }
+  }
+
+  const startLoopTarget = async () => {
+    if (!detailQuery.data) return
+    stopLoopPlayback()
+    const token = loopTokenRef.current + 1
+    loopTokenRef.current = token
+    setIsLoopingTarget(true)
+    lastLoopModeRef.current = "target"
+
+    const sentences = detailQuery.data.sentences
+    const startIndex =
+      selectedSentenceId != null
+        ? Math.max(
+            0,
+            sentences.findIndex((sentence) => sentence.id === selectedSentenceId)
+          )
+        : 0
+    const pauseMs = Math.max(0, Math.round(playbackPauseSeconds * 1000))
+
+    while (loopTokenRef.current === token) {
+      for (let sIndex = startIndex; sIndex < sentences.length; sIndex += 1) {
+        const sentence = sentences[sIndex]
+        if (loopTokenRef.current !== token) break
+        const isFirstSentence = sIndex === startIndex
+        const shouldPlaySelectedFirst =
+          isFirstSentence &&
+          selectedSentenceRole === "native" &&
+          sentence.nativeText &&
+          sentence.nativeText.trim().length > 0
+        const text = sentence.targetText ?? ""
+        if (!text) continue
+
+        const prefetch = () => {
+          const upcoming = sentences.slice(sIndex + 1, sIndex + 6)
+          for (const next of upcoming) {
+            const nextText = next.targetText ?? ""
+            if (!nextText) continue
+            const localKey = buildLocalCacheKey(next.id, "target")
+            if (localKey) {
+              const cached = getCachedAudioUrl(localKey)
+              if (cached) continue
+            }
+            sentenceAudioMutation
+              .mutateAsync({ sentenceId: next.id, role: "target" })
+              .then((result) => {
+                setCachedAudioUrl(result.cacheKey, result.url)
+              })
+              .catch(() => {})
+          }
+        }
+
+        if (shouldPlaySelectedFirst) {
+          const ok = await playSentenceRole(sentence, "native")
+          if (!ok) {
+            stopLoopPlayback()
+            toast.error("音频播放失败，请检查 TTS 配置或音频路径。")
+            return
+          }
+          if (pauseMs > 0) {
+            await waitMs(pauseMs)
+          }
+        }
+
+        for (let i = 0; i < Math.max(1, playbackTargetRepeat); i += 1) {
+          if (loopTokenRef.current !== token) break
+          const ok = await playSentenceRole(sentence, "target")
+          if (!ok) {
+            stopLoopPlayback()
+            toast.error("音频播放失败，请检查 TTS 配置或音频路径。")
+            return
+          }
+          if (pauseMs > 0) {
+            await waitMs(pauseMs)
+          }
+        }
+
+        prefetch()
+      }
+    }
+  }
+
+  const startLoopSingle = async () => {
+    if (!detailQuery.data || !selectedSentenceId || !selectedSentenceRole) {
+      toast.error("请先选择要循环的句子。")
+      return
+    }
+    stopLoopPlayback()
+    const token = loopTokenRef.current + 1
+    loopTokenRef.current = token
+    setIsLoopingSingle(true)
+
+    const sentence = detailQuery.data.sentences.find(
+      (item) => item.id === selectedSentenceId
+    )
+    if (!sentence) {
+      stopLoopPlayback()
+      return
+    }
+
+    const pauseMs = Math.max(0, Math.round(playbackPauseSeconds * 1000))
+    const repeatTimes =
+      selectedSentenceRole === "native" ? playbackNativeRepeat : playbackTargetRepeat
+
+    while (loopTokenRef.current === token) {
+      for (let i = 0; i < Math.max(1, repeatTimes); i += 1) {
+        if (loopTokenRef.current !== token) break
+        const ok = await playSentenceRole(sentence, selectedSentenceRole)
+        if (!ok) {
+          stopLoopPlayback()
+          toast.error("音频播放失败，请检查 TTS 配置或音频路径。")
+          return
+        }
+        if (pauseMs > 0) {
+          await waitMs(pauseMs)
+        }
+      }
+    }
+  }
+
+  const startLoopShadowing = async () => {
+    if (!detailQuery.data) return
+    stopLoopPlayback()
+    const token = loopTokenRef.current + 1
+    loopTokenRef.current = token
+    setIsLoopingShadowing(true)
+
+    const sentences = detailQuery.data.sentences
+    if (sentences.length === 0) {
+      setIsLoopingShadowing(false)
+      return
+    }
+    const targetSentence =
+      selectedSentenceId != null
+        ? sentences.find((sentence) => sentence.id === selectedSentenceId)
+        : sentences[0]
+    if (!targetSentence) {
+      setIsLoopingShadowing(false)
+      return
+    }
+    const role = selectedSentenceRole ?? "target"
+    if (selectedSentenceId == null) {
+      setSelectedSentenceId(targetSentence.id)
+      setSelectedSentenceRole(role)
+    }
+    const pauseMs = Math.max(0, Math.round(playbackPauseSeconds * 1000))
+    const speeds = shadowingSpeeds.length > 0 ? shadowingSpeeds : [1, 1, 1, 1]
+    for (const speed of speeds) {
+      if (loopTokenRef.current !== token) break
+      const ok = await playSentenceRole(targetSentence, role, speed)
+      if (!ok) {
+        stopLoopPlayback()
+        toast.error("音频播放失败，请检查 TTS 配置或音频路径。")
+        return
+      }
+      if (pauseMs > 0) {
+        await waitMs(pauseMs)
+      }
+    }
+    if (loopTokenRef.current === token) {
+      setIsLoopingShadowing(false)
     }
   }
   const deleteTargets =
@@ -579,6 +864,18 @@ export function ArticleList() {
                 </div>
 
                 <div className="flex items-center justify-between">
+                  <span>影子跟读配置</span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-8"
+                    onClick={() => setShadowingDialogOpen(true)}
+                  >
+                    影子跟读
+                  </Button>
+                </div>
+
+                <div className="flex items-center justify-between">
                   <span>自动母语次数</span>
                   <input
                     type="number"
@@ -615,7 +912,7 @@ export function ArticleList() {
                   <input
                     type="number"
                     min={0}
-                    step={0.5}
+                    step={1}
                     className="h-8 w-16 rounded-md border bg-background px-2 text-sm text-right"
                     value={playbackPauseSeconds}
                     onChange={(event) => {
@@ -625,6 +922,17 @@ export function ArticleList() {
                       persistSettings({ playbackPauseSeconds: next })
                     }}
                   />
+                </div>
+
+                <div className="pt-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full justify-center"
+                    onClick={() => setClearCacheOpen(true)}
+                  >
+                    清理音频缓存
+                  </Button>
                 </div>
 
                 <div className="pt-2">
@@ -682,13 +990,229 @@ export function ArticleList() {
       <div className="md:hidden sticky top-0 z-40 flex items-center justify-between border-b bg-background/95 px-4 py-3 backdrop-blur">
         <button
           type="button"
-          className="text-sm font-medium"
+          className="flex h-9 w-9 items-center justify-center text-muted-foreground"
           onClick={() => setMobileMenuOpen(true)}
         >
-          Menu
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 24 24"
+            className="h-5 w-5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M4 6h16" />
+            <path d="M4 12h16" />
+            <path d="M4 18h16" />
+          </svg>
         </button>
         <div className="text-sm font-semibold">Sola</div>
-        <div className="w-10" aria-hidden />
+        <div className="relative">
+          <button
+            ref={mobileSettingsButtonRef}
+            type="button"
+            className="flex h-9 w-9 items-center justify-center text-muted-foreground"
+            onClick={() => {
+              setSettingsOpen((prev) => !prev)
+              setMobileMenuOpen(false)
+            }}
+            aria-label="Settings"
+          >
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              className="h-5 w-5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M20 21a8 8 0 0 0-16 0" />
+              <circle cx="12" cy="8" r="4" />
+            </svg>
+          </button>
+          {settingsOpen ? (
+            <div
+              ref={mobileSettingsPanelRef}
+              className="absolute right-0 top-12 w-[calc(100vw-2rem)] max-w-xs z-20 rounded-xl border bg-card shadow-[0_16px_40px_rgba(15,23,42,0.18)]"
+            >
+              <div className="px-4 py-3 text-sm font-semibold">设置</div>
+              <div className="space-y-3 border-t px-4 py-3 text-sm">
+                <div className="flex items-center justify-between">
+                  <span>暗黑模式</span>
+                  <button
+                    type="button"
+                    className={cn(
+                      "relative h-5 w-10 rounded-full transition",
+                      darkMode ? "bg-primary" : "bg-muted"
+                    )}
+                    onClick={() => setDarkMode((prev) => !prev)}
+                  >
+                    <span
+                      className={cn(
+                        "absolute top-0.5 h-4 w-4 rounded-full bg-background shadow transition",
+                        darkMode ? "left-5" : "left-1"
+                      )}
+                    />
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span>UI 语言</span>
+                  <select
+                    className="h-8 rounded-md border bg-background px-2 text-sm"
+                    value={uiLanguage}
+                    onChange={(event) => {
+                      const value = event.target.value
+                      setUiLanguage(value)
+                      persistSettings({ uiLanguage: value })
+                    }}
+                  >
+                    {languages.map((lang) => (
+                      <option key={lang.value} value={lang.value}>
+                        {lang.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span>语言设置</span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-8"
+                    onClick={() => setLanguageDialogOpen(true)}
+                  >
+                    语言设置
+                  </Button>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span>语言优先级</span>
+                  <select
+                    className="h-8 rounded-md border bg-background px-2 text-sm"
+                    value={displayOrderSetting}
+                    onChange={(event) => {
+                      const value = event.target.value
+                      setDisplayOrderSetting(value)
+                      persistSettings({ displayOrder: value })
+                    }}
+                  >
+                    <option value="native_first">母语优先</option>
+                    <option value="target_first">外语优先</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span>影子跟读配置</span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-8"
+                    onClick={() => setShadowingDialogOpen(true)}
+                  >
+                    影子跟读
+                  </Button>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span>自动母语次数</span>
+                  <input
+                    type="number"
+                    min={0}
+                    className="h-8 w-16 rounded-md border bg-background px-2 text-sm text-right"
+                    value={playbackNativeRepeat}
+                    onChange={(event) => {
+                      const value = Number(event.target.value)
+                      const next = Number.isFinite(value) ? value : 0
+                      setPlaybackNativeRepeat(next)
+                      persistSettings({ playbackNativeRepeat: next })
+                    }}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span>自动外语次数</span>
+                  <input
+                    type="number"
+                    min={0}
+                    className="h-8 w-16 rounded-md border bg-background px-2 text-sm text-right"
+                    value={playbackTargetRepeat}
+                    onChange={(event) => {
+                      const value = Number(event.target.value)
+                      const next = Number.isFinite(value) ? value : 0
+                      setPlaybackTargetRepeat(next)
+                      persistSettings({ playbackTargetRepeat: next })
+                    }}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span>自动发音间隔 (s)</span>
+                  <input
+                    type="number"
+                    min={0}
+                    step={1}
+                    className="h-8 w-16 rounded-md border bg-background px-2 text-sm text-right"
+                    value={playbackPauseSeconds}
+                    onChange={(event) => {
+                      const value = Number(event.target.value)
+                      const next = Number.isFinite(value) ? value : 0
+                      setPlaybackPauseSeconds(next)
+                      persistSettings({ playbackPauseSeconds: next })
+                    }}
+                  />
+                </div>
+
+                <div className="pt-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full justify-center"
+                    onClick={() => setClearCacheOpen(true)}
+                  >
+                    清理音频缓存
+                  </Button>
+                </div>
+
+                <div className="pt-2">
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    className="w-full justify-center"
+                    onClick={() => {
+                      setDeleteAccountOpen(true)
+                    }}
+                  >
+                    注销账号
+                  </Button>
+                </div>
+
+                <div className="pt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full justify-center"
+                    onClick={() => {
+                      trpc.auth.signOut
+                        .mutateAsync()
+                        .catch(() => {})
+                        .finally(() => {
+                          window.location.href = "/auth/login"
+                        })
+                    }}
+                  >
+                    登出
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </div>
       </div>
 
       <div
@@ -758,6 +1282,36 @@ export function ArticleList() {
                       >
                         🔁 全文循环
                       </Button>
+                      <Button
+                        type="button"
+                        variant={isLoopingTarget ? "secondary" : "outline"}
+                        onClick={() => {
+                          if (isLoopingTarget) stopLoopPlayback()
+                          else startLoopTarget()
+                        }}
+                      >
+                        🟠 外语循环
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={isLoopingSingle ? "secondary" : "outline"}
+                        onClick={() => {
+                          if (isLoopingSingle) stopLoopPlayback()
+                          else startLoopSingle()
+                        }}
+                      >
+                        🔂 单句循环
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={isLoopingShadowing ? "secondary" : "outline"}
+                        onClick={() => {
+                          if (isLoopingShadowing) stopLoopPlayback()
+                          else startLoopShadowing()
+                        }}
+                      >
+                        🌫️ 影子跟读
+                      </Button>
                     </div>
                   </div>
                   <div className="text-center space-y-2">
@@ -780,22 +1334,106 @@ export function ArticleList() {
                         </CardContent>
                       </Card>
                     ) : (
-                      detailQuery.data.sentences.map((sentence) => (
-                        <Card key={sentence.id}>
-                          <CardContent className="py-4 text-sm">
-                            <div
-                              className={cn(
-                                "text-base",
-                                sentence.id === playingSentenceId &&
-                                  playingRole === "target" &&
-                                  "text-orange-500 font-medium"
-                              )}
-                            >
-                              {sentence.targetText}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))
+                      detailQuery.data.sentences.map((sentence) => {
+                        const nativeFirst =
+                          detailQuery.data.article.displayOrder === "native_first"
+                        const items = [
+                          { role: "native", text: sentence.nativeText ?? "" },
+                          { role: "target", text: sentence.targetText ?? "" },
+                        ] as const
+                        const ordered = nativeFirst ? items : items.slice().reverse()
+
+                        return (
+                          <Card key={sentence.id} className="border-0 shadow-none">
+                            <CardContent className="space-y-1.5 rounded-xl bg-muted/20 px-3 py-2 text-sm transition">
+                              {ordered.map((item) => {
+                                if (!item.text) return null
+                                const isPlaying =
+                                  sentence.id === playingSentenceId &&
+                                  playingRole === item.role
+                                const isSelected =
+                                  sentence.id === selectedSentenceId &&
+                                  selectedSentenceRole === item.role
+                                return (
+                                  <div
+                                    key={item.role}
+                                    className={cn(
+                                      "relative flex items-start gap-2 rounded-md border border-muted/20 px-2.5 py-1 text-base transition",
+                                      isPlaying && "font-medium",
+                                      isSelected &&
+                                        "border-white/30 shadow-[0_1px_3px_rgba(15,23,42,0.05)] ring-1 ring-white/40"
+                                    )}
+                                    role="button"
+                                    tabIndex={0}
+                                    onClick={() => {
+                                      stopLoopPlayback()
+                                      setSelectedSentenceId(sentence.id)
+                                      setSelectedSentenceRole(item.role)
+                                      playSentenceRole(
+                                        sentence,
+                                        item.role as "native" | "target"
+                                      )
+                                        .then((ok) => {
+                                          if (!ok) {
+                                            toast.error(
+                                              "音频播放失败，请检查 TTS 配置或音频路径。"
+                                            )
+                                          }
+                                        })
+                                        .catch(() => {})
+                                    }}
+                                    onKeyDown={(event) => {
+                                      if (event.key === "Enter" || event.key === " ") {
+                                        event.preventDefault()
+                                        stopLoopPlayback()
+                                        setSelectedSentenceId(sentence.id)
+                                        setSelectedSentenceRole(item.role)
+                                        playSentenceRole(
+                                          sentence,
+                                          item.role as "native" | "target"
+                                        )
+                                          .then((ok) => {
+                                            if (!ok) {
+                                              toast.error(
+                                                "音频播放失败，请检查 TTS 配置或音频路径。"
+                                              )
+                                            }
+                                          })
+                                          .catch(() => {})
+                                      }
+                                    }}
+                                  >
+                                    {isPlaying ? (
+                                      <span className="absolute right-2 top-1 text-[11px] text-muted-foreground/80">
+                                        {(playingSpeed ?? 1).toFixed(1)}×
+                                      </span>
+                                    ) : null}
+                                    <span
+                                      className={cn(
+                                        "mt-1 h-3 w-1.5 rounded-full",
+                                        item.role === "native"
+                                          ? "bg-blue-500"
+                                          : "bg-orange-500"
+                                      )}
+                                    />
+                                    <span
+                                      className={cn(
+                                        "leading-relaxed",
+                                        isPlaying &&
+                                          (item.role === "native"
+                                            ? "text-blue-600"
+                                            : "text-orange-500")
+                                      )}
+                                    >
+                                      {item.text}
+                                    </span>
+                                  </div>
+                                )
+                              })}
+                            </CardContent>
+                          </Card>
+                        )
+                      })
                     )}
                   </div>
                 </div>
@@ -1012,6 +1650,141 @@ export function ArticleList() {
             <DialogClose asChild>
               <Button type="button" variant="outline">
                 关闭
+              </Button>
+            </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={shadowingDialogOpen} onOpenChange={setShadowingDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>影子跟读配置</DialogTitle>
+            <DialogDescription>设置影子跟读速率序列。</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 text-sm">
+            <div className="flex items-center justify-between">
+              <span>影子跟读</span>
+              <button
+                type="button"
+                className={cn(
+                  "relative h-5 w-10 rounded-full transition",
+                  shadowingDraftEnabled ? "bg-primary" : "bg-muted"
+                )}
+                onClick={() => setShadowingDraftEnabled((prev) => !prev)}
+              >
+                <span
+                  className={cn(
+                    "absolute top-0.5 h-4 w-4 rounded-full bg-background shadow transition",
+                    shadowingDraftEnabled ? "left-5" : "left-1"
+                  )}
+                />
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              <div className="text-xs text-muted-foreground">速率序列</div>
+              {shadowingDraftSpeeds.map((speed, index) => (
+                <div key={`${speed}-${index}`} className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    step={0.1}
+                    min={0.1}
+                    max={2}
+                    className="h-9 w-24 rounded-md border bg-background px-2 text-sm"
+                    value={speed}
+                    onChange={(event) => {
+                      const value = Number(event.target.value)
+                      setShadowingDraftSpeeds((prev) => {
+                        const next = [...prev]
+                        next[index] = Number.isFinite(value) ? value : 0
+                        return next
+                      })
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-9 w-9 p-0"
+                    onClick={() =>
+                      setShadowingDraftSpeeds((prev) =>
+                        prev.filter((_, itemIndex) => itemIndex !== index)
+                      )
+                    }
+                  >
+                    —
+                  </Button>
+                </div>
+              ))}
+              <Button
+                type="button"
+                variant="outline"
+                className="h-9 w-full justify-center"
+                onClick={() => {
+                  setShadowingDraftSpeeds((prev) => {
+                    const base = prev[prev.length - 1] ?? 0.2
+                    const next = Math.round((base + 0.2) * 10) / 10
+                    return [...prev, next]
+                  })
+                }}
+              >
+                + 添加速率
+              </Button>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button type="button" variant="outline">
+                取消
+              </Button>
+            </DialogClose>
+            <DialogClose asChild>
+              <Button
+                type="button"
+                onClick={() => {
+                  const sanitized = shadowingDraftSpeeds
+                    .map((value) => Number(value))
+                    .filter((value) => Number.isFinite(value))
+                  const nextSpeeds = sanitized.length > 0 ? sanitized : [0.2]
+                  setShadowingEnabled(shadowingDraftEnabled)
+                  setShadowingSpeeds(nextSpeeds)
+                  persistSettings({
+                    shadowing: {
+                      enabled: shadowingDraftEnabled,
+                      speeds: nextSpeeds,
+                    },
+                  })
+                }}
+              >
+                OK
+              </Button>
+            </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={clearCacheOpen} onOpenChange={setClearCacheOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>清理音频缓存</DialogTitle>
+            <DialogDescription>确认清理本地音频缓存吗？</DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <DialogClose asChild>
+              <Button type="button" variant="outline">
+                取消
+              </Button>
+            </DialogClose>
+            <DialogClose asChild>
+              <Button
+                type="button"
+                onClick={() => {
+                  clearTtsCache().catch(() => {})
+                }}
+              >
+                确认
               </Button>
             </DialogClose>
           </DialogFooter>

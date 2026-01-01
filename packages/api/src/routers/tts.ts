@@ -22,7 +22,7 @@ import { publicProcedure, router } from "../trpc.js"
 const getSentenceAudioInput = z.object({
   sentenceId: z.string().min(1),
   role: z.enum(["native", "target"]),
-  speed: z.number().min(0.5).max(2).optional(),
+  speed: z.number().min(0.1).max(2).optional(),
 })
 
 async function synthesizeAzureTts(params: {
@@ -31,6 +31,7 @@ async function synthesizeAzureTts(params: {
   apiUrl?: string | null
   apiKey?: string | null
   region?: string | null
+  speed?: number
 }) {
   const apiKey = params.apiKey
   if (!apiKey) {
@@ -52,7 +53,10 @@ async function synthesizeAzureTts(params: {
     })
   }
 
-  const ssml = `<speak version="1.0" xml:lang="en-US"><voice name="${params.voiceId}">${params.text}</voice></speak>`
+  const speed = Number.isFinite(params.speed) ? Number(params.speed) : 1
+  const ratePercent = Math.round((speed - 1) * 100)
+  const rate = `${ratePercent >= 0 ? "+" : ""}${ratePercent}%`
+  const ssml = `<speak version="1.0" xml:lang="en-US"><voice name="${params.voiceId}"><prosody rate="${rate}">${params.text}</prosody></voice></speak>`
 
   const response = await fetch(endpoint, {
     method: "POST",
@@ -189,7 +193,7 @@ export const ttsRouter = router({
         })
       }
 
-      const speed = Number.isFinite(input.speed) ? input.speed : 1
+      const speed = Number.isFinite(input.speed) ? Number(input.speed) : 1
       const languageCode =
         input.role === "native" ? article.nativeLanguage : article.targetLanguage
       const cacheKey = buildTtsCacheKey({
@@ -230,6 +234,7 @@ export const ttsRouter = router({
         apiUrl: provider.apiUrl,
         apiKey: provider.apiKey,
         region: provider.region,
+        speed,
       })
 
       const fileName = `${crypto

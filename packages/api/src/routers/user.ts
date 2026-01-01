@@ -9,6 +9,10 @@ import { publicProcedure, router } from "../trpc.js"
 
 const languageCode = z.enum(["zh-CN", "en-US", "fr-FR"])
 const displayOrder = z.enum(["native_first", "target_first"])
+const shadowingSettingsSchema = z.object({
+  enabled: z.boolean(),
+  speeds: z.array(z.number()),
+})
 
 const settingsSchema = z.object({
   uiLanguage: languageCode,
@@ -18,6 +22,7 @@ const settingsSchema = z.object({
   playbackNativeRepeat: z.number().int().min(0),
   playbackTargetRepeat: z.number().int().min(0),
   playbackPauseMs: z.number().int().min(0),
+  shadowing: shadowingSettingsSchema,
 })
 
 const ttsOptionsInput = z.object({
@@ -57,7 +62,16 @@ export const userRouter = router({
       })
       .execute()
 
-    const fallback = {
+    const fallback: {
+      uiLanguage: "zh-CN" | "en-US" | "fr-FR"
+      nativeLanguage: "zh-CN" | "en-US" | "fr-FR"
+      targetLanguage: "zh-CN" | "en-US" | "fr-FR"
+      displayOrder: "native_first" | "target_first"
+      playbackNativeRepeat: number
+      playbackTargetRepeat: number
+      playbackPauseMs: number
+      shadowing: { enabled: boolean; speeds: number[] }
+    } = {
       uiLanguage: "zh-CN",
       nativeLanguage: "zh-CN",
       targetLanguage: "en-US",
@@ -65,10 +79,41 @@ export const userRouter = router({
       playbackNativeRepeat: 1,
       playbackTargetRepeat: 1,
       playbackPauseMs: 1000,
-    } as const
+      shadowing: {
+        enabled: false,
+        speeds: [0.2, 0.4, 0.6, 0.8],
+      },
+    }
 
     if (!row) {
       return fallback
+    }
+
+    let shadowing = fallback.shadowing
+    if (row.shadowingSpeedsJson) {
+      try {
+        const parsed = JSON.parse(row.shadowingSpeedsJson)
+        if (Array.isArray(parsed)) {
+          const speeds = parsed
+            .map((value: unknown) => Number(value))
+            .filter((value: number) => Number.isFinite(value))
+          if (speeds.length > 0) {
+            shadowing = { enabled: true, speeds }
+          }
+        } else if (parsed && typeof parsed === "object") {
+          const enabled = Boolean(parsed.enabled)
+          const speedsRaw = Array.isArray(parsed.speeds) ? parsed.speeds : []
+          const speeds = speedsRaw
+            .map((value: unknown) => Number(value))
+            .filter((value: number) => Number.isFinite(value))
+          shadowing = {
+            enabled,
+            speeds: speeds.length > 0 ? speeds : fallback.shadowing.speeds,
+          }
+        }
+      } catch {
+        shadowing = fallback.shadowing
+      }
     }
 
     return settingsSchema.parse({
@@ -79,6 +124,7 @@ export const userRouter = router({
       playbackNativeRepeat: row.playbackNativeRepeat ?? fallback.playbackNativeRepeat,
       playbackTargetRepeat: row.playbackTargetRepeat ?? fallback.playbackTargetRepeat,
       playbackPauseMs: row.playbackPauseMs ?? fallback.playbackPauseMs,
+      shadowing,
     })
   }),
 
@@ -94,6 +140,7 @@ export const userRouter = router({
         playbackNativeRepeat: input.playbackNativeRepeat,
         playbackTargetRepeat: input.playbackTargetRepeat,
         playbackPauseMs: input.playbackPauseMs,
+        shadowingSpeedsJson: JSON.stringify(input.shadowing),
       })
       .where(eq(users.id, session.user.id))
       .run()

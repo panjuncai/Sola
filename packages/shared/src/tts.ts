@@ -8,6 +8,8 @@ export interface TtsCacheKeyInput {
   speed?: number | null
 }
 
+const TTS_CACHE_VERSION = "v2"
+
 export function normalizeTtsSpeed(speed?: number | null) {
   const value = Number.isFinite(speed) ? Number(speed) : 1
   return value
@@ -16,6 +18,7 @@ export function normalizeTtsSpeed(speed?: number | null) {
 export function buildTtsCacheKey(input: TtsCacheKeyInput) {
   const speed = normalizeTtsSpeed(input.speed)
   return [
+    TTS_CACHE_VERSION,
     input.userId,
     input.sentenceId,
     input.languageCode,
