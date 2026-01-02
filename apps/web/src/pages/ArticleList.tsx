@@ -67,6 +67,7 @@ export function ArticleList() {
   const mobileSettingsPanelRef = React.useRef<HTMLDivElement>(null)
   const mobileSettingsButtonRef = React.useRef<HTMLButtonElement>(null)
   const [darkMode, setDarkMode] = React.useState(false)
+  const [useAiUserKey, setUseAiUserKey] = React.useState(false)
   const [blurTarget, setBlurTarget] = React.useState(false)
   const [blurNative, setBlurNative] = React.useState(false)
 
@@ -84,6 +85,10 @@ export function ArticleList() {
   const [shadowingDialogOpen, setShadowingDialogOpen] = React.useState(false)
   const [clearCacheOpen, setClearCacheOpen] = React.useState(false)
   const [aiDialogOpen, setAiDialogOpen] = React.useState(false)
+  const [aiInstructionDialogOpen, setAiInstructionDialogOpen] = React.useState(false)
+  const [aiInstructionEditOpen, setAiInstructionEditOpen] = React.useState(false)
+  const [aiInstructionAddOpen, setAiInstructionAddOpen] = React.useState(false)
+  const [aiInstructionDeleteOpen, setAiInstructionDeleteOpen] = React.useState(false)
   const [shadowingEnabled, setShadowingEnabled] = React.useState(false)
   const [shadowingSpeeds, setShadowingSpeeds] = React.useState<number[]>([
     0.2, 0.4, 0.6, 0.8,
@@ -97,13 +102,85 @@ export function ArticleList() {
       id: string
       providerType: string
       apiUrl: string
+      name: string | null
+      apiKey: string | null
       models: string[]
       availableModels: string[]
       isDefault: boolean
+      enabled: boolean
+      isPublic: boolean
     }[]
   >([])
-  const [aiModelInputs, setAiModelInputs] = React.useState<Record<string, string>>({})
-  const [aiModelOpenId, setAiModelOpenId] = React.useState<string | null>(null)
+  const [aiInstructionDrafts, setAiInstructionDrafts] = React.useState<
+    {
+      id: string
+      name: string
+      instructionType: "translate" | "explain" | "custom"
+      systemPrompt: string
+      userPromptTemplate: string
+      inputSchemaJson: string | null
+      outputSchemaJson: string | null
+      enabled: boolean
+      isDefault: boolean
+      userAiProviderId: string | null
+    }[]
+  >([])
+  const [aiInstructionEditing, setAiInstructionEditing] = React.useState<{
+    id: string
+    name: string
+    instructionType: "translate" | "explain" | "custom"
+    systemPrompt: string
+    userPromptTemplate: string
+    inputSchemaJson: string | null
+    outputSchemaJson: string | null
+    enabled: boolean
+    isDefault: boolean
+    userAiProviderId: string | null
+  } | null>(null)
+  const [aiInstructionDeleteId, setAiInstructionDeleteId] = React.useState<string | null>(
+    null
+  )
+  const [aiInstructionAddProviderId, setAiInstructionAddProviderId] = React.useState<
+    string | null
+  >(null)
+  const [newAiProviderName, setNewAiProviderName] = React.useState("")
+  const [newAiProviderType, setNewAiProviderType] = React.useState("openai")
+  const [newAiProviderApiUrl, setNewAiProviderApiUrl] = React.useState("")
+  const [newAiProviderModels, setNewAiProviderModels] = React.useState("")
+  const [newAiProviderEnabled, setNewAiProviderEnabled] = React.useState(true)
+  const [newAiProviderApiKey, setNewAiProviderApiKey] = React.useState("")
+  const [newAiProviderKeyVisible, setNewAiProviderKeyVisible] = React.useState(false)
+  const [aiProviderAddOpen, setAiProviderAddOpen] = React.useState(false)
+  const [aiProviderEditOpen, setAiProviderEditOpen] = React.useState(false)
+  const [aiProviderEditing, setAiProviderEditing] = React.useState<{
+    id: string
+    providerType: string
+    name: string | null
+    apiUrl: string
+    apiKey: string | null
+    models: string[]
+    enabled: boolean
+    isPublic: boolean
+  } | null>(null)
+  const [aiProviderDeleteId, setAiProviderDeleteId] = React.useState<string | null>(
+    null
+  )
+  const [aiProviderEditKeyVisible, setAiProviderEditKeyVisible] = React.useState(false)
+  const [aiProviderEditModels, setAiProviderEditModels] = React.useState("")
+  const [aiProviderResetOpen, setAiProviderResetOpen] = React.useState(false)
+  const [publicAiInstructions, setPublicAiInstructions] = React.useState<
+    {
+      id: string
+      name: string
+      instructionType: "translate" | "explain" | "custom"
+      systemPrompt: string
+      userPromptTemplate: string
+      inputSchemaJson: string | null
+      outputSchemaJson: string | null
+      enabled: boolean
+      isDefault: boolean
+    }[]
+  >([])
   const userId = useAuthStore((state) => state.user?.id ?? null)
   const lastLoopModeRef = React.useRef<"all" | "target">("all")
   const ttsInitRef = React.useRef<string>("")
@@ -117,7 +194,16 @@ export function ArticleList() {
   const updateTtsVoices = trpc.user.updateTtsVoices.useMutation()
   const aiProvidersQuery = trpc.user.getAiProviders.useQuery()
   const updateAiProviderDefault = trpc.user.updateAiProviderDefault.useMutation()
-  const updateAiProviderModels = trpc.user.updateAiProviderModels.useMutation()
+  const updateAiProviderConfig = trpc.user.updateAiProviderConfig.useMutation()
+  const createUserAiProvider = trpc.user.createUserAiProvider.useMutation()
+  const deleteAiProvider = trpc.user.deleteAiProvider.useMutation()
+  const resetAiProvidersToPublic = trpc.user.resetAiProvidersToPublic.useMutation()
+  const aiInstructionQuery = trpc.user.getUserAiInstructions.useQuery()
+  const publicAiInstructionQuery = trpc.user.getPublicAiInstructions.useQuery()
+  const createUserAiInstructionFromPublic =
+    trpc.user.createUserAiInstructionFromPublic.useMutation()
+  const updateUserAiInstruction = trpc.user.updateUserAiInstruction.useMutation()
+  const deleteUserAiInstruction = trpc.user.deleteUserAiInstruction.useMutation()
 
   const showCreate = isCreating || articles.length === 0
   const activeArticleExists = React.useMemo(() => {
@@ -180,6 +266,7 @@ export function ArticleList() {
       setPlaybackNativeRepeat(settingsQuery.data.playbackNativeRepeat)
       setPlaybackTargetRepeat(settingsQuery.data.playbackTargetRepeat)
       setPlaybackPauseSeconds(settingsQuery.data.playbackPauseMs / 1000)
+      setUseAiUserKey(settingsQuery.data.useAiUserKey)
       setShadowingEnabled(settingsQuery.data.shadowing.enabled)
       setShadowingSpeeds(settingsQuery.data.shadowing.speeds)
     }
@@ -199,9 +286,29 @@ export function ArticleList() {
         (a, b) => Number(b.isDefault) - Number(a.isDefault)
       )
     )
-    setAiModelInputs({})
-    setAiModelOpenId(null)
+    setNewAiProviderName("")
+    setNewAiProviderType("openai")
+    setNewAiProviderApiUrl("")
+    setNewAiProviderModels("")
+    setNewAiProviderEnabled(true)
+    setNewAiProviderApiKey("")
+    setNewAiProviderKeyVisible(false)
   }, [aiDialogOpen, aiProvidersQuery.data])
+
+  React.useEffect(() => {
+    if (!aiInstructionDialogOpen) return
+    if (aiInstructionQuery.data) {
+      setAiInstructionDrafts(
+        [...aiInstructionQuery.data].sort((a, b) => a.name.localeCompare(b.name))
+      )
+    }
+    if (publicAiInstructionQuery.data) {
+      setPublicAiInstructions(publicAiInstructionQuery.data)
+    }
+    setAiInstructionAddProviderId(
+      aiProvidersQuery.data?.find((item) => item.isDefault)?.id ?? null
+    )
+  }, [aiInstructionDialogOpen, aiInstructionQuery.data, publicAiInstructionQuery.data])
 
   React.useEffect(() => {
     if (!ttsOptionsQuery.data) return
@@ -248,7 +355,14 @@ export function ArticleList() {
   }, [darkMode])
 
   const anySettingsDialogOpen =
-    aiDialogOpen || languageDialogOpen || shadowingDialogOpen || deleteAccountOpen
+    aiDialogOpen ||
+    aiInstructionDialogOpen ||
+    aiInstructionEditOpen ||
+    aiInstructionAddOpen ||
+    aiInstructionDeleteOpen ||
+    languageDialogOpen ||
+    shadowingDialogOpen ||
+    deleteAccountOpen
 
   React.useEffect(() => {
     if (!settingsOpen) return
@@ -315,6 +429,7 @@ export function ArticleList() {
     playbackNativeRepeat: number
     playbackTargetRepeat: number
     playbackPauseSeconds: number
+    useAiUserKey: boolean
     shadowing: { enabled: boolean; speeds: number[] }
   }>) => {
     if (!settingsQuery.data) return
@@ -328,6 +443,7 @@ export function ArticleList() {
       playbackPauseMs: Math.round(
         ((next?.playbackPauseSeconds ?? playbackPauseSeconds) || 0) * 1000
       ),
+      useAiUserKey: next?.useAiUserKey ?? useAiUserKey,
       shadowing: next?.shadowing ?? {
         enabled: shadowingEnabled,
         speeds: shadowingSpeeds,
@@ -558,7 +674,7 @@ export function ArticleList() {
             sentences.findIndex((sentence) => sentence.id === selectedSentenceId)
           )
         : 0
-    const orderSetting = detailQuery.data.article.displayOrder ?? "native_first"
+    const orderSetting = displayOrderSetting ?? "native_first"
     const pauseMs = Math.max(0, Math.round(playbackPauseSeconds * 1000))
 
     while (loopTokenRef.current === token) {
@@ -899,6 +1015,18 @@ export function ArticleList() {
                 </div>
 
                 <div className="flex items-center justify-between">
+                  <span>AI 指令</span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-8"
+                    onClick={() => setAiInstructionDialogOpen(true)}
+                  >
+                    AI 指令
+                  </Button>
+                </div>
+
+                <div className="flex items-center justify-between">
                   <span>UI 语言</span>
                   <select
                     className="h-8 rounded-md border bg-background px-2 text-sm"
@@ -1151,6 +1279,18 @@ export function ArticleList() {
                     onClick={() => setAiDialogOpen(true)}
                   >
                     AI 设置
+                  </Button>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span>AI 指令</span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-8"
+                    onClick={() => setAiInstructionDialogOpen(true)}
+                  >
+                    AI 指令
                   </Button>
                 </div>
 
@@ -1449,8 +1589,7 @@ export function ArticleList() {
                       </Card>
                     ) : (
                       detailQuery.data.sentences.map((sentence) => {
-                        const nativeFirst =
-                          detailQuery.data.article.displayOrder === "native_first"
+                        const nativeFirst = displayOrderSetting === "native_first"
                         const items = [
                           { role: "native", text: sentence.nativeText ?? "" },
                           { role: "target", text: sentence.targetText ?? "" },
@@ -1776,10 +1915,37 @@ export function ArticleList() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>AI 设置</DialogTitle>
-            <DialogDescription>仅可调整默认厂商与模型列表。</DialogDescription>
+            <DialogDescription>新增自定义厂商或调整默认与模型。</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 text-sm">
+            <div className="space-y-2 rounded-md border px-3 py-2">
+              <div className="text-xs font-semibold text-muted-foreground">额度选择</div>
+              <div className="flex items-center gap-4 text-sm">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    checked={!useAiUserKey}
+                    onChange={() => {
+                      setUseAiUserKey(false)
+                      persistSettings({ useAiUserKey: false })
+                    }}
+                  />
+                  公共额度
+                </label>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    checked={useAiUserKey}
+                    onChange={() => {
+                      setUseAiUserKey(true)
+                      persistSettings({ useAiUserKey: true })
+                    }}
+                  />
+                  私有额度
+                </label>
+              </div>
+            </div>
             {aiProvidersDraft.length === 0 ? (
               <div className="text-sm text-muted-foreground">暂无 AI 厂商配置。</div>
             ) : (
@@ -1791,142 +1957,78 @@ export function ArticleList() {
                     provider.isDefault && "border-primary/60 bg-primary/5"
                   )}
                 >
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm font-semibold">{provider.providerType}</div>
-                    <Button
-                      type="button"
-                      variant={provider.isDefault ? "secondary" : "outline"}
-                      className="h-7"
-                      onClick={() => {
-                        setAiProvidersDraft((prev) => {
-                          const next = prev.map((item) => ({
-                            ...item,
-                            isDefault: item.id === provider.id,
-                          }))
-                          return [...next].sort(
-                            (a, b) => Number(b.isDefault) - Number(a.isDefault)
-                          )
-                        })
-                      }}
-                    >
-                      {provider.isDefault ? "默认" : "设为默认"}
-                    </Button>
-                  </div>
-                  <div className="text-xs text-muted-foreground break-all">
-                    {provider.apiUrl}
-                  </div>
-                  <div
-                    className="relative"
-                    onBlur={() => {
-                      window.setTimeout(() => {
-                        setAiModelOpenId((current) =>
-                          current === provider.id ? null : current
-                        )
-                      }, 100)
-                    }}
-                  >
-                    <div className="flex flex-wrap gap-1 rounded-md border bg-background px-2 py-1 text-xs">
-                      {provider.models.map((model) => (
-                        <span
-                          key={model}
-                          className="inline-flex items-center gap-1 rounded-full border bg-muted/50 px-2 py-0.5"
-                        >
-                          {model}
-                          <button
-                            type="button"
-                            className="text-muted-foreground hover:text-foreground"
-                            onClick={() => {
-                              setAiProvidersDraft((prev) =>
-                                prev.map((item) =>
-                                  item.id === provider.id
-                                    ? {
-                                        ...item,
-                                        models: item.models.filter((m) => m !== model),
-                                      }
-                                    : item
-                                )
-                              )
-                            }}
-                          >
-                            ×
-                          </button>
-                        </span>
-                      ))}
-                      <input
-                        className="min-w-[120px] flex-1 bg-transparent py-0.5 outline-none"
-                        placeholder="输入模型并回车"
-                        value={aiModelInputs[provider.id] ?? ""}
-                        onFocus={() => setAiModelOpenId(provider.id)}
-                        onChange={(event) => {
-                          const value = event.target.value
-                          setAiModelInputs((prev) => ({
-                            ...prev,
-                            [provider.id]: value,
-                          }))
-                        }}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter" || event.key === ",") {
-                            event.preventDefault()
-                            const value = (aiModelInputs[provider.id] ?? "").trim()
-                            if (!value) return
-                            setAiProvidersDraft((prev) =>
-                              prev.map((item) =>
-                                item.id === provider.id && !item.models.includes(value)
-                                  ? { ...item, models: [...item.models, value] }
-                                  : item
-                              )
-                            )
-                            setAiModelInputs((prev) => ({ ...prev, [provider.id]: "" }))
-                          }
-                        }}
-                      />
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="space-y-0.5">
+                      <div className="text-sm font-semibold">
+                        {(provider.providerType || (provider.name ?? "custom")) +
+                          (provider.models.length > 0
+                            ? ` · ${provider.models[0]}...`
+                            : "")}
+                      </div>
                     </div>
-
-                    {aiModelOpenId === provider.id ? (
-                      <div className="absolute left-0 right-0 z-10 mt-1 max-h-40 overflow-auto rounded-md border bg-background p-1 shadow-md">
-                        {(provider.availableModels.length > 0
-                          ? provider.availableModels
-                          : provider.models
-                        )
-                          .filter((model) =>
-                            (aiModelInputs[provider.id] ?? "")
-                              .toLowerCase()
-                              .trim()
-                              .length === 0
-                              ? true
-                              : model
-                                  .toLowerCase()
-                                  .includes((aiModelInputs[provider.id] ?? "").toLowerCase())
-                          )
-                          .map((model) => (
-                            <button
-                              key={model}
-                              type="button"
-                              className={cn(
-                                "flex w-full items-center justify-between rounded px-2 py-1 text-left text-xs hover:bg-muted",
-                                provider.models.includes(model) && "font-semibold"
-                              )}
-                              onMouseDown={() => {
-                                setAiProvidersDraft((prev) =>
-                                  prev.map((item) =>
-                                    item.id === provider.id && !item.models.includes(model)
-                                      ? { ...item, models: [...item.models, model] }
-                                      : item
-                                  )
-                                )
-                                setAiModelInputs((prev) => ({ ...prev, [provider.id]: "" }))
-                              }}
-                            >
-                              <span>{model}</span>
-                              {provider.models.includes(model) ? <span>✓</span> : null}
-                            </button>
-                          ))}
-                     </div>
-                    ) : null}
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant={provider.isDefault ? "secondary" : "outline"}
+                        className="h-7"
+                        onClick={() => {
+                          setAiProvidersDraft((prev) => {
+                            const next = prev.map((item) => ({
+                              ...item,
+                              isDefault: item.id === provider.id,
+                            }))
+                            return [...next].sort(
+                              (a, b) => Number(b.isDefault) - Number(a.isDefault)
+                            )
+                          })
+                        }}
+                      >
+                        {provider.isDefault ? "默认" : "设为默认"}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-7"
+                        onClick={() => {
+                          setAiProviderEditing({ ...provider })
+                          setAiProviderEditModels(provider.models.join(", "))
+                          setAiProviderEditKeyVisible(false)
+                          setAiProviderEditOpen(true)
+                        }}
+                      >
+                        修改
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-7"
+                        onClick={() => setAiProviderDeleteId(provider.id)}
+                      >
+                        删除
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ))
             )}
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="h-9"
+                onClick={() => setAiProviderResetOpen(true)}
+              >
+                恢复默认配置
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-9"
+                onClick={() => setAiProviderAddOpen(true)}
+              >
+                新增自定义厂商
+              </Button>
+            </div>
           </div>
 
           <DialogFooter className="gap-2 sm:gap-2">
@@ -1947,17 +2049,692 @@ export function ArticleList() {
                     })
                   }
                   for (const provider of aiProvidersDraft) {
-                    await updateAiProviderModels.mutateAsync({
+                    const models = provider.models
+                      .map((value) => value.trim())
+                      .filter(Boolean)
+                    await updateAiProviderConfig.mutateAsync({
                       id: provider.id,
-                      models: provider.models
-                        .map((value) => value.trim())
-                        .filter(Boolean),
+                      apiUrl: provider.apiUrl.trim(),
+                      enabled: provider.enabled,
+                      models,
+                      apiKey: useAiUserKey ? provider.apiKey ?? "" : null,
                     })
                   }
                   await aiProvidersQuery.refetch()
                 }}
               >
                 保存
+              </Button>
+            </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={aiProviderAddOpen} onOpenChange={setAiProviderAddOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>新增自定义厂商</DialogTitle>
+            <DialogDescription>填写自定义厂商配置并保存。</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3 text-sm">
+            <input
+              className="h-9 rounded-md border bg-background px-2 text-sm"
+              placeholder="名称（唯一）"
+              value={newAiProviderName}
+              onChange={(event) => setNewAiProviderName(event.target.value)}
+            />
+            <select
+              className="h-9 rounded-md border bg-background px-2 text-sm"
+              value={newAiProviderType}
+              onChange={(event) => setNewAiProviderType(event.target.value)}
+            >
+              {["volcengine", "qwen", "openai", "gemini", "aihubmix"].map((type) => (
+                <option key={type} value={type}>
+                  {type}
+                </option>
+              ))}
+            </select>
+            <input
+              className="h-9 rounded-md border bg-background px-2 text-sm"
+              placeholder="Base URL"
+              value={newAiProviderApiUrl}
+              onChange={(event) => setNewAiProviderApiUrl(event.target.value)}
+            />
+            {useAiUserKey ? (
+              <div className="flex items-center gap-2">
+                <input
+                  className="h-9 flex-1 rounded-md border bg-background px-2 text-sm"
+                  placeholder="API Key"
+                  type={newAiProviderKeyVisible ? "text" : "password"}
+                  value={newAiProviderApiKey}
+                  onChange={(event) => setNewAiProviderApiKey(event.target.value)}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-9"
+                  onClick={() => setNewAiProviderKeyVisible((prev) => !prev)}
+                >
+                  {newAiProviderKeyVisible ? "隐藏" : "显示"}
+                </Button>
+              </div>
+            ) : null}
+            <input
+              className="h-9 rounded-md border bg-background px-2 text-sm"
+              placeholder="models，逗号分隔"
+              value={newAiProviderModels}
+              onChange={(event) => setNewAiProviderModels(event.target.value)}
+            />
+            <label className="flex items-center gap-2 text-xs text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={newAiProviderEnabled}
+                onChange={(event) => setNewAiProviderEnabled(event.target.checked)}
+              />
+              启用
+            </label>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <DialogClose asChild>
+              <Button type="button" variant="outline">
+                取消
+              </Button>
+            </DialogClose>
+            <Button
+              type="button"
+              onClick={async () => {
+                const name = newAiProviderName.trim()
+                const apiUrl = newAiProviderApiUrl.trim()
+                const models = newAiProviderModels
+                  .split(",")
+                  .map((item) => item.trim())
+                  .filter(Boolean)
+                if (!name || !apiUrl || models.length === 0) {
+                  toast.error("请填写名称、URL 和模型")
+                  return
+                }
+                try {
+                  await createUserAiProvider.mutateAsync({
+                    name,
+                    providerType: newAiProviderType,
+                    apiUrl,
+                    models,
+                    enabled: newAiProviderEnabled,
+                    apiKey: useAiUserKey ? newAiProviderApiKey.trim() || null : null,
+                  })
+                  await aiProvidersQuery.refetch()
+                  setNewAiProviderName("")
+                  setNewAiProviderType("openai")
+                  setNewAiProviderApiUrl("")
+                  setNewAiProviderModels("")
+                  setNewAiProviderEnabled(true)
+                  setNewAiProviderApiKey("")
+                  setNewAiProviderKeyVisible(false)
+                  setAiProviderAddOpen(false)
+                  toast.success("已新增厂商")
+                } catch (error) {
+                  const message = error instanceof Error ? error.message : "新增厂商失败"
+                  toast.error(message)
+                }
+              }}
+            >
+              保存
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={aiProviderEditOpen} onOpenChange={setAiProviderEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>修改厂商</DialogTitle>
+            <DialogDescription>调整厂商配置。</DialogDescription>
+          </DialogHeader>
+          {aiProviderEditing ? (
+            <div className="grid gap-3 text-sm">
+              <input
+                className="h-9 rounded-md border bg-background px-2 text-sm"
+                placeholder="名称（唯一）"
+                value={aiProviderEditing.name ?? ""}
+                disabled={aiProviderEditing.isPublic}
+                onChange={(event) =>
+                  setAiProviderEditing((prev) =>
+                    prev
+                      ? {
+                          ...prev,
+                          name: event.target.value,
+                        }
+                      : prev
+                  )
+                }
+              />
+              <input
+                className="h-9 rounded-md border bg-background px-2 text-sm"
+                value={aiProviderEditing.providerType}
+                disabled
+              />
+              <input
+                className="h-9 rounded-md border bg-background px-2 text-sm"
+                placeholder="Base URL"
+                value={aiProviderEditing.apiUrl}
+                onChange={(event) =>
+                  setAiProviderEditing((prev) =>
+                    prev ? { ...prev, apiUrl: event.target.value } : prev
+                  )
+                }
+              />
+              {useAiUserKey ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    className="h-9 flex-1 rounded-md border bg-background px-2 text-sm"
+                    placeholder="API Key"
+                    type={aiProviderEditKeyVisible ? "text" : "password"}
+                    value={aiProviderEditing.apiKey ?? ""}
+                    onChange={(event) =>
+                      setAiProviderEditing((prev) =>
+                        prev ? { ...prev, apiKey: event.target.value } : prev
+                      )
+                    }
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-9"
+                    onClick={() => setAiProviderEditKeyVisible((prev) => !prev)}
+                  >
+                    {aiProviderEditKeyVisible ? "隐藏" : "显示"}
+                  </Button>
+                </div>
+              ) : null}
+              <input
+                className="h-9 rounded-md border bg-background px-2 text-sm"
+                placeholder="models，逗号分隔"
+                value={aiProviderEditModels}
+                onChange={(event) => setAiProviderEditModels(event.target.value)}
+              />
+              <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={aiProviderEditing.enabled}
+                  onChange={(event) =>
+                    setAiProviderEditing((prev) =>
+                      prev ? { ...prev, enabled: event.target.checked } : prev
+                    )
+                  }
+                />
+                启用
+              </label>
+            </div>
+          ) : null}
+          <DialogFooter className="gap-2 sm:gap-2">
+            <DialogClose asChild>
+              <Button type="button" variant="outline">
+                取消
+              </Button>
+            </DialogClose>
+            <Button
+              type="button"
+              onClick={async () => {
+                if (!aiProviderEditing) return
+                const models = aiProviderEditModels
+                  .split(",")
+                  .map((item) => item.trim())
+                  .filter(Boolean)
+                if (!aiProviderEditing.apiUrl.trim()) {
+                  toast.error("Base URL 不能为空")
+                  return
+                }
+                try {
+                  await updateAiProviderConfig.mutateAsync({
+                    id: aiProviderEditing.id,
+                    apiUrl: aiProviderEditing.apiUrl.trim(),
+                    name: aiProviderEditing.isPublic
+                      ? undefined
+                      : aiProviderEditing.name ?? "",
+                    models,
+                    enabled: aiProviderEditing.enabled,
+                    apiKey: useAiUserKey ? aiProviderEditing.apiKey ?? "" : null,
+                  })
+                  await aiProvidersQuery.refetch()
+                  setAiProviderEditOpen(false)
+                  setAiProviderEditing(null)
+                  toast.success("已更新厂商")
+                } catch (error) {
+                  const message = error instanceof Error ? error.message : "更新失败"
+                  toast.error(message)
+                }
+              }}
+            >
+              保存
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(aiProviderDeleteId)} onOpenChange={() => setAiProviderDeleteId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>删除厂商</DialogTitle>
+            <DialogDescription>确认删除此厂商配置？</DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <DialogClose asChild>
+              <Button type="button" variant="outline">
+                取消
+              </Button>
+            </DialogClose>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={async () => {
+                if (!aiProviderDeleteId) return
+                try {
+                  await deleteAiProvider.mutateAsync({ id: aiProviderDeleteId })
+                  await aiProvidersQuery.refetch()
+                  setAiProviderDeleteId(null)
+                  toast.success("已删除厂商")
+                } catch (error) {
+                  const message = error instanceof Error ? error.message : "删除失败"
+                  toast.error(message)
+                }
+              }}
+            >
+              删除
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={aiProviderResetOpen} onOpenChange={setAiProviderResetOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>恢复默认配置</DialogTitle>
+            <DialogDescription>将公共配置覆盖更新到用户级厂商配置。</DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <DialogClose asChild>
+              <Button type="button" variant="outline">
+                取消
+              </Button>
+            </DialogClose>
+            <Button
+              type="button"
+              onClick={async () => {
+                try {
+                  await resetAiProvidersToPublic.mutateAsync({ confirm: true })
+                  await aiProvidersQuery.refetch()
+                  setAiProviderResetOpen(false)
+                  toast.success("已恢复默认配置")
+                } catch (error) {
+                  const message = error instanceof Error ? error.message : "恢复失败"
+                  toast.error(message)
+                }
+              }}
+            >
+              确认恢复
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={aiInstructionDialogOpen} onOpenChange={setAiInstructionDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>AI 指令</DialogTitle>
+            <DialogDescription>管理你的 AI 指令。</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 text-sm">
+            <div className="space-y-2">
+              {aiInstructionDrafts.length === 0 ? (
+                <div className="text-muted-foreground">暂无指令。</div>
+              ) : (
+                aiInstructionDrafts
+                  .slice()
+                  .sort((a, b) => a.name.localeCompare(b.name))
+                  .map((instruction) => (
+                    <div
+                      key={instruction.id}
+                      className="flex items-center justify-between rounded-md border px-3 py-2"
+                    >
+                      <div className="space-y-1">
+                        <div className="text-sm font-semibold">{instruction.name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {instruction.instructionType}
+                          {instruction.isDefault ? " · 默认" : ""}
+                          {!instruction.enabled ? " · 已停用" : ""}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="h-7"
+                          onClick={() => {
+                            setAiInstructionEditing({ ...instruction })
+                            setAiInstructionEditOpen(true)
+                          }}
+                        >
+                          修改
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="h-7"
+                          onClick={() => {
+                            setAiInstructionDeleteId(instruction.id)
+                            setAiInstructionDeleteOpen(true)
+                          }}
+                        >
+                          删除
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+              )}
+            </div>
+          </div>
+
+          <DialogFooter className="justify-between">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setAiInstructionAddOpen(true)}
+            >
+              新增
+            </Button>
+            <DialogClose asChild>
+              <Button type="button">关闭</Button>
+            </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={aiInstructionEditOpen} onOpenChange={setAiInstructionEditOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>编辑 AI 指令</DialogTitle>
+          </DialogHeader>
+
+          {aiInstructionEditing ? (
+            <div className="space-y-3 text-sm">
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">指令名称</label>
+                <input
+                  className="h-9 w-full rounded-md border bg-background px-2 text-sm"
+                  value={aiInstructionEditing.name}
+                  onChange={(event) =>
+                    setAiInstructionEditing((prev) =>
+                      prev ? { ...prev, name: event.target.value } : prev
+                    )
+                  }
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">指令类型</label>
+                <select
+                  className="h-9 w-full rounded-md border bg-background px-2 text-sm"
+                  value={aiInstructionEditing.instructionType}
+                  onChange={(event) =>
+                    setAiInstructionEditing((prev) =>
+                      prev
+                        ? {
+                            ...prev,
+                            instructionType: event.target.value as
+                              | "translate"
+                              | "explain"
+                              | "custom",
+                          }
+                        : prev
+                    )
+                  }
+                >
+                  <option value="translate">translate</option>
+                  <option value="explain">explain</option>
+                  <option value="custom">custom</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">AI 厂商</label>
+                <select
+                  className="h-9 w-full rounded-md border bg-background px-2 text-sm"
+                  value={
+                    aiInstructionEditing.userAiProviderId ??
+                    aiProvidersQuery.data?.find((item) => item.isDefault)?.id ??
+                    ""
+                  }
+                  onChange={(event) =>
+                    setAiInstructionEditing((prev) =>
+                      prev
+                        ? {
+                            ...prev,
+                            userAiProviderId: event.target.value || null,
+                          }
+                        : prev
+                    )
+                  }
+                >
+                  <option value="">默认厂商</option>
+                  {aiProvidersQuery.data?.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.providerType}
+                      {item.isDefault ? "（默认）" : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">系统提示词</label>
+                <textarea
+                  rows={3}
+                  className="w-full rounded-md border bg-background px-2 py-1 text-xs"
+                  value={aiInstructionEditing.systemPrompt}
+                  onChange={(event) =>
+                    setAiInstructionEditing((prev) =>
+                      prev ? { ...prev, systemPrompt: event.target.value } : prev
+                    )
+                  }
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">用户提示词</label>
+                <textarea
+                  rows={3}
+                  className="w-full rounded-md border bg-background px-2 py-1 text-xs"
+                  value={aiInstructionEditing.userPromptTemplate}
+                  onChange={(event) =>
+                    setAiInstructionEditing((prev) =>
+                      prev ? { ...prev, userPromptTemplate: event.target.value } : prev
+                    )
+                  }
+                />
+              </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">输入参数定义</label>
+                  <textarea
+                    rows={3}
+                    className="w-full rounded-md border bg-background px-2 py-1 text-xs"
+                    value={aiInstructionEditing.inputSchemaJson ?? ""}
+                    onChange={(event) =>
+                      setAiInstructionEditing((prev) =>
+                        prev ? { ...prev, inputSchemaJson: event.target.value } : prev
+                      )
+                    }
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">输出结构定义</label>
+                  <textarea
+                    rows={3}
+                    className="w-full rounded-md border bg-background px-2 py-1 text-xs"
+                    value={aiInstructionEditing.outputSchemaJson ?? ""}
+                    onChange={(event) =>
+                      setAiInstructionEditing((prev) =>
+                        prev ? { ...prev, outputSchemaJson: event.target.value } : prev
+                      )
+                    }
+                  />
+                </div>
+              </div>
+              <div className="flex items-center gap-4">
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={aiInstructionEditing.isDefault}
+                    onChange={(event) =>
+                      setAiInstructionEditing((prev) =>
+                        prev ? { ...prev, isDefault: event.target.checked } : prev
+                      )
+                    }
+                  />
+                  默认指令
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={aiInstructionEditing.enabled}
+                    onChange={(event) =>
+                      setAiInstructionEditing((prev) =>
+                        prev ? { ...prev, enabled: event.target.checked } : prev
+                      )
+                    }
+                  />
+                  启用
+                </label>
+              </div>
+            </div>
+          ) : null}
+
+          <DialogFooter className="gap-2 sm:gap-2">
+            <DialogClose asChild>
+              <Button type="button" variant="outline">
+                取消
+              </Button>
+            </DialogClose>
+            <DialogClose asChild>
+              <Button
+                type="button"
+                onClick={async () => {
+                  if (!aiInstructionEditing) return
+                  await updateUserAiInstruction.mutateAsync({
+                    ...aiInstructionEditing,
+                    inputSchemaJson: aiInstructionEditing.inputSchemaJson || null,
+                    outputSchemaJson: aiInstructionEditing.outputSchemaJson || null,
+                  })
+                  await aiInstructionQuery.refetch()
+                }}
+              >
+                保存
+              </Button>
+            </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={aiInstructionAddOpen} onOpenChange={setAiInstructionAddOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>新增指令</DialogTitle>
+            <DialogDescription>从公共指令复制一份。</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2 text-sm">
+            {publicAiInstructions.length === 0 ? (
+              <div className="text-muted-foreground">暂无公共指令。</div>
+            ) : (
+              <>
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">AI 厂商</label>
+                  <select
+                    className="h-9 w-full rounded-md border bg-background px-2 text-sm"
+                    value={aiInstructionAddProviderId ?? ""}
+                    onChange={(event) => {
+                      setAiInstructionAddProviderId(event.target.value || null)
+                    }}
+                  >
+                    <option value="">默认厂商</option>
+                    {aiProvidersQuery.data?.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.providerType}
+                        {item.isDefault ? "（默认）" : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  {publicAiInstructions
+                    .slice()
+                    .sort((a, b) => a.name.localeCompare(b.name))
+                    .map((instruction) => (
+                  <div
+                    key={instruction.id}
+                    className="flex items-center justify-between rounded-md border px-3 py-2"
+                  >
+                    <div>
+                      <div className="font-semibold">{instruction.name}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {instruction.instructionType}
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-7"
+                      onClick={async () => {
+                        await createUserAiInstructionFromPublic.mutateAsync({
+                          publicAiInstructionId: instruction.id,
+                          userAiProviderId: aiInstructionAddProviderId ?? null,
+                        })
+                        await aiInstructionQuery.refetch()
+                        setAiInstructionAddOpen(false)
+                      }}
+                    >
+                      新增
+                    </Button>
+                  </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button type="button" variant="outline">
+                关闭
+              </Button>
+            </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={aiInstructionDeleteOpen} onOpenChange={setAiInstructionDeleteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>删除指令</DialogTitle>
+            <DialogDescription>确认删除该指令？</DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <DialogClose asChild>
+              <Button type="button" variant="outline">
+                取消
+              </Button>
+            </DialogClose>
+            <DialogClose asChild>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={async () => {
+                  if (!aiInstructionDeleteId) return
+                  await deleteUserAiInstruction.mutateAsync({
+                    id: aiInstructionDeleteId,
+                  })
+                  setAiInstructionDeleteId(null)
+                  await aiInstructionQuery.refetch()
+                }}
+              >
+                删除
               </Button>
             </DialogClose>
           </DialogFooter>

@@ -1,5 +1,5 @@
 import * as crypto from "node:crypto"
-import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core"
+import { sqliteTable, text, integer, uniqueIndex } from "drizzle-orm/sqlite-core"
 
 export const users = sqliteTable("users", {
   id: text("id")
@@ -176,6 +176,25 @@ export const publicAiProviderConfig = sqliteTable("public_ai_provider_config", {
     .$onUpdate(() => new Date()),
 })
 
+export const publicAiInstruction = sqliteTable("public_ai_instruction", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  name: text("name").notNull(),
+  instructionType: text("instruction_type").notNull(),
+  systemPrompt: text("system_prompt").notNull(),
+  userPromptTemplate: text("user_prompt_template").notNull(),
+  inputSchemaJson: text("input_schema_json"),
+  outputSchemaJson: text("output_schema_json"),
+  enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+  isDefault: integer("is_default", { mode: "boolean" }).notNull().default(false),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().defaultNow(),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+})
+
 export const ttsVoiceCatalog = sqliteTable("tts_voice_catalog", {
   id: text("id")
     .primaryKey()
@@ -214,17 +233,61 @@ export const userTtsProvider = sqliteTable("user_tts_provider", {
     .$onUpdate(() => new Date()),
 })
 
-export const userAiProvider = sqliteTable("user_ai_provider", {
+export const userAiProvider = sqliteTable(
+  "user_ai_provider",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    publicAiProviderConfigId: text("public_ai_provider_config_id").references(
+      () => publicAiProviderConfig.id,
+      { onDelete: "cascade" }
+    ),
+    name: text("name"),
+    providerType: text("provider_type").notNull(),
+    apiUrl: text("api_url").notNull(),
+    apiKey: text("api_key"),
+    modelsJson: text("models_json"),
+    enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+    isDefault: integer("is_default", { mode: "boolean" }).notNull().default(false),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull().defaultNow(),
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => ({
+    userNameUnique: uniqueIndex("user_ai_provider_user_name_unique").on(
+      table.userId,
+      table.name
+    ),
+  })
+)
+
+export const userAiInstruction = sqliteTable("user_ai_instruction", {
   id: text("id")
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
   userId: text("user_id")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
-  publicAiProviderConfigId: text("public_ai_provider_config_id")
-    .notNull()
-    .references(() => publicAiProviderConfig.id, { onDelete: "cascade" }),
-  modelsJson: text("models_json"),
+  userAiProviderId: text("user_ai_provider_id").references(() => userAiProvider.id, {
+    onDelete: "set null",
+  }),
+  publicAiInstructionId: text("public_ai_instruction_id").references(
+    () => publicAiInstruction.id,
+    { onDelete: "set null" }
+  ),
+  name: text("name").notNull(),
+  instructionType: text("instruction_type").notNull(),
+  systemPrompt: text("system_prompt").notNull(),
+  userPromptTemplate: text("user_prompt_template").notNull(),
+  inputSchemaJson: text("input_schema_json"),
+  outputSchemaJson: text("output_schema_json"),
+  enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
   isDefault: integer("is_default", { mode: "boolean" }).notNull().default(false),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().defaultNow(),
   updatedAt: integer("updated_at", { mode: "timestamp" })

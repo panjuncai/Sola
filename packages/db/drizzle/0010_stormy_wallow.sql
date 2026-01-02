@@ -1,0 +1,1 @@
+ALTER TABLE `user_ai_instruction` ADD `user_ai_provider_id` text REFERENCES user_ai_provider(id);

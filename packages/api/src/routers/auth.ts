@@ -12,9 +12,11 @@ import {
 import {
   db,
   publicAiProviderConfig,
+  publicAiInstruction,
   publicTtsProviderConfig,
   sessions,
   ttsVoiceCatalog,
+  userAiInstruction,
   userAiProvider,
   userTtsProvider,
   users,
@@ -142,15 +144,51 @@ export const authRouter = router({
         })
         .execute()
 
+      let defaultUserAiProviderId: string | null = null
       if (aiProviders.length > 0) {
+        const insertRows = aiProviders.map((provider) => ({
+          userId: user.id,
+          publicAiProviderConfigId: provider.id,
+          providerType: provider.providerType,
+          apiUrl: provider.apiUrl,
+          enabled: provider.enabled ?? true,
+          modelsJson: provider.models ?? null,
+          isDefault: provider.providerType === "openai",
+        }))
         await db
           .insert(userAiProvider)
+          .values(insertRows)
+          .run()
+        const createdDefaults = await db.query.userAiProvider
+          .findFirst({
+            where: and(eq(userAiProvider.userId, user.id), eq(userAiProvider.isDefault, true)),
+          })
+          .execute()
+        defaultUserAiProviderId = createdDefaults?.id ?? null
+      }
+
+      const publicInstructions = await db.query.publicAiInstruction
+        .findMany({
+          where: eq(publicAiInstruction.enabled, true),
+        })
+        .execute()
+
+      if (publicInstructions.length > 0) {
+        await db
+          .insert(userAiInstruction)
           .values(
-            aiProviders.map((provider) => ({
+            publicInstructions.map((instruction) => ({
               userId: user.id,
-              publicAiProviderConfigId: provider.id,
-              modelsJson: provider.models ?? null,
-              isDefault: provider.providerType === "openai",
+              userAiProviderId: defaultUserAiProviderId,
+              publicAiInstructionId: instruction.id,
+              name: instruction.name,
+              instructionType: instruction.instructionType,
+              systemPrompt: instruction.systemPrompt,
+              userPromptTemplate: instruction.userPromptTemplate,
+              inputSchemaJson: instruction.inputSchemaJson,
+              outputSchemaJson: instruction.outputSchemaJson,
+              enabled: instruction.enabled ?? true,
+              isDefault: instruction.isDefault ?? false,
             }))
           )
           .run()
@@ -175,27 +213,36 @@ export const authRouter = router({
         })
         .execute()
 
-      if (user) {
-        const existing = await db.query.sessions
-          .findMany({
-            where: eq(sessions.userId, user.id),
-            orderBy: asc(sessions.createdAt),
-            columns: { id: true },
-          })
-          .execute()
-
-        if (existing.length >= 3) {
-          await db.delete(sessions).where(eq(sessions.id, existing[0]!.id)).run()
-        }
+      if (!user) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "User not found" })
       }
 
-      return callAuthEndpoint(ctx, "/sign-in/email", {
-        method: "POST",
-        json: {
-          email: input.email,
-          password: input.password,
-        },
-      })
+      const existing = await db.query.sessions
+        .findMany({
+          where: eq(sessions.userId, user.id),
+          orderBy: asc(sessions.createdAt),
+          columns: { id: true },
+        })
+        .execute()
+
+      if (existing.length >= 3) {
+        await db.delete(sessions).where(eq(sessions.id, existing[0]!.id)).run()
+      }
+
+      try {
+        return await callAuthEndpoint(ctx, "/sign-in/email", {
+          method: "POST",
+          json: {
+            email: input.email,
+            password: input.password,
+          },
+        })
+      } catch (error) {
+        if (error instanceof TRPCError && error.message === "Invalid email or password") {
+          throw new TRPCError({ code: "UNAUTHORIZED", message: "Incorrect password" })
+        }
+        throw error
+      }
     }),
 
   signOut: publicProcedure.mutation(async ({ ctx }) => {

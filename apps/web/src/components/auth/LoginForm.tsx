@@ -34,6 +34,14 @@ export function LoginForm() {
       navigate(from || "/", { replace: true })
     },
     onError: (err) => {
+      if (err.message === "User not found") {
+        toast.error("用户不存在")
+        return
+      }
+      if (err.message === "Incorrect password") {
+        toast.error("密码错误")
+        return
+      }
       toast.error(err.message)
     },
   })
@@ -45,7 +53,6 @@ export function LoginForm() {
   })
 
   const onSubmit = form.handleSubmit((data) => {
-    console.log(data)
     signIn.mutate(data)
   })
 

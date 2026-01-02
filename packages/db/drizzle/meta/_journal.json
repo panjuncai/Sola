@@ -64,6 +64,41 @@
       "when": 1767280365500,
       "tag": "0008_bored_firebrand",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1767339103619,
+      "tag": "0009_workable_firelord",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1767341010051,
+      "tag": "0010_stormy_wallow",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1767341955592,
+      "tag": "0011_lame_the_fallen",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1767350123456,
+      "tag": "0012_user_ai_provider_name",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1767351456789,
+      "tag": "0013_user_ai_provider_api_key",
+      "breakpoints": true
     }
   ]
 }
