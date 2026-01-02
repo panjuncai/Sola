@@ -99,6 +99,13 @@
       "when": 1767351456789,
       "tag": "0013_user_ai_provider_api_key",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1767352000000,
+      "tag": "0014_user_ai_instruction_model",
+      "breakpoints": true
     }
   ]
 }

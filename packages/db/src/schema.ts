@@ -285,6 +285,7 @@ export const userAiInstruction = sqliteTable("user_ai_instruction", {
   instructionType: text("instruction_type").notNull(),
   systemPrompt: text("system_prompt").notNull(),
   userPromptTemplate: text("user_prompt_template").notNull(),
+  model: text("model"),
   inputSchemaJson: text("input_schema_json"),
   outputSchemaJson: text("output_schema_json"),
   enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),

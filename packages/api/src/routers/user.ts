@@ -134,6 +134,7 @@ const userAiInstructionSchema = z.object({
   instructionType: aiInstructionType,
   systemPrompt: z.string(),
   userPromptTemplate: z.string(),
+  model: z.string().nullable(),
   inputSchemaJson: z.string().nullable(),
   outputSchemaJson: z.string().nullable(),
   enabled: z.boolean(),
@@ -157,6 +158,7 @@ const publicAiInstructionSchema = z.object({
 const createUserAiInstructionInput = z.object({
   publicAiInstructionId: z.string().min(1),
   userAiProviderId: z.string().nullable(),
+  model: z.string().nullable().optional(),
 })
 
 const updateUserAiInstructionInput = z.object({
@@ -165,6 +167,7 @@ const updateUserAiInstructionInput = z.object({
   instructionType: aiInstructionType,
   systemPrompt: z.string().min(1),
   userPromptTemplate: z.string().min(1),
+  model: z.string().nullable(),
   inputSchemaJson: z.string().nullable(),
   outputSchemaJson: z.string().nullable(),
   enabled: z.boolean(),
@@ -793,6 +796,7 @@ export const userRouter = router({
         instructionType: row.instructionType as z.infer<typeof aiInstructionType>,
         systemPrompt: row.systemPrompt,
         userPromptTemplate: row.userPromptTemplate,
+        model: row.model ?? null,
         inputSchemaJson: row.inputSchemaJson,
         outputSchemaJson: row.outputSchemaJson,
         enabled: row.enabled ?? true,
@@ -858,6 +862,7 @@ export const userRouter = router({
           instructionType: instruction.instructionType,
           systemPrompt: instruction.systemPrompt,
           userPromptTemplate: instruction.userPromptTemplate,
+          model: input.model ?? null,
           inputSchemaJson: instruction.inputSchemaJson,
           outputSchemaJson: instruction.outputSchemaJson,
           enabled: instruction.enabled ?? true,
@@ -892,6 +897,7 @@ export const userRouter = router({
           instructionType: input.instructionType,
           systemPrompt: input.systemPrompt,
           userPromptTemplate: input.userPromptTemplate,
+          model: input.model,
           inputSchemaJson: input.inputSchemaJson,
           outputSchemaJson: input.outputSchemaJson,
           enabled: input.enabled,

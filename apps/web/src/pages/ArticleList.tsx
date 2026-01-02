@@ -92,6 +92,9 @@ export function ArticleList() {
   const [aiInstructionEditOpen, setAiInstructionEditOpen] = React.useState(false)
   const [aiInstructionAddOpen, setAiInstructionAddOpen] = React.useState(false)
   const [aiInstructionDeleteOpen, setAiInstructionDeleteOpen] = React.useState(false)
+  const [aiInstructionAddModel, setAiInstructionAddModel] = React.useState<string | null>(
+    null
+  )
   const [shadowingEnabled, setShadowingEnabled] = React.useState(false)
   const [shadowingSpeeds, setShadowingSpeeds] = React.useState<number[]>([
     0.2, 0.4, 0.6, 0.8,
@@ -121,6 +124,7 @@ export function ArticleList() {
       instructionType: "translate" | "explain" | "custom"
       systemPrompt: string
       userPromptTemplate: string
+      model: string | null
       inputSchemaJson: string | null
       outputSchemaJson: string | null
       enabled: boolean
@@ -134,6 +138,7 @@ export function ArticleList() {
     instructionType: "translate" | "explain" | "custom"
     systemPrompt: string
     userPromptTemplate: string
+    model: string | null
     inputSchemaJson: string | null
     outputSchemaJson: string | null
     enabled: boolean
@@ -171,6 +176,16 @@ export function ArticleList() {
   const [aiProviderEditKeyVisible, setAiProviderEditKeyVisible] = React.useState(false)
   const [aiProviderEditModels, setAiProviderEditModels] = React.useState("")
   const [aiProviderResetOpen, setAiProviderResetOpen] = React.useState(false)
+  const [aiProgress, setAiProgress] = React.useState<{
+    instructionId: string
+    total: number
+    completed: number
+    running: boolean
+  } | null>(null)
+  const [aiLastInstructionId, setAiLastInstructionId] = React.useState<string | null>(
+    null
+  )
+  const aiRunIdRef = React.useRef(0)
   const [publicAiInstructions, setPublicAiInstructions] = React.useState<
     {
       id: string
@@ -178,6 +193,7 @@ export function ArticleList() {
       instructionType: "translate" | "explain" | "custom"
       systemPrompt: string
       userPromptTemplate: string
+      model: string | null
       inputSchemaJson: string | null
       outputSchemaJson: string | null
       enabled: boolean
@@ -207,6 +223,60 @@ export function ArticleList() {
     trpc.user.createUserAiInstructionFromPublic.useMutation()
   const updateUserAiInstruction = trpc.user.updateUserAiInstruction.useMutation()
   const deleteUserAiInstruction = trpc.user.deleteUserAiInstruction.useMutation()
+  const translateSentence = trpc.ai.translateSentence.useMutation()
+
+  const aiInstructionList = React.useMemo(() => {
+    const list = aiInstructionQuery.data ?? []
+    return list
+      .filter((instruction) => instruction.enabled)
+      .slice()
+      .sort((a, b) => {
+        const defaultRank = Number(b.isDefault) - Number(a.isDefault)
+        if (defaultRank !== 0) return defaultRank
+        return a.name.localeCompare(b.name)
+      })
+  }, [aiInstructionQuery.data])
+
+  const aiInstructionGroups = React.useMemo(() => {
+    const groups = new Map<string, typeof aiInstructionList>()
+    for (const instruction of aiInstructionList) {
+      const list = groups.get(instruction.instructionType) ?? []
+      list.push(instruction)
+      groups.set(instruction.instructionType, list)
+    }
+    return Array.from(groups.entries())
+  }, [aiInstructionList])
+
+  const defaultInstructionId = React.useMemo(() => {
+    return aiInstructionList.find((instruction) => instruction.isDefault)?.id ?? null
+  }, [aiInstructionList])
+
+  const resolveInstructionLabel = React.useCallback(
+    (type: "translate" | "explain" | "custom") => {
+      if (type === "translate") return t("ai.typeTranslate")
+      if (type === "explain") return t("ai.typeExplain")
+      return t("ai.typeCustom")
+    },
+    [t]
+  )
+  const resolveProvider = React.useCallback(
+    (providerId: string | null) => {
+      const defaultProvider =
+        aiProvidersQuery.data?.find((item) => item.isDefault) ?? null
+      if (providerId) {
+        return aiProvidersQuery.data?.find((item) => item.id === providerId) ?? null
+      }
+      return defaultProvider
+    },
+    [aiProvidersQuery.data]
+  )
+  const resolveProviderModels = React.useCallback(
+    (providerId: string | null) => {
+      const provider = resolveProvider(providerId)
+      return provider?.models ?? provider?.availableModels ?? []
+    },
+    [resolveProvider]
+  )
 
   const showCreate = isCreating || articles.length === 0
   const activeArticleExists = React.useMemo(() => {
@@ -255,6 +325,141 @@ export function ArticleList() {
   const deleteAccountMutation = trpc.user.deleteAccount.useMutation()
   const signOutMutation = trpc.auth.signOut.useMutation()
   const sentenceAudioMutation = trpc.tts.getSentenceAudio.useMutation()
+  const missingNativeCount = React.useMemo(() => {
+    if (!detailQuery.data) return 0
+    return detailQuery.data.sentences.filter(
+      (sentence) =>
+        Boolean(sentence.targetText?.trim()) && !sentence.nativeText?.trim()
+    ).length
+  }, [detailQuery.data])
+
+  const updateSentenceTranslation = React.useCallback(
+    (sentenceId: string, translation: string) => {
+      const articleId = detailQuery.data?.article.id
+      if (!articleId) return
+      utils.article.get.setData({ articleId }, (current) => {
+        if (!current) return current
+        return {
+          ...current,
+          sentences: current.sentences.map((sentence) =>
+            sentence.id === sentenceId
+              ? { ...sentence, nativeText: translation }
+              : sentence
+          ),
+        }
+      })
+    },
+    [detailQuery.data?.article.id, utils.article.get]
+  )
+
+  const getTranslationTargets = React.useCallback(
+    (missingOnly: boolean) => {
+      if (!detailQuery.data) return []
+      return detailQuery.data.sentences.filter((sentence) => {
+        if (!sentence.targetText?.trim()) return false
+        if (missingOnly) return !sentence.nativeText?.trim()
+        return true
+      })
+    },
+    [detailQuery.data]
+  )
+
+  const startAiTranslation = React.useCallback(
+    async (instructionId: string, missingOnly: boolean) => {
+      if (aiProgress?.running) {
+        toast.error(t("ai.translationInProgress"))
+        return
+      }
+      if (!detailQuery.data) {
+        toast.error(t("ai.noArticleSelected"))
+        return
+      }
+      const targets = getTranslationTargets(missingOnly)
+      if (targets.length === 0) {
+        toast.error(
+          missingOnly ? t("ai.noMissingTargets") : t("ai.noTargets")
+        )
+        return
+      }
+
+      const runId = aiRunIdRef.current + 1
+      aiRunIdRef.current = runId
+      setAiLastInstructionId(instructionId)
+      setAiProgress({
+        instructionId,
+        total: targets.length,
+        completed: 0,
+        running: true,
+      })
+
+      let completed = 0
+      let failed = 0
+      let index = 0
+      const concurrency = Math.min(3, targets.length)
+
+      const worker = async () => {
+        while (true) {
+          const nextIndex = index
+          index += 1
+          const sentence = targets[nextIndex]
+          if (!sentence) return
+          if (aiRunIdRef.current !== runId) return
+          try {
+            const result = await translateSentence.mutateAsync({
+              sentenceId: sentence.id,
+              instructionId,
+            })
+            if (aiRunIdRef.current !== runId) return
+            updateSentenceTranslation(result.sentenceId, result.translation)
+          } catch {
+            failed += 1
+          } finally {
+            if (aiRunIdRef.current !== runId) return
+            completed += 1
+            setAiProgress((prev) =>
+              prev && prev.instructionId === instructionId
+                ? { ...prev, completed }
+                : prev
+            )
+          }
+        }
+      }
+
+      await Promise.all(Array.from({ length: concurrency }, () => worker()))
+
+      if (aiRunIdRef.current !== runId) return
+      setAiProgress((prev) => (prev ? { ...prev, running: false } : prev))
+      if (failed > 0) {
+        toast.error(t("ai.translationFailed", { count: failed }))
+      } else {
+        toast.success(t("ai.translationComplete", { count: targets.length }))
+      }
+    },
+    [
+      aiProgress?.running,
+      detailQuery.data,
+      getTranslationTargets,
+      t,
+      translateSentence,
+      updateSentenceTranslation,
+    ]
+  )
+
+  const cancelAiTranslation = React.useCallback(() => {
+    if (!aiProgress?.running) return
+    aiRunIdRef.current += 1
+    setAiProgress((prev) => (prev ? { ...prev, running: false } : prev))
+    toast.success(t("ai.translationCanceled"))
+  }, [aiProgress?.running, t])
+
+  const retryMissingTranslations = React.useCallback(() => {
+    const instructionId = aiLastInstructionId ?? defaultInstructionId
+    if (!instructionId) {
+      toast.error(t("ai.noInstructionAvailable"))
+      return
+    }
+    startAiTranslation(instructionId, true)
+  }, [aiLastInstructionId, defaultInstructionId, startAiTranslation, t])
 
   React.useEffect(() => {
     if (listQuery.data) setArticles(listQuery.data)
@@ -316,6 +521,28 @@ export function ArticleList() {
       aiProvidersQuery.data?.find((item) => item.isDefault)?.id ?? null
     )
   }, [aiInstructionDialogOpen, aiInstructionQuery.data, publicAiInstructionQuery.data])
+
+  React.useEffect(() => {
+    if (!aiInstructionAddOpen) return
+    const providerId =
+      aiInstructionAddProviderId ??
+      aiProvidersQuery.data?.find((item) => item.isDefault)?.id ??
+      null
+    const models = resolveProviderModels(providerId)
+    if (!models.length) {
+      setAiInstructionAddModel(null)
+      return
+    }
+    if (!aiInstructionAddModel || !models.includes(aiInstructionAddModel)) {
+      setAiInstructionAddModel(models[0] ?? null)
+    }
+  }, [
+    aiInstructionAddOpen,
+    aiInstructionAddProviderId,
+    aiInstructionAddModel,
+    aiProvidersQuery.data,
+    resolveProviderModels,
+  ])
 
   React.useEffect(() => {
     if (!ttsOptionsQuery.data) return
@@ -1596,6 +1823,72 @@ export function ArticleList() {
                         />
                       </button>
                     </div>
+                    <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
+                      {aiInstructionGroups.length === 0 ? (
+                        <span className="text-xs text-muted-foreground">
+                          {t("ai.noInstructions")}
+                        </span>
+                      ) : (
+                        aiInstructionGroups.map(([type, items]) => (
+                          <div
+                            key={type}
+                            className="flex flex-wrap items-center gap-1.5 rounded-full bg-muted/40 px-2 py-1"
+                          >
+                            <span className="text-[11px] font-medium text-muted-foreground">
+                              {resolveInstructionLabel(
+                                type as "translate" | "explain" | "custom"
+                              )}
+                            </span>
+                            {items.map((instruction) => (
+                              <Button
+                                key={instruction.id}
+                                type="button"
+                                variant={
+                                  aiProgress?.running &&
+                                  aiProgress.instructionId === instruction.id
+                                    ? "secondary"
+                                    : "outline"
+                                }
+                                className="h-7 px-2 text-xs"
+                                onClick={() => {
+                                  startAiTranslation(instruction.id, false)
+                                }}
+                              >
+                                {instruction.name}
+                              </Button>
+                            ))}
+                          </div>
+                        ))
+                      )}
+                      {aiProgress ? (
+                        <span className="text-xs text-muted-foreground">
+                          {t("ai.translationProgress", {
+                            completed: aiProgress.completed,
+                            total: aiProgress.total,
+                          })}
+                        </span>
+                      ) : null}
+                      {aiProgress?.running ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="h-7 px-2 text-xs"
+                          onClick={cancelAiTranslation}
+                        >
+                          {t("ai.cancel")}
+                        </Button>
+                      ) : null}
+                      {!aiProgress?.running && missingNativeCount > 0 ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="h-7 px-2 text-xs"
+                          onClick={retryMissingTranslations}
+                        >
+                          {t("ai.retryMissing")}
+                        </Button>
+                      ) : null}
+                    </div>
                   </div>
                   <div className="space-y-4">
                     {detailQuery.data.sentences.length === 0 ? (
@@ -2569,6 +2862,34 @@ export function ArticleList() {
                 </select>
               </div>
               <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">{t("ai.model")}</label>
+                <select
+                  className="h-9 w-full rounded-md border bg-background px-2 text-sm"
+                  value={aiInstructionEditing.model ?? ""}
+                  onChange={(event) =>
+                    setAiInstructionEditing((prev) =>
+                      prev
+                        ? {
+                            ...prev,
+                            model: event.target.value || null,
+                          }
+                        : prev
+                    )
+                  }
+                >
+                  <option value="">{t("ai.modelAuto")}</option>
+                  {resolveProviderModels(
+                    aiInstructionEditing.userAiProviderId ??
+                      aiProvidersQuery.data?.find((item) => item.isDefault)?.id ??
+                      null
+                  ).map((model) => (
+                    <option key={model} value={model}>
+                      {model}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
                 <label className="text-xs text-muted-foreground">
                   {t("ai.systemPrompt")}
                 </label>
@@ -2717,6 +3038,27 @@ export function ArticleList() {
                     ))}
                   </select>
                 </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">{t("ai.model")}</label>
+                  <select
+                    className="h-9 w-full rounded-md border bg-background px-2 text-sm"
+                    value={aiInstructionAddModel ?? ""}
+                    onChange={(event) => {
+                      setAiInstructionAddModel(event.target.value || null)
+                    }}
+                  >
+                    <option value="">{t("ai.modelAuto")}</option>
+                    {resolveProviderModels(
+                      aiInstructionAddProviderId ??
+                        aiProvidersQuery.data?.find((item) => item.isDefault)?.id ??
+                        null
+                    ).map((model) => (
+                      <option key={model} value={model}>
+                        {model}
+                      </option>
+                    ))}
+                  </select>
+                </div>
                 <div className="space-y-2">
                   {publicAiInstructions
                     .slice()
@@ -2740,6 +3082,7 @@ export function ArticleList() {
                         await createUserAiInstructionFromPublic.mutateAsync({
                           publicAiInstructionId: instruction.id,
                           userAiProviderId: aiInstructionAddProviderId ?? null,
+                          model: aiInstructionAddModel ?? null,
                         })
                         await aiInstructionQuery.refetch()
                         setAiInstructionAddOpen(false)
