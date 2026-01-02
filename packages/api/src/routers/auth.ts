@@ -11,9 +11,11 @@ import {
 
 import {
   db,
+  publicAiProviderConfig,
   publicTtsProviderConfig,
   sessions,
   ttsVoiceCatalog,
+  userAiProvider,
   userTtsProvider,
   users,
 } from "@sola/db"
@@ -131,6 +133,26 @@ export const authRouter = router({
             ttsVoiceTarget: targetVoice.id,
             isDefault: true,
           })
+          .run()
+      }
+
+      const aiProviders = await db.query.publicAiProviderConfig
+        .findMany({
+          where: eq(publicAiProviderConfig.enabled, true),
+        })
+        .execute()
+
+      if (aiProviders.length > 0) {
+        await db
+          .insert(userAiProvider)
+          .values(
+            aiProviders.map((provider) => ({
+              userId: user.id,
+              publicAiProviderConfigId: provider.id,
+              modelsJson: provider.models ?? null,
+              isDefault: provider.providerType === "openai",
+            }))
+          )
           .run()
       }
 

@@ -83,6 +83,7 @@ export function ArticleList() {
   const [targetVoiceId, setTargetVoiceId] = React.useState<string | null>(null)
   const [shadowingDialogOpen, setShadowingDialogOpen] = React.useState(false)
   const [clearCacheOpen, setClearCacheOpen] = React.useState(false)
+  const [aiDialogOpen, setAiDialogOpen] = React.useState(false)
   const [shadowingEnabled, setShadowingEnabled] = React.useState(false)
   const [shadowingSpeeds, setShadowingSpeeds] = React.useState<number[]>([
     0.2, 0.4, 0.6, 0.8,
@@ -91,6 +92,18 @@ export function ArticleList() {
   const [shadowingDraftSpeeds, setShadowingDraftSpeeds] = React.useState<number[]>([
     0.2, 0.4, 0.6, 0.8,
   ])
+  const [aiProvidersDraft, setAiProvidersDraft] = React.useState<
+    {
+      id: string
+      providerType: string
+      apiUrl: string
+      models: string[]
+      availableModels: string[]
+      isDefault: boolean
+    }[]
+  >([])
+  const [aiModelInputs, setAiModelInputs] = React.useState<Record<string, string>>({})
+  const [aiModelOpenId, setAiModelOpenId] = React.useState<string | null>(null)
   const userId = useAuthStore((state) => state.user?.id ?? null)
   const lastLoopModeRef = React.useRef<"all" | "target">("all")
   const ttsInitRef = React.useRef<string>("")
@@ -102,11 +115,29 @@ export function ArticleList() {
     { enabled: settingsQuery.isSuccess }
   )
   const updateTtsVoices = trpc.user.updateTtsVoices.useMutation()
+  const aiProvidersQuery = trpc.user.getAiProviders.useQuery()
+  const updateAiProviderDefault = trpc.user.updateAiProviderDefault.useMutation()
+  const updateAiProviderModels = trpc.user.updateAiProviderModels.useMutation()
 
   const showCreate = isCreating || articles.length === 0
+  const activeArticleExists = React.useMemo(() => {
+    if (!activeArticleId) return false
+    const list = listQuery.data ?? articles
+    return list.some((article) => article.id === activeArticleId)
+  }, [activeArticleId, articles, listQuery.data])
   const detailQuery = trpc.article.get.useQuery(
     { articleId: activeArticleId ?? "" },
-    { enabled: Boolean(activeArticleId) && !showCreate }
+    {
+      enabled:
+        Boolean(activeArticleId) &&
+        !showCreate &&
+        (activeArticleExists || listQuery.isFetching),
+      retry: false,
+      onError: () => {
+        setActiveArticleId(null)
+        setIsCreating(true)
+      },
+    }
   )
 
   const createMutation = trpc.article.create.useMutation({
@@ -119,6 +150,12 @@ export function ArticleList() {
     },
   })
   const deleteMutation = trpc.article.deleteMany.useMutation({
+    onMutate: ({ articleIds }) => {
+      if (activeArticleId && articleIds.includes(activeArticleId)) {
+        setActiveArticleId(null)
+        setIsCreating(true)
+      }
+    },
     onSuccess: async () => {
       await utils.article.list.invalidate()
       setSelectedIds([])
@@ -127,6 +164,7 @@ export function ArticleList() {
     },
   })
   const deleteAccountMutation = trpc.user.deleteAccount.useMutation()
+  const signOutMutation = trpc.auth.signOut.useMutation()
   const sentenceAudioMutation = trpc.tts.getSentenceAudio.useMutation()
 
   React.useEffect(() => {
@@ -152,6 +190,18 @@ export function ArticleList() {
     setShadowingDraftEnabled(shadowingEnabled)
     setShadowingDraftSpeeds(shadowingSpeeds)
   }, [shadowingDialogOpen, shadowingEnabled, shadowingSpeeds])
+
+  React.useEffect(() => {
+    if (!aiDialogOpen) return
+    if (!aiProvidersQuery.data) return
+    setAiProvidersDraft(
+      [...aiProvidersQuery.data].sort(
+        (a, b) => Number(b.isDefault) - Number(a.isDefault)
+      )
+    )
+    setAiModelInputs({})
+    setAiModelOpenId(null)
+  }, [aiDialogOpen, aiProvidersQuery.data])
 
   React.useEffect(() => {
     if (!ttsOptionsQuery.data) return
@@ -197,8 +247,12 @@ export function ArticleList() {
     }
   }, [darkMode])
 
+  const anySettingsDialogOpen =
+    aiDialogOpen || languageDialogOpen || shadowingDialogOpen || deleteAccountOpen
+
   React.useEffect(() => {
     if (!settingsOpen) return
+    if (anySettingsDialogOpen) return
     const handleOutside = (event: MouseEvent) => {
       const target = event.target as Node
       if (settingsPanelRef.current?.contains(target)) return
@@ -209,13 +263,23 @@ export function ArticleList() {
     }
     document.addEventListener("mousedown", handleOutside)
     return () => document.removeEventListener("mousedown", handleOutside)
-  }, [settingsOpen])
+  }, [settingsOpen, anySettingsDialogOpen])
 
   React.useEffect(() => {
     if (!activeArticleId && !showCreate && articles.length > 0) {
       setActiveArticleId(articles[0]!.id)
     }
   }, [activeArticleId, articles, showCreate])
+
+  React.useEffect(() => {
+    if (!activeArticleId || showCreate) return
+    if (listQuery.isFetching) return
+    const list = listQuery.data ?? articles
+    if (!list.some((article) => article.id === activeArticleId)) {
+      setActiveArticleId(null)
+      setIsCreating(true)
+    }
+  }, [activeArticleExists, activeArticleId, showCreate, listQuery.isFetching, listQuery.data, articles])
 
   React.useEffect(() => {
     stopLoopPlayback()
@@ -823,41 +887,15 @@ export function ArticleList() {
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <span>遮挡外语</span>
-                  <button
+                  <span>AI 设置</span>
+                  <Button
                     type="button"
-                    className={cn(
-                      "relative h-5 w-10 rounded-full transition",
-                      blurTarget ? "bg-primary" : "bg-muted"
-                    )}
-                    onClick={() => setBlurTarget((prev) => !prev)}
+                    variant="outline"
+                    className="h-8"
+                    onClick={() => setAiDialogOpen(true)}
                   >
-                    <span
-                      className={cn(
-                        "absolute top-0.5 h-4 w-4 rounded-full bg-background shadow transition",
-                        blurTarget ? "left-5" : "left-1"
-                      )}
-                    />
-                  </button>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <span>遮挡母语</span>
-                  <button
-                    type="button"
-                    className={cn(
-                      "relative h-5 w-10 rounded-full transition",
-                      blurNative ? "bg-primary" : "bg-muted"
-                    )}
-                    onClick={() => setBlurNative((prev) => !prev)}
-                  >
-                    <span
-                      className={cn(
-                        "absolute top-0.5 h-4 w-4 rounded-full bg-background shadow transition",
-                        blurNative ? "left-5" : "left-1"
-                      )}
-                    />
-                  </button>
+                    AI 设置
+                  </Button>
                 </div>
 
                 <div className="flex items-center justify-between">
@@ -998,7 +1036,7 @@ export function ArticleList() {
                     variant="outline"
                     className="w-full justify-center"
                     onClick={() => {
-                      trpc.auth.signOut
+                      signOutMutation
                         .mutateAsync()
                         .catch(() => {})
                         .finally(() => {
@@ -1105,41 +1143,15 @@ export function ArticleList() {
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <span>遮挡外语</span>
-                  <button
+                  <span>AI 设置</span>
+                  <Button
                     type="button"
-                    className={cn(
-                      "relative h-5 w-10 rounded-full transition",
-                      blurTarget ? "bg-primary" : "bg-muted"
-                    )}
-                    onClick={() => setBlurTarget((prev) => !prev)}
+                    variant="outline"
+                    className="h-8"
+                    onClick={() => setAiDialogOpen(true)}
                   >
-                    <span
-                      className={cn(
-                        "absolute top-0.5 h-4 w-4 rounded-full bg-background shadow transition",
-                        blurTarget ? "left-5" : "left-1"
-                      )}
-                    />
-                  </button>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <span>遮挡母语</span>
-                  <button
-                    type="button"
-                    className={cn(
-                      "relative h-5 w-10 rounded-full transition",
-                      blurNative ? "bg-primary" : "bg-muted"
-                    )}
-                    onClick={() => setBlurNative((prev) => !prev)}
-                  >
-                    <span
-                      className={cn(
-                        "absolute top-0.5 h-4 w-4 rounded-full bg-background shadow transition",
-                        blurNative ? "left-5" : "left-1"
-                      )}
-                    />
-                  </button>
+                    AI 设置
+                  </Button>
                 </div>
 
                 <div className="flex items-center justify-between">
@@ -1280,7 +1292,7 @@ export function ArticleList() {
                     variant="outline"
                     className="w-full justify-center"
                     onClick={() => {
-                      trpc.auth.signOut
+                      signOutMutation
                         .mutateAsync()
                         .catch(() => {})
                         .finally(() => {
@@ -1394,6 +1406,38 @@ export function ArticleList() {
                       >
                         🌫️ 影子跟读
                       </Button>
+                      <button
+                        type="button"
+                        className={cn(
+                          "relative h-8 w-12 rounded-full border transition",
+                          blurTarget ? "bg-primary/80" : "bg-muted"
+                        )}
+                        onClick={() => setBlurTarget((prev) => !prev)}
+                        aria-label="遮挡外语"
+                      >
+                        <span
+                          className={cn(
+                            "absolute top-1 h-6 w-6 rounded-full bg-background shadow transition",
+                            blurTarget ? "left-5" : "left-1"
+                          )}
+                        />
+                      </button>
+                      <button
+                        type="button"
+                        className={cn(
+                          "relative h-8 w-12 rounded-full border transition",
+                          blurNative ? "bg-primary/80" : "bg-muted"
+                        )}
+                        onClick={() => setBlurNative((prev) => !prev)}
+                        aria-label="遮挡母语"
+                      >
+                        <span
+                          className={cn(
+                            "absolute top-1 h-6 w-6 rounded-full bg-background shadow transition",
+                            blurNative ? "left-5" : "left-1"
+                          )}
+                        />
+                      </button>
                     </div>
                   </div>
                   <div className="space-y-4">
@@ -1722,6 +1766,198 @@ export function ArticleList() {
             <DialogClose asChild>
               <Button type="button" variant="outline">
                 关闭
+              </Button>
+            </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={aiDialogOpen} onOpenChange={setAiDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>AI 设置</DialogTitle>
+            <DialogDescription>仅可调整默认厂商与模型列表。</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 text-sm">
+            {aiProvidersDraft.length === 0 ? (
+              <div className="text-sm text-muted-foreground">暂无 AI 厂商配置。</div>
+            ) : (
+              aiProvidersDraft.map((provider) => (
+                <div
+                  key={provider.id}
+                  className={cn(
+                    "rounded-lg border px-3 py-2 space-y-2",
+                    provider.isDefault && "border-primary/60 bg-primary/5"
+                  )}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm font-semibold">{provider.providerType}</div>
+                    <Button
+                      type="button"
+                      variant={provider.isDefault ? "secondary" : "outline"}
+                      className="h-7"
+                      onClick={() => {
+                        setAiProvidersDraft((prev) => {
+                          const next = prev.map((item) => ({
+                            ...item,
+                            isDefault: item.id === provider.id,
+                          }))
+                          return [...next].sort(
+                            (a, b) => Number(b.isDefault) - Number(a.isDefault)
+                          )
+                        })
+                      }}
+                    >
+                      {provider.isDefault ? "默认" : "设为默认"}
+                    </Button>
+                  </div>
+                  <div className="text-xs text-muted-foreground break-all">
+                    {provider.apiUrl}
+                  </div>
+                  <div
+                    className="relative"
+                    onBlur={() => {
+                      window.setTimeout(() => {
+                        setAiModelOpenId((current) =>
+                          current === provider.id ? null : current
+                        )
+                      }, 100)
+                    }}
+                  >
+                    <div className="flex flex-wrap gap-1 rounded-md border bg-background px-2 py-1 text-xs">
+                      {provider.models.map((model) => (
+                        <span
+                          key={model}
+                          className="inline-flex items-center gap-1 rounded-full border bg-muted/50 px-2 py-0.5"
+                        >
+                          {model}
+                          <button
+                            type="button"
+                            className="text-muted-foreground hover:text-foreground"
+                            onClick={() => {
+                              setAiProvidersDraft((prev) =>
+                                prev.map((item) =>
+                                  item.id === provider.id
+                                    ? {
+                                        ...item,
+                                        models: item.models.filter((m) => m !== model),
+                                      }
+                                    : item
+                                )
+                              )
+                            }}
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                      <input
+                        className="min-w-[120px] flex-1 bg-transparent py-0.5 outline-none"
+                        placeholder="输入模型并回车"
+                        value={aiModelInputs[provider.id] ?? ""}
+                        onFocus={() => setAiModelOpenId(provider.id)}
+                        onChange={(event) => {
+                          const value = event.target.value
+                          setAiModelInputs((prev) => ({
+                            ...prev,
+                            [provider.id]: value,
+                          }))
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" || event.key === ",") {
+                            event.preventDefault()
+                            const value = (aiModelInputs[provider.id] ?? "").trim()
+                            if (!value) return
+                            setAiProvidersDraft((prev) =>
+                              prev.map((item) =>
+                                item.id === provider.id && !item.models.includes(value)
+                                  ? { ...item, models: [...item.models, value] }
+                                  : item
+                              )
+                            )
+                            setAiModelInputs((prev) => ({ ...prev, [provider.id]: "" }))
+                          }
+                        }}
+                      />
+                    </div>
+
+                    {aiModelOpenId === provider.id ? (
+                      <div className="absolute left-0 right-0 z-10 mt-1 max-h-40 overflow-auto rounded-md border bg-background p-1 shadow-md">
+                        {(provider.availableModels.length > 0
+                          ? provider.availableModels
+                          : provider.models
+                        )
+                          .filter((model) =>
+                            (aiModelInputs[provider.id] ?? "")
+                              .toLowerCase()
+                              .trim()
+                              .length === 0
+                              ? true
+                              : model
+                                  .toLowerCase()
+                                  .includes((aiModelInputs[provider.id] ?? "").toLowerCase())
+                          )
+                          .map((model) => (
+                            <button
+                              key={model}
+                              type="button"
+                              className={cn(
+                                "flex w-full items-center justify-between rounded px-2 py-1 text-left text-xs hover:bg-muted",
+                                provider.models.includes(model) && "font-semibold"
+                              )}
+                              onMouseDown={() => {
+                                setAiProvidersDraft((prev) =>
+                                  prev.map((item) =>
+                                    item.id === provider.id && !item.models.includes(model)
+                                      ? { ...item, models: [...item.models, model] }
+                                      : item
+                                  )
+                                )
+                                setAiModelInputs((prev) => ({ ...prev, [provider.id]: "" }))
+                              }}
+                            >
+                              <span>{model}</span>
+                              {provider.models.includes(model) ? <span>✓</span> : null}
+                            </button>
+                          ))}
+                     </div>
+                    ) : null}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-2">
+            <DialogClose asChild>
+              <Button type="button" variant="outline">
+                取消
+              </Button>
+            </DialogClose>
+            <DialogClose asChild>
+              <Button
+                type="button"
+                onClick={async () => {
+                  if (aiProvidersDraft.length === 0) return
+                  const defaultProvider = aiProvidersDraft.find((item) => item.isDefault)
+                  if (defaultProvider) {
+                    await updateAiProviderDefault.mutateAsync({
+                      id: defaultProvider.id,
+                    })
+                  }
+                  for (const provider of aiProvidersDraft) {
+                    await updateAiProviderModels.mutateAsync({
+                      id: provider.id,
+                      models: provider.models
+                        .map((value) => value.trim())
+                        .filter(Boolean),
+                    })
+                  }
+                  await aiProvidersQuery.refetch()
+                }}
+              >
+                保存
               </Button>
             </DialogClose>
           </DialogFooter>

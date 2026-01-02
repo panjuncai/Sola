@@ -16,6 +16,7 @@
     "build": "tsc -p tsconfig.build.json",
     "db:generate": "dotenv -e ../../.env -- drizzle-kit generate",
     "db:push": "dotenv -e ../../.env -- drizzle-kit push",
+    "db:push:fix": "dotenv -e ../../.env -- sh -c 'sqlite3 \"$SOLA_DB_PATH\" \"DROP INDEX IF EXISTS users_email_unique;\"' && pnpm run db:push",
     "db:studio": "dotenv -e ../../.env -- drizzle-kit studio",
     "type-check": "tsc -p tsconfig.json",
     "typecheck": "pnpm run type-check"

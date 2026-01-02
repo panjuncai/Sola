@@ -7,7 +7,8 @@
     "build": "turbo run build",
     "type-check": "turbo run type-check",
     "typecheck": "pnpm -r typecheck",
-    "tts:sync:azure": "node scripts/sync-azure-voices.mjs"
+    "tts:sync:azure": "node scripts/sync-azure-voices.mjs",
+    "db:seed:ai": "node scripts/seed-public-ai.mjs"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

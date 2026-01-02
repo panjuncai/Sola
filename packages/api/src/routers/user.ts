@@ -2,7 +2,15 @@ import { TRPCError } from "@trpc/server"
 import { and, asc, eq } from "drizzle-orm"
 import { z } from "zod"
 
-import { db, publicTtsProviderConfig, ttsVoiceCatalog, userTtsProvider, users } from "@sola/db"
+import {
+  db,
+  publicAiProviderConfig,
+  publicTtsProviderConfig,
+  ttsVoiceCatalog,
+  userAiProvider,
+  userTtsProvider,
+  users,
+} from "@sola/db"
 
 import { requireAuthSession } from "../auth-session.js"
 import { publicProcedure, router } from "../trpc.js"
@@ -51,6 +59,24 @@ const ttsOptionsOutput = z.object({
 const updateTtsVoicesInput = z.object({
   nativeVoiceId: z.string().min(1),
   targetVoiceId: z.string().min(1),
+})
+
+const aiProviderSchema = z.object({
+  id: z.string(),
+  providerType: z.string(),
+  apiUrl: z.string(),
+  models: z.array(z.string()),
+  availableModels: z.array(z.string()),
+  isDefault: z.boolean(),
+})
+
+const updateAiProviderDefaultInput = z.object({
+  id: z.string().min(1),
+})
+
+const updateAiProviderModelsInput = z.object({
+  id: z.string().min(1),
+  models: z.array(z.string()),
 })
 
 export const userRouter = router({
@@ -320,6 +346,105 @@ export const userRouter = router({
           })
           .run()
       }
+
+      return { ok: true }
+    }),
+
+  getAiProviders: publicProcedure.output(z.array(aiProviderSchema)).query(async ({ ctx }) => {
+    const session = await requireAuthSession(ctx)
+    const rows = await db
+      .select({
+        id: userAiProvider.id,
+        providerType: publicAiProviderConfig.providerType,
+        apiUrl: publicAiProviderConfig.apiUrl,
+        models: userAiProvider.modelsJson,
+        publicModels: publicAiProviderConfig.models,
+        isDefault: userAiProvider.isDefault,
+      })
+      .from(userAiProvider)
+      .innerJoin(
+        publicAiProviderConfig,
+        eq(userAiProvider.publicAiProviderConfigId, publicAiProviderConfig.id)
+      )
+      .where(eq(userAiProvider.userId, session.user.id))
+      .orderBy(asc(publicAiProviderConfig.providerType))
+      .execute()
+
+    const parseModels = (value: string | null) => {
+      if (!value) return []
+      try {
+        const parsed = JSON.parse(value)
+        if (Array.isArray(parsed)) {
+          return parsed.map((item) => String(item))
+        }
+      } catch {
+        return []
+      }
+      return []
+    }
+
+    return rows
+      .map((row) => {
+        const models = parseModels(row.models) || []
+        const fallback = parseModels(row.publicModels)
+        return {
+          id: row.id,
+          providerType: row.providerType,
+          apiUrl: row.apiUrl,
+          models: models.length > 0 ? models : fallback,
+          availableModels: fallback,
+          isDefault: row.isDefault ?? false,
+        }
+      })
+      .sort((a, b) => Number(b.isDefault) - Number(a.isDefault))
+  }),
+
+  updateAiProviderDefault: publicProcedure
+    .input(updateAiProviderDefaultInput)
+    .mutation(async ({ ctx, input }) => {
+      const session = await requireAuthSession(ctx)
+      const target = await db.query.userAiProvider
+        .findFirst({
+          where: and(
+            eq(userAiProvider.id, input.id),
+            eq(userAiProvider.userId, session.user.id)
+          ),
+        })
+        .execute()
+
+      if (!target) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "AI provider not found" })
+      }
+
+      await db
+        .update(userAiProvider)
+        .set({ isDefault: false })
+        .where(eq(userAiProvider.userId, session.user.id))
+        .run()
+
+      await db
+        .update(userAiProvider)
+        .set({ isDefault: true })
+        .where(eq(userAiProvider.id, input.id))
+        .run()
+
+      return { ok: true }
+    }),
+
+  updateAiProviderModels: publicProcedure
+    .input(updateAiProviderModelsInput)
+    .mutation(async ({ ctx, input }) => {
+      const session = await requireAuthSession(ctx)
+      await db
+        .update(userAiProvider)
+        .set({ modelsJson: JSON.stringify(input.models) })
+        .where(
+          and(
+            eq(userAiProvider.id, input.id),
+            eq(userAiProvider.userId, session.user.id)
+          )
+        )
+        .run()
 
       return { ok: true }
     }),

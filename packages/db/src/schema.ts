@@ -160,6 +160,22 @@ export const publicTtsProviderConfig = sqliteTable("public_tts_provider_config",
     .$onUpdate(() => new Date()),
 })
 
+export const publicAiProviderConfig = sqliteTable("public_ai_provider_config", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  providerType: text("provider_type").notNull(),
+  apiUrl: text("api_url").notNull(),
+  apiKey: text("api_key"),
+  models: text("models"),
+  enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().defaultNow(),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+})
+
 export const ttsVoiceCatalog = sqliteTable("tts_voice_catalog", {
   id: text("id")
     .primaryKey()
@@ -190,6 +206,25 @@ export const userTtsProvider = sqliteTable("user_tts_provider", {
     .references(() => publicTtsProviderConfig.id, { onDelete: "cascade" }),
   ttsVoiceNative: text("tts_voice_native"),
   ttsVoiceTarget: text("tts_voice_target"),
+  isDefault: integer("is_default", { mode: "boolean" }).notNull().default(false),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().defaultNow(),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+})
+
+export const userAiProvider = sqliteTable("user_ai_provider", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  publicAiProviderConfigId: text("public_ai_provider_config_id")
+    .notNull()
+    .references(() => publicAiProviderConfig.id, { onDelete: "cascade" }),
+  modelsJson: text("models_json"),
   isDefault: integer("is_default", { mode: "boolean" }).notNull().default(false),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().defaultNow(),
   updatedAt: integer("updated_at", { mode: "timestamp" })
