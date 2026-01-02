@@ -1,4 +1,5 @@
 import * as React from "react"
+import { useTranslation } from "react-i18next"
 
 import {
   Button,
@@ -16,6 +17,7 @@ import {
 } from "@sola/ui"
 import { buildTtsCacheKey } from "@sola/shared"
 
+import i18n from "@/i18n"
 import { trpc } from "@/lib/trpc"
 import { useArticleStore } from "@/stores/useArticleStore"
 import { useAuthStore } from "@/stores/useAuthStore"
@@ -25,6 +27,7 @@ function deriveTitle(content: string) {
 }
 
 export function ArticleList() {
+  const { t } = useTranslation()
   const articles = useArticleStore((state) => state.articles)
   const setArticles = useArticleStore((state) => state.setArticles)
   const listQuery = trpc.article.list.useQuery()
@@ -269,6 +272,10 @@ export function ArticleList() {
       setUseAiUserKey(settingsQuery.data.useAiUserKey)
       setShadowingEnabled(settingsQuery.data.shadowing.enabled)
       setShadowingSpeeds(settingsQuery.data.shadowing.speeds)
+      i18n.changeLanguage(settingsQuery.data.uiLanguage)
+      if (typeof window !== "undefined") {
+        localStorage.setItem("sola_ui_lang", settingsQuery.data.uiLanguage)
+      }
     }
   }, [settingsQuery.data])
 
@@ -416,9 +423,9 @@ export function ArticleList() {
   }
 
   const languages = [
-    { value: "zh-CN", label: "中文" },
-    { value: "en-US", label: "English" },
-    { value: "fr-FR", label: "Français" },
+    { value: "zh-CN", label: t("lang.zhCN") },
+    { value: "en-US", label: t("lang.enUS") },
+    { value: "fr-FR", label: t("lang.frFR") },
   ]
 
   const persistSettings = (next?: Partial<{
@@ -504,7 +511,7 @@ export function ArticleList() {
         // ignore
       }
     }
-    toast.success("已清理本地音频缓存")
+    toast.success(t("settings.cacheCleared"))
   }
 
   const getCachedAudioUrl = (cacheKey: string) => {
@@ -731,7 +738,7 @@ export function ArticleList() {
             const ok = await playSentenceRole(sentence, role as "native" | "target")
             if (!ok) {
               stopLoopPlayback()
-              toast.error("音频播放失败，请检查 TTS 配置或音频路径。")
+              toast.error(t("tts.audioPlayFailed"))
               return
             }
             if (pauseMs > 0) {
@@ -798,7 +805,7 @@ export function ArticleList() {
           const ok = await playSentenceRole(sentence, "native")
           if (!ok) {
             stopLoopPlayback()
-            toast.error("音频播放失败，请检查 TTS 配置或音频路径。")
+            toast.error(t("tts.audioPlayFailed"))
             return
           }
           if (pauseMs > 0) {
@@ -811,7 +818,7 @@ export function ArticleList() {
           const ok = await playSentenceRole(sentence, "target")
           if (!ok) {
             stopLoopPlayback()
-            toast.error("音频播放失败，请检查 TTS 配置或音频路径。")
+            toast.error(t("tts.audioPlayFailed"))
             return
           }
           if (pauseMs > 0) {
@@ -826,7 +833,7 @@ export function ArticleList() {
 
   const startLoopSingle = async () => {
     if (!detailQuery.data || !selectedSentenceId || !selectedSentenceRole) {
-      toast.error("请先选择要循环的句子。")
+      toast.error(t("tts.selectSentenceFirst"))
       return
     }
     stopLoopPlayback()
@@ -852,7 +859,7 @@ export function ArticleList() {
         const ok = await playSentenceRole(sentence, selectedSentenceRole)
         if (!ok) {
           stopLoopPlayback()
-          toast.error("音频播放失败，请检查 TTS 配置或音频路径。")
+          toast.error(t("tts.audioPlayFailed"))
           return
         }
         if (pauseMs > 0) {
@@ -894,7 +901,7 @@ export function ArticleList() {
       const ok = await playSentenceRole(targetSentence, role, speed)
       if (!ok) {
         stopLoopPlayback()
-        toast.error("音频播放失败，请检查 TTS 配置或音频路径。")
+        toast.error(t("tts.audioPlayFailed"))
         return
       }
       if (pauseMs > 0) {
@@ -920,7 +927,7 @@ export function ArticleList() {
             setMobileMenuOpen(false)
           }}
         >
-          + 新增文章
+          + {t("article.add")}
         </Button>
         <Button
           type="button"
@@ -932,17 +939,17 @@ export function ArticleList() {
             setConfirmOpen(true)
           }}
         >
-          批量删除
+          {t("article.bulkDelete")}
         </Button>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-2">
         {listQuery.isLoading ? (
-          <div className="text-sm text-muted-foreground">加载中...</div>
+          <div className="text-sm text-muted-foreground">{t("common.loading")}</div>
         ) : listQuery.isError ? (
-          <div className="text-sm text-muted-foreground">加载失败</div>
+          <div className="text-sm text-muted-foreground">{t("common.loadFailed")}</div>
         ) : articles.length === 0 ? (
-          <div className="text-sm text-muted-foreground">暂无文章</div>
+          <div className="text-sm text-muted-foreground">{t("article.noArticles")}</div>
         ) : (
           articles.map((article) => (
             <div
@@ -967,7 +974,7 @@ export function ArticleList() {
                   setMobileMenuOpen(false)
                 }}
               >
-                {article.title ?? "未命名"}
+                {article.title ?? t("article.untitled")}
               </button>
             </div>
           ))
@@ -981,10 +988,10 @@ export function ArticleList() {
               ref={settingsPanelRef}
               className="absolute bottom-12 left-0 right-0 z-20 rounded-xl border bg-card shadow-[0_16px_40px_rgba(15,23,42,0.18)]"
             >
-              <div className="px-4 py-3 text-sm font-semibold">设置</div>
+              <div className="px-4 py-3 text-sm font-semibold">{t("settings.title")}</div>
               <div className="space-y-3 border-t px-4 py-3 text-sm">
                 <div className="flex items-center justify-between">
-                  <span>暗黑模式</span>
+                  <span>{t("settings.darkMode")}</span>
                   <button
                     type="button"
                     className={cn(
@@ -1003,31 +1010,31 @@ export function ArticleList() {
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <span>AI 设置</span>
+                  <span>{t("settings.aiSettings")}</span>
                   <Button
                     type="button"
                     variant="outline"
                     className="h-8"
                     onClick={() => setAiDialogOpen(true)}
                   >
-                    AI 设置
+                    {t("settings.aiSettings")}
                   </Button>
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <span>AI 指令</span>
+                  <span>{t("settings.aiInstructions")}</span>
                   <Button
                     type="button"
                     variant="outline"
                     className="h-8"
                     onClick={() => setAiInstructionDialogOpen(true)}
                   >
-                    AI 指令
+                    {t("settings.aiInstructions")}
                   </Button>
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <span>UI 语言</span>
+                  <span>{t("settings.uiLanguage")}</span>
                   <select
                     className="h-8 rounded-md border bg-background px-2 text-sm"
                     value={uiLanguage}
@@ -1035,6 +1042,10 @@ export function ArticleList() {
                       const value = event.target.value
                       setUiLanguage(value)
                       persistSettings({ uiLanguage: value })
+                      i18n.changeLanguage(value)
+                      if (typeof window !== "undefined") {
+                        localStorage.setItem("sola_ui_lang", value)
+                      }
                     }}
                   >
                     {languages.map((lang) => (
@@ -1046,19 +1057,19 @@ export function ArticleList() {
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <span>语言设置</span>
+                  <span>{t("settings.languageSettings")}</span>
                   <Button
                     type="button"
                     variant="outline"
                     className="h-8"
                     onClick={() => setLanguageDialogOpen(true)}
                   >
-                    语言设置
+                    {t("settings.languageSettings")}
                   </Button>
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <span>语言优先级</span>
+                  <span>{t("settings.languagePriority")}</span>
                   <select
                     className="h-8 rounded-md border bg-background px-2 text-sm"
                     value={displayOrderSetting}
@@ -1068,25 +1079,25 @@ export function ArticleList() {
                       persistSettings({ displayOrder: value })
                     }}
                   >
-                    <option value="native_first">母语优先</option>
-                    <option value="target_first">外语优先</option>
+                    <option value="native_first">{t("settings.nativeFirst")}</option>
+                    <option value="target_first">{t("settings.targetFirst")}</option>
                   </select>
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <span>影子跟读配置</span>
+                  <span>{t("settings.shadowingConfig")}</span>
                   <Button
                     type="button"
                     variant="outline"
                     className="h-8"
                     onClick={() => setShadowingDialogOpen(true)}
                   >
-                    影子跟读
+                    {t("settings.shadowing")}
                   </Button>
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <span>自动母语次数</span>
+                  <span>{t("settings.playbackNativeRepeat")}</span>
                   <input
                     type="number"
                     min={0}
@@ -1102,7 +1113,7 @@ export function ArticleList() {
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <span>自动外语次数</span>
+                  <span>{t("settings.playbackTargetRepeat")}</span>
                   <input
                     type="number"
                     min={0}
@@ -1118,7 +1129,7 @@ export function ArticleList() {
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <span>自动发音间隔 (s)</span>
+                  <span>{t("settings.playbackPauseSeconds")}</span>
                   <input
                     type="number"
                     min={0}
@@ -1141,7 +1152,7 @@ export function ArticleList() {
                     className="w-full justify-center"
                     onClick={() => setClearCacheOpen(true)}
                   >
-                    清理音频缓存
+                    {t("settings.clearCache")}
                   </Button>
                 </div>
 
@@ -1154,7 +1165,7 @@ export function ArticleList() {
                       setDeleteAccountOpen(true)
                     }}
                   >
-                    注销账号
+                    {t("settings.deleteAccount")}
                   </Button>
                 </div>
 
@@ -1172,7 +1183,7 @@ export function ArticleList() {
                         })
                     }}
                   >
-                    登出
+                    {t("settings.signOut")}
                   </Button>
                 </div>
               </div>
@@ -1249,10 +1260,10 @@ export function ArticleList() {
               ref={mobileSettingsPanelRef}
               className="absolute right-0 top-12 w-[calc(100vw-2rem)] max-w-xs z-20 rounded-xl border bg-card shadow-[0_16px_40px_rgba(15,23,42,0.18)]"
             >
-              <div className="px-4 py-3 text-sm font-semibold">设置</div>
+              <div className="px-4 py-3 text-sm font-semibold">{t("settings.title")}</div>
               <div className="space-y-3 border-t px-4 py-3 text-sm">
                 <div className="flex items-center justify-between">
-                  <span>暗黑模式</span>
+                  <span>{t("settings.darkMode")}</span>
                   <button
                     type="button"
                     className={cn(
@@ -1271,31 +1282,31 @@ export function ArticleList() {
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <span>AI 设置</span>
+                  <span>{t("settings.aiSettings")}</span>
                   <Button
                     type="button"
                     variant="outline"
                     className="h-8"
                     onClick={() => setAiDialogOpen(true)}
                   >
-                    AI 设置
+                    {t("settings.aiSettings")}
                   </Button>
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <span>AI 指令</span>
+                  <span>{t("settings.aiInstructions")}</span>
                   <Button
                     type="button"
                     variant="outline"
                     className="h-8"
                     onClick={() => setAiInstructionDialogOpen(true)}
                   >
-                    AI 指令
+                    {t("settings.aiInstructions")}
                   </Button>
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <span>UI 语言</span>
+                  <span>{t("settings.uiLanguage")}</span>
                   <select
                     className="h-8 rounded-md border bg-background px-2 text-sm"
                     value={uiLanguage}
@@ -1303,6 +1314,10 @@ export function ArticleList() {
                       const value = event.target.value
                       setUiLanguage(value)
                       persistSettings({ uiLanguage: value })
+                      i18n.changeLanguage(value)
+                      if (typeof window !== "undefined") {
+                        localStorage.setItem("sola_ui_lang", value)
+                      }
                     }}
                   >
                     {languages.map((lang) => (
@@ -1314,19 +1329,19 @@ export function ArticleList() {
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <span>语言设置</span>
+                  <span>{t("settings.languageSettings")}</span>
                   <Button
                     type="button"
                     variant="outline"
                     className="h-8"
                     onClick={() => setLanguageDialogOpen(true)}
                   >
-                    语言设置
+                    {t("settings.languageSettings")}
                   </Button>
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <span>语言优先级</span>
+                  <span>{t("settings.languagePriority")}</span>
                   <select
                     className="h-8 rounded-md border bg-background px-2 text-sm"
                     value={displayOrderSetting}
@@ -1336,25 +1351,25 @@ export function ArticleList() {
                       persistSettings({ displayOrder: value })
                     }}
                   >
-                    <option value="native_first">母语优先</option>
-                    <option value="target_first">外语优先</option>
+                    <option value="native_first">{t("settings.nativeFirst")}</option>
+                    <option value="target_first">{t("settings.targetFirst")}</option>
                   </select>
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <span>影子跟读配置</span>
+                  <span>{t("settings.shadowingConfig")}</span>
                   <Button
                     type="button"
                     variant="outline"
                     className="h-8"
                     onClick={() => setShadowingDialogOpen(true)}
                   >
-                    影子跟读
+                    {t("settings.shadowing")}
                   </Button>
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <span>自动母语次数</span>
+                  <span>{t("settings.playbackNativeRepeat")}</span>
                   <input
                     type="number"
                     min={0}
@@ -1370,7 +1385,7 @@ export function ArticleList() {
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <span>自动外语次数</span>
+                  <span>{t("settings.playbackTargetRepeat")}</span>
                   <input
                     type="number"
                     min={0}
@@ -1386,7 +1401,7 @@ export function ArticleList() {
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <span>自动发音间隔 (s)</span>
+                  <span>{t("settings.playbackPauseSeconds")}</span>
                   <input
                     type="number"
                     min={0}
@@ -1409,7 +1424,7 @@ export function ArticleList() {
                     className="w-full justify-center"
                     onClick={() => setClearCacheOpen(true)}
                   >
-                    清理音频缓存
+                    {t("settings.clearCache")}
                   </Button>
                 </div>
 
@@ -1422,7 +1437,7 @@ export function ArticleList() {
                       setDeleteAccountOpen(true)
                     }}
                   >
-                    注销账号
+                    {t("settings.deleteAccount")}
                   </Button>
                 </div>
 
@@ -1440,7 +1455,7 @@ export function ArticleList() {
                         })
                     }}
                   >
-                    登出
+                    {t("settings.signOut")}
                   </Button>
                 </div>
               </div>
@@ -1495,13 +1510,15 @@ export function ArticleList() {
             <div className="w-full max-w-2xl space-y-8">
               {showCreate ? (
                 <div className="text-center space-y-2">
-                  <h1 className="text-3xl font-semibold">今天想背点什么？</h1>
+                  <h1 className="text-3xl font-semibold">{t("article.heroTitle")}</h1>
                   <p className="text-sm text-muted-foreground">
-                    输入外语文章，系统会自动切分为句子。
+                    {t("article.heroSubtitle")}
                   </p>
                 </div>
               ) : detailQuery.isLoading ? (
-                <div className="text-sm text-muted-foreground">加载文章中...</div>
+                <div className="text-sm text-muted-foreground">
+                  {t("article.loading")}
+                </div>
               ) : detailQuery.data ? (
                 <div className="space-y-4">
                   <div className="sticky top-0 z-30 -mx-4 md:-mx-12 mb-4 border-b bg-background/95 px-4 md:px-12 py-2 backdrop-blur">
@@ -1514,7 +1531,7 @@ export function ArticleList() {
                           else startLoopAll()
                         }}
                       >
-                        🔁 全文循环
+                        🔁 {t("article.loopAll")}
                       </Button>
                       <Button
                         type="button"
@@ -1524,7 +1541,7 @@ export function ArticleList() {
                           else startLoopTarget()
                         }}
                       >
-                        🟠 外语循环
+                        🟠 {t("article.loopTarget")}
                       </Button>
                       <Button
                         type="button"
@@ -1534,7 +1551,7 @@ export function ArticleList() {
                           else startLoopSingle()
                         }}
                       >
-                        🔂 单句循环
+                        🔂 {t("article.loopSingle")}
                       </Button>
                       <Button
                         type="button"
@@ -1544,7 +1561,7 @@ export function ArticleList() {
                           else startLoopShadowing()
                         }}
                       >
-                        🌫️ 影子跟读
+                        🌫️ {t("article.shadowing")}
                       </Button>
                       <button
                         type="button"
@@ -1553,7 +1570,7 @@ export function ArticleList() {
                           blurTarget ? "bg-primary/80" : "bg-muted"
                         )}
                         onClick={() => setBlurTarget((prev) => !prev)}
-                        aria-label="遮挡外语"
+                        aria-label={t("article.maskTarget")}
                       >
                         <span
                           className={cn(
@@ -1569,7 +1586,7 @@ export function ArticleList() {
                           blurNative ? "bg-primary/80" : "bg-muted"
                         )}
                         onClick={() => setBlurNative((prev) => !prev)}
-                        aria-label="遮挡母语"
+                        aria-label={t("article.maskNative")}
                       >
                         <span
                           className={cn(
@@ -1584,7 +1601,7 @@ export function ArticleList() {
                     {detailQuery.data.sentences.length === 0 ? (
                       <Card>
                         <CardContent className="py-6 text-sm text-muted-foreground">
-                          暂无句子
+                          {t("article.noSentences")}
                         </CardContent>
                       </Card>
                     ) : (
@@ -1629,7 +1646,7 @@ export function ArticleList() {
                                         .then((ok) => {
                                           if (!ok) {
                                             toast.error(
-                                              "音频播放失败，请检查 TTS 配置或音频路径。"
+                                              t("tts.audioPlayFailed")
                                             )
                                           }
                                         })
@@ -1648,7 +1665,7 @@ export function ArticleList() {
                                           .then((ok) => {
                                             if (!ok) {
                                               toast.error(
-                                                "音频播放失败，请检查 TTS 配置或音频路径。"
+                                                t("tts.audioPlayFailed")
                                               )
                                             }
                                           })
@@ -1694,9 +1711,9 @@ export function ArticleList() {
                 </div>
                   ) : (
                     <div className="text-center space-y-2">
-                      <h1 className="text-3xl font-semibold">今天想背点什么？</h1>
+                      <h1 className="text-3xl font-semibold">{t("article.heroTitle")}</h1>
                       <p className="text-sm text-muted-foreground">
-                        输入外语文章，系统会自动切分为句子。
+                        {t("article.heroSubtitle")}
                   </p>
                 </div>
               )}
@@ -1711,7 +1728,7 @@ export function ArticleList() {
                           rows={7}
                           value={content}
                           onChange={(event) => setContent(event.target.value)}
-                          placeholder="输入场景文章..."
+                          placeholder={t("article.inputPlaceholder")}
                           className="w-full resize-none rounded-2xl border bg-background px-4 py-4 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
                         />
                         <Button
@@ -1728,7 +1745,7 @@ export function ArticleList() {
 
                   {createMutation.isError ? (
                     <div className="text-center text-sm text-destructive">
-                      提交失败，请稍后再试。
+                      {t("article.submitFailed")}
                     </div>
                   ) : null}
                 </>
@@ -1741,15 +1758,15 @@ export function ArticleList() {
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>确认删除</DialogTitle>
+            <DialogTitle>{t("article.confirmDeleteTitle")}</DialogTitle>
             <DialogDescription>
-              将删除选中的 {deleteTargets.length} 篇文章及其句子内容，此操作不可恢复。
+              {t("article.confirmDeleteDesc", { count: deleteTargets.length })}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-2">
             <DialogClose asChild>
               <Button type="button" variant="outline">
-                取消
+                {t("common.cancel")}
               </Button>
             </DialogClose>
             <Button
@@ -1762,7 +1779,7 @@ export function ArticleList() {
                 setConfirmOpen(false)
               }}
             >
-              确认删除
+              {t("article.confirmDeleteAction")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1771,15 +1788,15 @@ export function ArticleList() {
       <Dialog open={deleteAccountOpen} onOpenChange={setDeleteAccountOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>确认注销账号</DialogTitle>
+            <DialogTitle>{t("settings.deleteAccountTitle")}</DialogTitle>
             <DialogDescription>
-              注销后将删除所有数据，且不可恢复。请谨慎操作。
+              {t("settings.deleteAccountDesc")}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-2">
             <DialogClose asChild>
               <Button type="button" variant="outline">
-                取消
+                {t("common.cancel")}
               </Button>
             </DialogClose>
             <Button
@@ -1796,7 +1813,7 @@ export function ArticleList() {
                 setDeleteAccountOpen(false)
               }}
             >
-              确认注销
+              {t("settings.deleteAccountConfirm")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1805,13 +1822,15 @@ export function ArticleList() {
       <Dialog open={languageDialogOpen} onOpenChange={setLanguageDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>语言设置</DialogTitle>
-            <DialogDescription>设置母语/外语与语音偏好。</DialogDescription>
+            <DialogTitle>{t("settings.languageSettings")}</DialogTitle>
+            <DialogDescription>{t("settings.languageDialogDesc")}</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 text-sm">
             <div className="space-y-2">
-              <div className="text-xs font-semibold text-muted-foreground">母语</div>
+              <div className="text-xs font-semibold text-muted-foreground">
+                {t("settings.nativeLanguage")}
+              </div>
               <div className="flex flex-wrap items-center gap-2">
                 <select
                   className="h-9 rounded-md border bg-background px-2 text-sm"
@@ -1843,11 +1862,16 @@ export function ArticleList() {
                   }}
                 >
                   <option value="" disabled>
-                    语音
+                    {t("settings.voice")}
                   </option>
                   {ttsOptionsQuery.data?.nativeOptions.map((voice) => (
                     <option key={voice.id} value={voice.id}>
-                      {(voice.gender === "Female" ? "女" : voice.gender === "Male" ? "男" : "语音")} ·{" "}
+                      {(voice.gender === "Female"
+                        ? t("settings.voiceFemale")
+                        : voice.gender === "Male"
+                          ? t("settings.voiceMale")
+                          : t("settings.voice"))}{" "}
+                      ·{" "}
                       {voice.name ?? voice.voiceId}
                     </option>
                   ))}
@@ -1856,7 +1880,9 @@ export function ArticleList() {
             </div>
 
             <div className="space-y-2">
-              <div className="text-xs font-semibold text-muted-foreground">外语</div>
+              <div className="text-xs font-semibold text-muted-foreground">
+                {t("settings.targetLanguage")}
+              </div>
               <div className="flex flex-wrap items-center gap-2">
                 <select
                   className="h-9 rounded-md border bg-background px-2 text-sm"
@@ -1888,11 +1914,16 @@ export function ArticleList() {
                   }}
                 >
                   <option value="" disabled>
-                    语音
+                    {t("settings.voice")}
                   </option>
                   {ttsOptionsQuery.data?.targetOptions.map((voice) => (
                     <option key={voice.id} value={voice.id}>
-                      {(voice.gender === "Female" ? "女" : voice.gender === "Male" ? "男" : "语音")} ·{" "}
+                      {(voice.gender === "Female"
+                        ? t("settings.voiceFemale")
+                        : voice.gender === "Male"
+                          ? t("settings.voiceMale")
+                          : t("settings.voice"))}{" "}
+                      ·{" "}
                       {voice.name ?? voice.voiceId}
                     </option>
                   ))}
@@ -1904,7 +1935,7 @@ export function ArticleList() {
           <DialogFooter>
             <DialogClose asChild>
               <Button type="button" variant="outline">
-                关闭
+                {t("common.close")}
               </Button>
             </DialogClose>
           </DialogFooter>
@@ -1914,13 +1945,15 @@ export function ArticleList() {
       <Dialog open={aiDialogOpen} onOpenChange={setAiDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>AI 设置</DialogTitle>
-            <DialogDescription>新增自定义厂商或调整默认与模型。</DialogDescription>
+            <DialogTitle>{t("ai.settingsTitle")}</DialogTitle>
+            <DialogDescription>{t("ai.settingsDesc")}</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 text-sm">
             <div className="space-y-2 rounded-md border px-3 py-2">
-              <div className="text-xs font-semibold text-muted-foreground">额度选择</div>
+              <div className="text-xs font-semibold text-muted-foreground">
+                {t("ai.quotaTitle")}
+              </div>
               <div className="flex items-center gap-4 text-sm">
                 <label className="flex items-center gap-2">
                   <input
@@ -1931,7 +1964,7 @@ export function ArticleList() {
                       persistSettings({ useAiUserKey: false })
                     }}
                   />
-                  公共额度
+                  {t("ai.quotaPublic")}
                 </label>
                 <label className="flex items-center gap-2">
                   <input
@@ -1942,12 +1975,14 @@ export function ArticleList() {
                       persistSettings({ useAiUserKey: true })
                     }}
                   />
-                  私有额度
+                  {t("ai.quotaPrivate")}
                 </label>
               </div>
             </div>
             {aiProvidersDraft.length === 0 ? (
-              <div className="text-sm text-muted-foreground">暂无 AI 厂商配置。</div>
+              <div className="text-sm text-muted-foreground">
+                {t("ai.noProviders")}
+              </div>
             ) : (
               aiProvidersDraft.map((provider) => (
                 <div
@@ -1983,7 +2018,7 @@ export function ArticleList() {
                           })
                         }}
                       >
-                        {provider.isDefault ? "默认" : "设为默认"}
+                        {provider.isDefault ? t("common.default") : t("ai.setDefault")}
                       </Button>
                       <Button
                         type="button"
@@ -1996,7 +2031,7 @@ export function ArticleList() {
                           setAiProviderEditOpen(true)
                         }}
                       >
-                        修改
+                        {t("common.edit")}
                       </Button>
                       <Button
                         type="button"
@@ -2004,7 +2039,7 @@ export function ArticleList() {
                         className="h-7"
                         onClick={() => setAiProviderDeleteId(provider.id)}
                       >
-                        删除
+                        {t("common.delete")}
                       </Button>
                     </div>
                   </div>
@@ -2018,7 +2053,7 @@ export function ArticleList() {
                 className="h-9"
                 onClick={() => setAiProviderResetOpen(true)}
               >
-                恢复默认配置
+                {t("ai.resetToDefault")}
               </Button>
               <Button
                 type="button"
@@ -2026,7 +2061,7 @@ export function ArticleList() {
                 className="h-9"
                 onClick={() => setAiProviderAddOpen(true)}
               >
-                新增自定义厂商
+                {t("ai.addCustomProvider")}
               </Button>
             </div>
           </div>
@@ -2034,7 +2069,7 @@ export function ArticleList() {
           <DialogFooter className="gap-2 sm:gap-2">
             <DialogClose asChild>
               <Button type="button" variant="outline">
-                取消
+                {t("common.cancel")}
               </Button>
             </DialogClose>
             <DialogClose asChild>
@@ -2063,7 +2098,7 @@ export function ArticleList() {
                   await aiProvidersQuery.refetch()
                 }}
               >
-                保存
+                {t("common.save")}
               </Button>
             </DialogClose>
           </DialogFooter>
@@ -2073,13 +2108,13 @@ export function ArticleList() {
       <Dialog open={aiProviderAddOpen} onOpenChange={setAiProviderAddOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>新增自定义厂商</DialogTitle>
-            <DialogDescription>填写自定义厂商配置并保存。</DialogDescription>
+            <DialogTitle>{t("ai.addCustomTitle")}</DialogTitle>
+            <DialogDescription>{t("ai.addCustomDesc")}</DialogDescription>
           </DialogHeader>
           <div className="grid gap-3 text-sm">
             <input
               className="h-9 rounded-md border bg-background px-2 text-sm"
-              placeholder="名称（唯一）"
+              placeholder={t("ai.providerNamePlaceholder")}
               value={newAiProviderName}
               onChange={(event) => setNewAiProviderName(event.target.value)}
             />
@@ -2115,13 +2150,13 @@ export function ArticleList() {
                   className="h-9"
                   onClick={() => setNewAiProviderKeyVisible((prev) => !prev)}
                 >
-                  {newAiProviderKeyVisible ? "隐藏" : "显示"}
+                  {newAiProviderKeyVisible ? t("common.hide") : t("common.show")}
                 </Button>
               </div>
             ) : null}
             <input
               className="h-9 rounded-md border bg-background px-2 text-sm"
-              placeholder="models，逗号分隔"
+              placeholder={t("ai.modelsPlaceholder")}
               value={newAiProviderModels}
               onChange={(event) => setNewAiProviderModels(event.target.value)}
             />
@@ -2131,13 +2166,13 @@ export function ArticleList() {
                 checked={newAiProviderEnabled}
                 onChange={(event) => setNewAiProviderEnabled(event.target.checked)}
               />
-              启用
+              {t("common.enabled")}
             </label>
           </div>
           <DialogFooter className="gap-2 sm:gap-2">
             <DialogClose asChild>
               <Button type="button" variant="outline">
-                取消
+                {t("common.cancel")}
               </Button>
             </DialogClose>
             <Button
@@ -2150,7 +2185,7 @@ export function ArticleList() {
                   .map((item) => item.trim())
                   .filter(Boolean)
                 if (!name || !apiUrl || models.length === 0) {
-                  toast.error("请填写名称、URL 和模型")
+                  toast.error(t("ai.addCustomError"))
                   return
                 }
                 try {
@@ -2171,14 +2206,15 @@ export function ArticleList() {
                   setNewAiProviderApiKey("")
                   setNewAiProviderKeyVisible(false)
                   setAiProviderAddOpen(false)
-                  toast.success("已新增厂商")
+                  toast.success(t("ai.addCustomSuccess"))
                 } catch (error) {
-                  const message = error instanceof Error ? error.message : "新增厂商失败"
+                  const message =
+                    error instanceof Error ? error.message : t("ai.addCustomFailed")
                   toast.error(message)
                 }
               }}
             >
-              保存
+              {t("common.save")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -2187,14 +2223,14 @@ export function ArticleList() {
       <Dialog open={aiProviderEditOpen} onOpenChange={setAiProviderEditOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>修改厂商</DialogTitle>
-            <DialogDescription>调整厂商配置。</DialogDescription>
+            <DialogTitle>{t("ai.editProviderTitle")}</DialogTitle>
+            <DialogDescription>{t("ai.editProviderDesc")}</DialogDescription>
           </DialogHeader>
           {aiProviderEditing ? (
             <div className="grid gap-3 text-sm">
               <input
                 className="h-9 rounded-md border bg-background px-2 text-sm"
-                placeholder="名称（唯一）"
+                placeholder={t("ai.providerNamePlaceholder")}
                 value={aiProviderEditing.name ?? ""}
                 disabled={aiProviderEditing.isPublic}
                 onChange={(event) =>
@@ -2242,13 +2278,13 @@ export function ArticleList() {
                     className="h-9"
                     onClick={() => setAiProviderEditKeyVisible((prev) => !prev)}
                   >
-                    {aiProviderEditKeyVisible ? "隐藏" : "显示"}
+                    {aiProviderEditKeyVisible ? t("common.hide") : t("common.show")}
                   </Button>
                 </div>
               ) : null}
               <input
                 className="h-9 rounded-md border bg-background px-2 text-sm"
-                placeholder="models，逗号分隔"
+                placeholder={t("ai.modelsPlaceholder")}
                 value={aiProviderEditModels}
                 onChange={(event) => setAiProviderEditModels(event.target.value)}
               />
@@ -2262,14 +2298,14 @@ export function ArticleList() {
                     )
                   }
                 />
-                启用
+                {t("common.enabled")}
               </label>
             </div>
           ) : null}
           <DialogFooter className="gap-2 sm:gap-2">
             <DialogClose asChild>
               <Button type="button" variant="outline">
-                取消
+                {t("common.cancel")}
               </Button>
             </DialogClose>
             <Button
@@ -2281,7 +2317,7 @@ export function ArticleList() {
                   .map((item) => item.trim())
                   .filter(Boolean)
                 if (!aiProviderEditing.apiUrl.trim()) {
-                  toast.error("Base URL 不能为空")
+                  toast.error(t("ai.baseUrlRequired"))
                   return
                 }
                 try {
@@ -2298,14 +2334,15 @@ export function ArticleList() {
                   await aiProvidersQuery.refetch()
                   setAiProviderEditOpen(false)
                   setAiProviderEditing(null)
-                  toast.success("已更新厂商")
+                  toast.success(t("ai.editProviderSuccess"))
                 } catch (error) {
-                  const message = error instanceof Error ? error.message : "更新失败"
+                  const message =
+                    error instanceof Error ? error.message : t("common.updateFailed")
                   toast.error(message)
                 }
               }}
             >
-              保存
+              {t("common.save")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -2314,13 +2351,13 @@ export function ArticleList() {
       <Dialog open={Boolean(aiProviderDeleteId)} onOpenChange={() => setAiProviderDeleteId(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>删除厂商</DialogTitle>
-            <DialogDescription>确认删除此厂商配置？</DialogDescription>
+            <DialogTitle>{t("ai.deleteProviderTitle")}</DialogTitle>
+            <DialogDescription>{t("ai.deleteProviderDesc")}</DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-2">
             <DialogClose asChild>
               <Button type="button" variant="outline">
-                取消
+                {t("common.cancel")}
               </Button>
             </DialogClose>
             <Button
@@ -2332,14 +2369,15 @@ export function ArticleList() {
                   await deleteAiProvider.mutateAsync({ id: aiProviderDeleteId })
                   await aiProvidersQuery.refetch()
                   setAiProviderDeleteId(null)
-                  toast.success("已删除厂商")
+                  toast.success(t("ai.deleteProviderSuccess"))
                 } catch (error) {
-                  const message = error instanceof Error ? error.message : "删除失败"
+                  const message =
+                    error instanceof Error ? error.message : t("common.deleteFailed")
                   toast.error(message)
                 }
               }}
             >
-              删除
+              {t("common.delete")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -2348,13 +2386,13 @@ export function ArticleList() {
       <Dialog open={aiProviderResetOpen} onOpenChange={setAiProviderResetOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>恢复默认配置</DialogTitle>
-            <DialogDescription>将公共配置覆盖更新到用户级厂商配置。</DialogDescription>
+            <DialogTitle>{t("ai.resetTitle")}</DialogTitle>
+            <DialogDescription>{t("ai.resetDesc")}</DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-2">
             <DialogClose asChild>
               <Button type="button" variant="outline">
-                取消
+                {t("common.cancel")}
               </Button>
             </DialogClose>
             <Button
@@ -2364,14 +2402,15 @@ export function ArticleList() {
                   await resetAiProvidersToPublic.mutateAsync({ confirm: true })
                   await aiProvidersQuery.refetch()
                   setAiProviderResetOpen(false)
-                  toast.success("已恢复默认配置")
+                  toast.success(t("ai.resetSuccess"))
                 } catch (error) {
-                  const message = error instanceof Error ? error.message : "恢复失败"
+                  const message =
+                    error instanceof Error ? error.message : t("ai.resetFailed")
                   toast.error(message)
                 }
               }}
             >
-              确认恢复
+              {t("ai.resetConfirm")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -2380,14 +2419,14 @@ export function ArticleList() {
       <Dialog open={aiInstructionDialogOpen} onOpenChange={setAiInstructionDialogOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>AI 指令</DialogTitle>
-            <DialogDescription>管理你的 AI 指令。</DialogDescription>
+            <DialogTitle>{t("ai.instructionsTitle")}</DialogTitle>
+            <DialogDescription>{t("ai.instructionsDesc")}</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 text-sm">
             <div className="space-y-2">
               {aiInstructionDrafts.length === 0 ? (
-                <div className="text-muted-foreground">暂无指令。</div>
+                <div className="text-muted-foreground">{t("ai.noInstructions")}</div>
               ) : (
                 aiInstructionDrafts
                   .slice()
@@ -2401,8 +2440,8 @@ export function ArticleList() {
                         <div className="text-sm font-semibold">{instruction.name}</div>
                         <div className="text-xs text-muted-foreground">
                           {instruction.instructionType}
-                          {instruction.isDefault ? " · 默认" : ""}
-                          {!instruction.enabled ? " · 已停用" : ""}
+                          {instruction.isDefault ? ` · ${t("common.default")}` : ""}
+                          {!instruction.enabled ? ` · ${t("common.disabled")}` : ""}
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
@@ -2415,7 +2454,7 @@ export function ArticleList() {
                             setAiInstructionEditOpen(true)
                           }}
                         >
-                          修改
+                          {t("common.edit")}
                         </Button>
                         <Button
                           type="button"
@@ -2426,7 +2465,7 @@ export function ArticleList() {
                             setAiInstructionDeleteOpen(true)
                           }}
                         >
-                          删除
+                          {t("common.delete")}
                         </Button>
                       </div>
                     </div>
@@ -2441,10 +2480,10 @@ export function ArticleList() {
               variant="outline"
               onClick={() => setAiInstructionAddOpen(true)}
             >
-              新增
+              {t("common.add")}
             </Button>
             <DialogClose asChild>
-              <Button type="button">关闭</Button>
+              <Button type="button">{t("common.close")}</Button>
             </DialogClose>
           </DialogFooter>
         </DialogContent>
@@ -2453,13 +2492,15 @@ export function ArticleList() {
       <Dialog open={aiInstructionEditOpen} onOpenChange={setAiInstructionEditOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>编辑 AI 指令</DialogTitle>
+            <DialogTitle>{t("ai.editInstructionTitle")}</DialogTitle>
           </DialogHeader>
 
           {aiInstructionEditing ? (
             <div className="space-y-3 text-sm">
               <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">指令名称</label>
+                <label className="text-xs text-muted-foreground">
+                  {t("ai.instructionName")}
+                </label>
                 <input
                   className="h-9 w-full rounded-md border bg-background px-2 text-sm"
                   value={aiInstructionEditing.name}
@@ -2471,7 +2512,9 @@ export function ArticleList() {
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">指令类型</label>
+                <label className="text-xs text-muted-foreground">
+                  {t("ai.instructionType")}
+                </label>
                 <select
                   className="h-9 w-full rounded-md border bg-background px-2 text-sm"
                   value={aiInstructionEditing.instructionType}
@@ -2495,7 +2538,9 @@ export function ArticleList() {
                 </select>
               </div>
               <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">AI 厂商</label>
+                <label className="text-xs text-muted-foreground">
+                  {t("ai.provider")}
+                </label>
                 <select
                   className="h-9 w-full rounded-md border bg-background px-2 text-sm"
                   value={
@@ -2514,17 +2559,19 @@ export function ArticleList() {
                     )
                   }
                 >
-                  <option value="">默认厂商</option>
+                  <option value="">{t("ai.defaultProvider")}</option>
                   {aiProvidersQuery.data?.map((item) => (
                     <option key={item.id} value={item.id}>
                       {item.providerType}
-                      {item.isDefault ? "（默认）" : ""}
+                      {item.isDefault ? `(${t("common.default")})` : ""}
                     </option>
                   ))}
                 </select>
               </div>
               <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">系统提示词</label>
+                <label className="text-xs text-muted-foreground">
+                  {t("ai.systemPrompt")}
+                </label>
                 <textarea
                   rows={3}
                   className="w-full rounded-md border bg-background px-2 py-1 text-xs"
@@ -2537,7 +2584,9 @@ export function ArticleList() {
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">用户提示词</label>
+                <label className="text-xs text-muted-foreground">
+                  {t("ai.userPrompt")}
+                </label>
                 <textarea
                   rows={3}
                   className="w-full rounded-md border bg-background px-2 py-1 text-xs"
@@ -2551,7 +2600,9 @@ export function ArticleList() {
               </div>
               <div className="grid gap-3 md:grid-cols-2">
                 <div className="space-y-1">
-                  <label className="text-xs text-muted-foreground">输入参数定义</label>
+                  <label className="text-xs text-muted-foreground">
+                    {t("ai.inputSchema")}
+                  </label>
                   <textarea
                     rows={3}
                     className="w-full rounded-md border bg-background px-2 py-1 text-xs"
@@ -2564,7 +2615,9 @@ export function ArticleList() {
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs text-muted-foreground">输出结构定义</label>
+                  <label className="text-xs text-muted-foreground">
+                    {t("ai.outputSchema")}
+                  </label>
                   <textarea
                     rows={3}
                     className="w-full rounded-md border bg-background px-2 py-1 text-xs"
@@ -2588,7 +2641,7 @@ export function ArticleList() {
                       )
                     }
                   />
-                  默认指令
+                  {t("ai.defaultInstruction")}
                 </label>
                 <label className="flex items-center gap-2 text-sm">
                   <input
@@ -2600,7 +2653,7 @@ export function ArticleList() {
                       )
                     }
                   />
-                  启用
+                  {t("common.enabled")}
                 </label>
               </div>
             </div>
@@ -2609,7 +2662,7 @@ export function ArticleList() {
           <DialogFooter className="gap-2 sm:gap-2">
             <DialogClose asChild>
               <Button type="button" variant="outline">
-                取消
+                {t("common.cancel")}
               </Button>
             </DialogClose>
             <DialogClose asChild>
@@ -2625,7 +2678,7 @@ export function ArticleList() {
                   await aiInstructionQuery.refetch()
                 }}
               >
-                保存
+                {t("common.save")}
               </Button>
             </DialogClose>
           </DialogFooter>
@@ -2635,17 +2688,19 @@ export function ArticleList() {
       <Dialog open={aiInstructionAddOpen} onOpenChange={setAiInstructionAddOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>新增指令</DialogTitle>
-            <DialogDescription>从公共指令复制一份。</DialogDescription>
+            <DialogTitle>{t("ai.addInstructionTitle")}</DialogTitle>
+            <DialogDescription>{t("ai.addInstructionDesc")}</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-2 text-sm">
             {publicAiInstructions.length === 0 ? (
-              <div className="text-muted-foreground">暂无公共指令。</div>
+              <div className="text-muted-foreground">{t("ai.noPublicInstructions")}</div>
             ) : (
               <>
                 <div className="space-y-1">
-                  <label className="text-xs text-muted-foreground">AI 厂商</label>
+                  <label className="text-xs text-muted-foreground">
+                    {t("ai.provider")}
+                  </label>
                   <select
                     className="h-9 w-full rounded-md border bg-background px-2 text-sm"
                     value={aiInstructionAddProviderId ?? ""}
@@ -2653,11 +2708,11 @@ export function ArticleList() {
                       setAiInstructionAddProviderId(event.target.value || null)
                     }}
                   >
-                    <option value="">默认厂商</option>
+                    <option value="">{t("ai.defaultProvider")}</option>
                     {aiProvidersQuery.data?.map((item) => (
                       <option key={item.id} value={item.id}>
                         {item.providerType}
-                        {item.isDefault ? "（默认）" : ""}
+                        {item.isDefault ? `(${t("common.default")})` : ""}
                       </option>
                     ))}
                   </select>
@@ -2690,7 +2745,7 @@ export function ArticleList() {
                         setAiInstructionAddOpen(false)
                       }}
                     >
-                      新增
+                      {t("common.add")}
                     </Button>
                   </div>
                   ))}
@@ -2702,7 +2757,7 @@ export function ArticleList() {
           <DialogFooter>
             <DialogClose asChild>
               <Button type="button" variant="outline">
-                关闭
+                {t("common.close")}
               </Button>
             </DialogClose>
           </DialogFooter>
@@ -2712,13 +2767,13 @@ export function ArticleList() {
       <Dialog open={aiInstructionDeleteOpen} onOpenChange={setAiInstructionDeleteOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>删除指令</DialogTitle>
-            <DialogDescription>确认删除该指令？</DialogDescription>
+            <DialogTitle>{t("ai.deleteInstructionTitle")}</DialogTitle>
+            <DialogDescription>{t("ai.deleteInstructionDesc")}</DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-2">
             <DialogClose asChild>
               <Button type="button" variant="outline">
-                取消
+                {t("common.cancel")}
               </Button>
             </DialogClose>
             <DialogClose asChild>
@@ -2734,7 +2789,7 @@ export function ArticleList() {
                   await aiInstructionQuery.refetch()
                 }}
               >
-                删除
+                {t("common.delete")}
               </Button>
             </DialogClose>
           </DialogFooter>
@@ -2744,13 +2799,13 @@ export function ArticleList() {
       <Dialog open={shadowingDialogOpen} onOpenChange={setShadowingDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>影子跟读配置</DialogTitle>
-            <DialogDescription>设置影子跟读速率序列。</DialogDescription>
+            <DialogTitle>{t("shadowing.title")}</DialogTitle>
+            <DialogDescription>{t("shadowing.desc")}</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 text-sm">
             <div className="flex items-center justify-between">
-              <span>影子跟读</span>
+              <span>{t("shadowing.label")}</span>
               <button
                 type="button"
                 className={cn(
@@ -2769,7 +2824,9 @@ export function ArticleList() {
             </div>
 
             <div className="space-y-2">
-              <div className="text-xs text-muted-foreground">速率序列</div>
+              <div className="text-xs text-muted-foreground">
+                {t("shadowing.speedList")}
+              </div>
               {shadowingDraftSpeeds.map((speed, index) => (
                 <div key={`${speed}-${index}`} className="flex items-center gap-2">
                   <input
@@ -2814,7 +2871,7 @@ export function ArticleList() {
                   })
                 }}
               >
-                + 添加速率
+                + {t("shadowing.addSpeed")}
               </Button>
             </div>
           </div>
@@ -2822,7 +2879,7 @@ export function ArticleList() {
           <DialogFooter>
             <DialogClose asChild>
               <Button type="button" variant="outline">
-                取消
+                {t("common.cancel")}
               </Button>
             </DialogClose>
             <DialogClose asChild>
@@ -2853,13 +2910,13 @@ export function ArticleList() {
       <Dialog open={clearCacheOpen} onOpenChange={setClearCacheOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>清理音频缓存</DialogTitle>
-            <DialogDescription>确认清理本地音频缓存吗？</DialogDescription>
+            <DialogTitle>{t("settings.clearCacheTitle")}</DialogTitle>
+            <DialogDescription>{t("settings.clearCacheDesc")}</DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-2">
             <DialogClose asChild>
               <Button type="button" variant="outline">
-                取消
+                {t("common.cancel")}
               </Button>
             </DialogClose>
             <DialogClose asChild>
@@ -2869,7 +2926,7 @@ export function ArticleList() {
                   clearTtsCache().catch(() => {})
                 }}
               >
-                确认
+                {t("common.confirm")}
               </Button>
             </DialogClose>
           </DialogFooter>

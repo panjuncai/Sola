@@ -4,6 +4,7 @@ import { BrowserRouter } from "react-router-dom"
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { httpLink } from '@trpc/client'
 import './index.css'
+import "./i18n"
 import App from './App.tsx'
 import { trpc } from './lib/trpc'
 import { Toaster } from "@sola/ui"

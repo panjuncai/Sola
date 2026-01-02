@@ -2,6 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { Link, useLocation, useNavigate } from "react-router-dom"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
+import { useTranslation } from "react-i18next"
 
 import {
   Button,
@@ -20,6 +21,7 @@ import { trpc } from "@/lib/trpc"
 import { useAuthStore } from "@/stores/useAuthStore"
 
 export function LoginForm() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const location = useLocation()
   const utils = trpc.useUtils()
@@ -29,7 +31,7 @@ export function LoginForm() {
       const session = await utils.auth.getSession.fetch().catch(() => null)
       useAuthStore.getState().setUser(session?.user ?? null)
       utils.auth.getSession.invalidate()
-      toast.success("Signed in")
+      toast.success(t("auth.signInSuccess"))
       const from = (location.state as { from?: string } | null)?.from
       navigate(from || "/", { replace: true })
     },
@@ -64,7 +66,7 @@ export function LoginForm() {
           name="email"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Email</FormLabel>
+              <FormLabel>{t("auth.email")}</FormLabel>
               <FormControl>
                 <Input
                   placeholder="you@example.com"
@@ -83,7 +85,7 @@ export function LoginForm() {
           name="password"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Password</FormLabel>
+              <FormLabel>{t("auth.password")}</FormLabel>
               <FormControl>
                 <Input type="password" autoComplete="current-password" {...field} />
               </FormControl>
@@ -97,13 +99,13 @@ export function LoginForm() {
           className="w-full"
           disabled={form.formState.isSubmitting || signIn.isPending}
         >
-          Sign in
+          {t("auth.signIn")}
         </Button>
 
         <div className="text-sm text-muted-foreground text-center">
-          Don't have an account?{" "}
+          {t("auth.noAccount")}{" "}
           <Link to="/auth/sign-up" className="text-foreground underline underline-offset-4">
-            Sign up
+            {t("auth.signUp")}
           </Link>
         </div>
       </form>

@@ -2,6 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { Link, useNavigate } from "react-router-dom"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
+import { useTranslation } from "react-i18next"
 
 import {
   Button,
@@ -19,10 +20,11 @@ import { signUpSchema } from "@/lib/schemas"
 import { trpc } from "@/lib/trpc"
 
 export function SignUpForm() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const signUp = trpc.auth.signUp.useMutation({
     onSuccess: () => {
-      toast.success("Account created. Check your email to verify.")
+      toast.success(t("auth.signUpSuccess"))
       navigate("/auth/login", { replace: true })
     },
     onError: (err) => {
@@ -43,7 +45,6 @@ export function SignUpForm() {
   })
 
   const onSubmit = form.handleSubmit((data) => {
-    console.log(data)
     signUp.mutate(data)
   })
 
@@ -55,9 +56,13 @@ export function SignUpForm() {
           name="name"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Name</FormLabel>
+              <FormLabel>{t("auth.name")}</FormLabel>
               <FormControl>
-                <Input placeholder="Your name" autoComplete="name" {...field} />
+                <Input
+                  placeholder={t("auth.namePlaceholder")}
+                  autoComplete="name"
+                  {...field}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -69,7 +74,7 @@ export function SignUpForm() {
           name="email"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Email</FormLabel>
+              <FormLabel>{t("auth.email")}</FormLabel>
               <FormControl>
                 <Input
                   placeholder="you@example.com"
@@ -88,7 +93,7 @@ export function SignUpForm() {
           name="password"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Password</FormLabel>
+              <FormLabel>{t("auth.password")}</FormLabel>
               <FormControl>
                 <Input type="password" autoComplete="new-password" {...field} />
               </FormControl>
@@ -144,13 +149,13 @@ export function SignUpForm() {
           className="w-full"
           disabled={form.formState.isSubmitting || signUp.isPending}
         >
-          Create account
+          {t("auth.createAccount")}
         </Button>
 
         <div className="text-sm text-muted-foreground text-center">
-          Already have an account?{" "}
+          {t("auth.haveAccount")}{" "}
           <Link to="/auth/login" className="text-foreground underline underline-offset-4">
-            Sign in
+            {t("auth.signIn")}
           </Link>
         </div>
       </form>
