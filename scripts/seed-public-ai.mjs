@@ -40,27 +40,27 @@ if (!table) {
 const providers = [
   {
     providerType: "volcengine",
-    apiUrl: "https://ark.cn-beijing.volces.com/api/v3",
+    apiUrl: "https://ark.cn-beijing.volces.com/api/v3/chat/completions",
     models: ["doubao-pro-32k", "doubao-pro-128k", "doubao-lite-32k"],
   },
   {
     providerType: "qwen",
-    apiUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    apiUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
     models: ["qwen-turbo", "qwen-plus", "qwen-max"],
   },
   {
     providerType: "openai",
-    apiUrl: "https://api.openai.com/v1",
+    apiUrl: "https://api.openai.com/v1/chat/completions",
     models: ["gpt-4o-mini", "gpt-4o", "gpt-3.5-turbo"],
   },
   {
     providerType: "gemini",
-    apiUrl: "https://generativelanguage.googleapis.com/v1beta",
+    apiUrl: "https://generativelanguage.googleapis.com/v1beta/chat/completions",
     models: ["gemini-1.5-flash", "gemini-1.5-pro"],
   },
   {
     providerType: "aihubmix",
-    apiUrl: "https://aihubmix.com/v1",
+    apiUrl: "https://api.aihubmix.com/v1/chat/completions",
     models: ["gpt-4o-mini", "gpt-4o", "gpt-3.5-turbo"],
   },
 ]
