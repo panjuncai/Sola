@@ -47,6 +47,7 @@ export function ArticleList() {
   const [isLoopingTarget, setIsLoopingTarget] = React.useState(false)
   const [isLoopingSingle, setIsLoopingSingle] = React.useState(false)
   const [isLoopingShadowing, setIsLoopingShadowing] = React.useState(false)
+  const [isClozeEnabled, setIsClozeEnabled] = React.useState(false)
   const [selectedSentenceId, setSelectedSentenceId] = React.useState<string | null>(
     null
   )
@@ -73,6 +74,37 @@ export function ArticleList() {
   const [useAiUserKey, setUseAiUserKey] = React.useState(false)
   const [blurTarget, setBlurTarget] = React.useState(false)
   const [blurNative, setBlurNative] = React.useState(false)
+  const [clozeInputs, setClozeInputs] = React.useState<Record<string, string>>({})
+  const [clozeRevealed, setClozeRevealed] = React.useState<Record<string, boolean>>(
+    {}
+  )
+  const [clozeResults, setClozeResults] = React.useState<
+    Record<
+      string,
+      {
+        correct: boolean
+        segments: (
+          | {
+              kind: "same"
+              text: string
+            }
+          | {
+              kind: "extra"
+              text: string
+            }
+          | {
+              kind: "missing"
+              text: string
+            }
+          | {
+              kind: "mismatch"
+              parts: { type: "same" | "extra" | "missing"; text: string }[]
+            }
+        )[]
+      }
+    >
+  >({})
+  const clozeBlurPrevRef = React.useRef<boolean | null>(null)
 
   const settingsQuery = trpc.user.getSettings.useQuery()
   const updateSettings = trpc.user.updateSettings.useMutation()
@@ -276,6 +308,92 @@ export function ArticleList() {
       return provider?.models ?? provider?.availableModels ?? []
     },
     [resolveProvider]
+  )
+
+  const normalizeClozeTokens = React.useCallback(
+    (value: string, language: string) => {
+      let text = value.toLowerCase().trim()
+      if (language.toLowerCase().startsWith("fr")) {
+        text = text.normalize("NFD").replace(/\p{Diacritic}/gu, "")
+      }
+      text = text.replace(/[\p{P}\p{S}]/gu, " ")
+      text = text.replace(/\s+/g, " ").trim()
+      if (!text) return []
+      return text.split(" ")
+    },
+    []
+  )
+
+  const diffClozeChars = React.useCallback((expected: string, actual: string) => {
+    const a = expected.split("")
+    const b = actual.split("")
+    const dp = Array.from({ length: a.length + 1 }, () =>
+      new Array(b.length + 1).fill(0)
+    )
+    for (let i = 1; i <= a.length; i += 1) {
+      for (let j = 1; j <= b.length; j += 1) {
+        if (a[i - 1] === b[j - 1]) {
+          dp[i][j] = dp[i - 1][j - 1] + 1
+        } else {
+          dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1])
+        }
+      }
+    }
+    const ops: { type: "same" | "extra" | "missing"; char: string }[] = []
+    let i = a.length
+    let j = b.length
+    while (i > 0 || j > 0) {
+      if (i > 0 && j > 0 && a[i - 1] === b[j - 1]) {
+        ops.push({ type: "same", char: a[i - 1] })
+        i -= 1
+        j -= 1
+      } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
+        ops.push({ type: "extra", char: b[j - 1] })
+        j -= 1
+      } else if (i > 0) {
+        ops.push({ type: "missing", char: a[i - 1] })
+        i -= 1
+      }
+    }
+    ops.reverse()
+    const segments: { type: "same" | "extra" | "missing"; text: string }[] = []
+    for (const op of ops) {
+      const last = segments[segments.length - 1]
+      if (last && last.type === op.type) {
+        last.text += op.char
+      } else {
+        segments.push({ type: op.type, text: op.char })
+      }
+    }
+    return segments
+  }, [])
+
+  const diffClozeTokens = React.useCallback(
+    (expected: string[], actual: string[]) => {
+      const maxLen = Math.max(expected.length, actual.length)
+      const segments: {
+        kind: "same" | "extra" | "missing" | "mismatch"
+        text?: string
+        parts?: { type: "same" | "extra" | "missing"; text: string }[]
+      }[] = []
+      for (let i = 0; i < maxLen; i += 1) {
+        const exp = expected[i]
+        const act = actual[i]
+        if (exp && act) {
+          if (exp === act) {
+            segments.push({ kind: "same", text: exp })
+          } else {
+            segments.push({ kind: "mismatch", parts: diffClozeChars(exp, act) })
+          }
+        } else if (exp) {
+          segments.push({ kind: "missing", text: exp })
+        } else if (act) {
+          segments.push({ kind: "extra", text: act })
+        }
+      }
+      return segments
+    },
+    [diffClozeChars]
   )
 
   const showCreate = isCreating || articles.length === 0
@@ -521,6 +639,25 @@ export function ArticleList() {
       aiProvidersQuery.data?.find((item) => item.isDefault)?.id ?? null
     )
   }, [aiInstructionDialogOpen, aiInstructionQuery.data, publicAiInstructionQuery.data])
+
+  React.useEffect(() => {
+    if (isClozeEnabled) {
+      if (clozeBlurPrevRef.current === null) {
+        clozeBlurPrevRef.current = blurTarget
+      }
+      setBlurTarget(true)
+    } else if (clozeBlurPrevRef.current !== null) {
+      setBlurTarget(clozeBlurPrevRef.current)
+      clozeBlurPrevRef.current = null
+    }
+  }, [isClozeEnabled, blurTarget])
+
+  React.useEffect(() => {
+    if (!isClozeEnabled) return
+    setClozeInputs({})
+    setClozeResults({})
+    setClozeRevealed({})
+  }, [isClozeEnabled, activeArticleId])
 
   React.useEffect(() => {
     if (!aiInstructionAddOpen) return
@@ -1137,6 +1274,45 @@ export function ArticleList() {
     }
     if (loopTokenRef.current === token) {
       setIsLoopingShadowing(false)
+    }
+  }
+
+  const handleClozeCheck = async (sentenceId: string) => {
+    if (!detailQuery.data) return
+    const sentence = detailQuery.data.sentences.find((item) => item.id === sentenceId)
+    if (!sentence?.targetText) return
+    const input = clozeInputs[sentenceId] ?? ""
+    const language = detailQuery.data.article.targetLanguage
+    const expectedTokens = normalizeClozeTokens(sentence.targetText, language)
+    const inputTokens = normalizeClozeTokens(input, language)
+    const segments = diffClozeTokens(expectedTokens, inputTokens)
+    const correct =
+      expectedTokens.length === inputTokens.length &&
+      expectedTokens.every((token, index) => token === inputTokens[index])
+    setClozeResults((prev) => ({
+      ...prev,
+      [sentenceId]: { correct, segments },
+    }))
+
+    stopLoopPlayback()
+    setSelectedSentenceId(sentenceId)
+    setSelectedSentenceRole("target")
+    const ok = await playSentenceRole(sentence, "target")
+    if (!ok) {
+      toast.error(t("tts.audioPlayFailed"))
+      return
+    }
+    if (!correct) return
+
+    const currentIndex = detailQuery.data.sentences.findIndex(
+      (item) => item.id === sentenceId
+    )
+    const next = detailQuery.data.sentences
+      .slice(currentIndex + 1)
+      .find((item) => item.targetText && item.targetText.trim().length > 0)
+    if (next) {
+      setSelectedSentenceId(next.id)
+      setSelectedSentenceRole("target")
     }
   }
   const deleteTargets =
@@ -1790,6 +1966,13 @@ export function ArticleList() {
                       >
                         🌫️ {t("article.shadowing")}
                       </Button>
+                      <Button
+                        type="button"
+                        variant={isClozeEnabled ? "secondary" : "outline"}
+                        onClick={() => setIsClozeEnabled((prev) => !prev)}
+                      >
+                        🕳️ {t("article.clozePractice")}
+                      </Button>
                       <button
                         type="button"
                         className={cn(
@@ -1917,40 +2100,34 @@ export function ArticleList() {
                                 const isSelected =
                                   sentence.id === selectedSentenceId &&
                                   selectedSentenceRole === item.role
+                                const isTarget = item.role === "target"
+                                const isRevealed = clozeRevealed[sentence.id] === true
+                                const shouldBlur =
+                                  isTarget && isClozeEnabled
+                                    ? !isRevealed
+                                    : item.role === "target" && blurTarget
                                 return (
-                                  <div
-                                    key={item.role}
-                                    className={cn(
-                                      "relative flex items-start gap-2 rounded-md border border-muted/20 px-2.5 py-1 text-base transition",
-                                      isPlaying && "font-medium",
-                                      isSelected &&
-                                        "border-white/30 shadow-[0_1px_3px_rgba(15,23,42,0.05)] ring-1 ring-white/40"
-                                    )}
-                                    role="button"
-                                    tabIndex={0}
-                                    onClick={() => {
-                                      stopLoopPlayback()
-                                      setSelectedSentenceId(sentence.id)
-                                      setSelectedSentenceRole(item.role)
-                                      playSentenceRole(
-                                        sentence,
-                                        item.role as "native" | "target"
-                                      )
-                                        .then((ok) => {
-                                          if (!ok) {
-                                            toast.error(
-                                              t("tts.audioPlayFailed")
-                                            )
-                                          }
-                                        })
-                                        .catch(() => {})
-                                    }}
-                                    onKeyDown={(event) => {
-                                      if (event.key === "Enter" || event.key === " ") {
-                                        event.preventDefault()
+                                  <div key={item.role} className="space-y-1">
+                                    <div
+                                      className={cn(
+                                        "relative flex items-start gap-2 rounded-md border border-muted/20 px-2.5 py-1 text-base transition",
+                                        isPlaying && "font-medium",
+                                        isSelected &&
+                                          "border-white/30 shadow-[0_1px_3px_rgba(15,23,42,0.05)] ring-1 ring-white/40"
+                                      )}
+                                      role="button"
+                                      tabIndex={0}
+                                      onClick={() => {
                                         stopLoopPlayback()
                                         setSelectedSentenceId(sentence.id)
                                         setSelectedSentenceRole(item.role)
+                                        if (isTarget && isClozeEnabled) {
+                                          setClozeRevealed((prev) => ({
+                                            ...prev,
+                                            [sentence.id]: !isRevealed,
+                                          }))
+                                          return
+                                        }
                                         playSentenceRole(
                                           sentence,
                                           item.role as "native" | "target"
@@ -1963,35 +2140,184 @@ export function ArticleList() {
                                             }
                                           })
                                           .catch(() => {})
-                                      }
-                                    }}
-                                  >
-                                    {isPlaying ? (
-                                      <span className="absolute right-2 top-1 text-[11px] text-muted-foreground/80">
-                                        {(playingSpeed ?? 1).toFixed(1)}×
-                                      </span>
-                                    ) : null}
-                                    <span
-                                      className={cn(
-                                        "mt-1 h-3 w-1.5 rounded-full",
-                                        item.role === "native"
-                                          ? "bg-blue-500"
-                                          : "bg-orange-500"
-                                      )}
-                                    />
-                                    <span
-                                      className={cn(
-                                        "leading-relaxed",
-                                        isPlaying &&
-                                          (item.role === "native"
-                                            ? "text-blue-600"
-                                            : "text-orange-500"),
-                                        item.role === "native" && blurNative && "blur-sm",
-                                        item.role === "target" && blurTarget && "blur-sm"
-                                      )}
+                                      }}
+                                      onKeyDown={(event) => {
+                                        if (event.key === "Enter" || event.key === " ") {
+                                          event.preventDefault()
+                                          stopLoopPlayback()
+                                          setSelectedSentenceId(sentence.id)
+                                          setSelectedSentenceRole(item.role)
+                                          if (isTarget && isClozeEnabled) {
+                                            setClozeRevealed((prev) => ({
+                                              ...prev,
+                                              [sentence.id]: !isRevealed,
+                                            }))
+                                            return
+                                          }
+                                          playSentenceRole(
+                                            sentence,
+                                            item.role as "native" | "target"
+                                          )
+                                            .then((ok) => {
+                                              if (!ok) {
+                                                toast.error(
+                                                  t("tts.audioPlayFailed")
+                                                )
+                                              }
+                                            })
+                                            .catch(() => {})
+                                        }
+                                      }}
                                     >
-                                      {item.text}
-                                    </span>
+                                      {isPlaying ? (
+                                        <span className="absolute right-2 top-1 text-[11px] text-muted-foreground/80">
+                                          {(playingSpeed ?? 1).toFixed(1)}×
+                                        </span>
+                                      ) : null}
+                                      <span
+                                        className={cn(
+                                          "mt-1 h-3 w-1.5 rounded-full",
+                                          item.role === "native"
+                                            ? "bg-blue-500"
+                                            : "bg-orange-500"
+                                        )}
+                                      />
+                                      <span
+                                        className={cn(
+                                          "leading-relaxed",
+                                          isPlaying &&
+                                            (item.role === "native"
+                                              ? "text-blue-600"
+                                              : "text-orange-500"),
+                                          item.role === "native" &&
+                                            blurNative &&
+                                            "blur-sm",
+                                          shouldBlur && "blur-sm"
+                                        )}
+                                      >
+                                        {item.text}
+                                      </span>
+                                    </div>
+                                    {isTarget && isClozeEnabled ? (
+                                      <div className="space-y-1 pl-4">
+                                        <input
+                                          className="h-9 w-full rounded-md border bg-background px-2 text-sm"
+                                          placeholder={t("article.clozePlaceholder")}
+                                          value={clozeInputs[sentence.id] ?? ""}
+                                          style={{
+                                            maxWidth: "100%",
+                                            width: `${Math.max(
+                                              8,
+                                              sentence.targetText?.length ?? 8
+                                            )}ch`,
+                                          }}
+                                          onChange={(event) => {
+                                            const value = event.target.value
+                                            setClozeInputs((prev) => ({
+                                              ...prev,
+                                              [sentence.id]: value,
+                                            }))
+                                            setClozeResults((prev) => {
+                                              if (!prev[sentence.id]) return prev
+                                              const next = { ...prev }
+                                              delete next[sentence.id]
+                                              return next
+                                            })
+                                          }}
+                                          onKeyDown={(event) => {
+                                            if (event.key === "Enter") {
+                                              event.preventDefault()
+                                              handleClozeCheck(sentence.id)
+                                            }
+                                          }}
+                                        />
+                                        {clozeResults[sentence.id] ? (
+                                          <div className="text-xs">
+                                            {clozeResults[sentence.id].segments.map(
+                                              (segment, index) => {
+                                                const isLast =
+                                                  index ===
+                                                  clozeResults[sentence.id].segments
+                                                    .length -
+                                                    1
+                                                const suffix = isLast ? "" : " "
+                                                if (segment.kind === "same") {
+                                                  return (
+                                                    <span
+                                                      key={`same-${index}`}
+                                                      className="text-green-600"
+                                                    >
+                                                      {segment.text}
+                                                      {suffix}
+                                                    </span>
+                                                  )
+                                                }
+                                                if (segment.kind === "extra") {
+                                                  return (
+                                                    <span
+                                                      key={`extra-${index}`}
+                                                      className="text-red-500 line-through"
+                                                    >
+                                                      {segment.text}
+                                                      {suffix}
+                                                    </span>
+                                                  )
+                                                }
+                                                if (segment.kind === "missing") {
+                                                  return (
+                                                    <span
+                                                      key={`missing-${index}`}
+                                                      className="text-orange-500"
+                                                    >
+                                                      ({segment.text})
+                                                      {suffix}
+                                                    </span>
+                                                  )
+                                                }
+                                                return (
+                                                  <span
+                                                    key={`mismatch-${index}`}
+                                                    className="text-orange-500"
+                                                  >
+                                                    {segment.parts.map((part, partIndex) => {
+                                                      if (part.type === "same") {
+                                                        return (
+                                                          <span
+                                                            key={`part-same-${partIndex}`}
+                                                            className="text-green-600"
+                                                          >
+                                                            {part.text}
+                                                          </span>
+                                                        )
+                                                      }
+                                                      if (part.type === "extra") {
+                                                        return (
+                                                          <span
+                                                            key={`part-extra-${partIndex}`}
+                                                            className="text-red-500 line-through"
+                                                          >
+                                                            {part.text}
+                                                          </span>
+                                                        )
+                                                      }
+                                                      return (
+                                                        <span
+                                                          key={`part-missing-${partIndex}`}
+                                                          className="text-orange-500"
+                                                        >
+                                                          ({part.text})
+                                                        </span>
+                                                      )
+                                                    })}
+                                                    {suffix}
+                                                  </span>
+                                                )
+                                              }
+                                            )}
+                                          </div>
+                                        ) : null}
+                                      </div>
+                                    ) : null}
                                   </div>
                                 )
                               })}
