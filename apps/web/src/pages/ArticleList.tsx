@@ -215,6 +215,14 @@ export function ArticleList() {
     null
   )
   const [aiProviderEditKeyVisible, setAiProviderEditKeyVisible] = React.useState(false)
+  const [sentenceEditOpen, setSentenceEditOpen] = React.useState(false)
+  const [sentenceDeleteOpen, setSentenceDeleteOpen] = React.useState(false)
+  const [sentenceEditing, setSentenceEditing] = React.useState<{
+    id: string
+    nativeText: string
+    targetText: string
+  } | null>(null)
+  const [sentenceDeleteId, setSentenceDeleteId] = React.useState<string | null>(null)
   const [aiProviderEditModels, setAiProviderEditModels] = React.useState("")
   const [aiProviderResetOpen, setAiProviderResetOpen] = React.useState(false)
   const [aiProgress, setAiProgress] = React.useState<{
@@ -450,6 +458,8 @@ export function ArticleList() {
       setActiveArticleId(null)
     },
   })
+  const updateSentenceMutation = trpc.article.updateSentence.useMutation()
+  const deleteSentenceMutation = trpc.article.deleteSentence.useMutation()
   const deleteAccountMutation = trpc.user.deleteAccount.useMutation()
   const signOutMutation = trpc.auth.signOut.useMutation()
   const sentenceAudioMutation = trpc.tts.getSentenceAudio.useMutation()
@@ -474,6 +484,40 @@ export function ArticleList() {
               ? { ...sentence, nativeText: translation }
               : sentence
           ),
+        }
+      })
+    },
+    [detailQuery.data?.article.id, utils.article.get]
+  )
+
+  const updateSentenceLocal = React.useCallback(
+    (sentenceId: string, nativeText: string | null, targetText: string | null) => {
+      const articleId = detailQuery.data?.article.id
+      if (!articleId) return
+      utils.article.get.setData({ articleId }, (current) => {
+        if (!current) return current
+        return {
+          ...current,
+          sentences: current.sentences.map((sentence) =>
+            sentence.id === sentenceId
+              ? { ...sentence, nativeText, targetText }
+              : sentence
+          ),
+        }
+      })
+    },
+    [detailQuery.data?.article.id, utils.article.get]
+  )
+
+  const deleteSentenceLocal = React.useCallback(
+    (sentenceId: string) => {
+      const articleId = detailQuery.data?.article.id
+      if (!articleId) return
+      utils.article.get.setData({ articleId }, (current) => {
+        if (!current) return current
+        return {
+          ...current,
+          sentences: current.sentences.filter((sentence) => sentence.id !== sentenceId),
         }
       })
     },
@@ -955,6 +999,53 @@ export function ArticleList() {
       persistTtsCache()
     },
     [persistTtsCache]
+  )
+
+  const clearSentenceCache = React.useCallback(
+    async (sentenceId: string) => {
+      const removedUrls: string[] = []
+      for (const [key, url] of Object.entries(ttsCacheRef.current)) {
+        if (key.includes(`:${sentenceId}:`)) {
+          removedUrls.push(url)
+          delete ttsCacheRef.current[key]
+        }
+      }
+      if (removedUrls.length > 0) {
+        persistTtsCache()
+      }
+      if ("caches" in window && removedUrls.length > 0) {
+        try {
+          const cache = await caches.open("sola-tts-audio")
+          await Promise.all(removedUrls.map((url) => cache.delete(url)))
+        } catch {
+          // ignore
+        }
+      }
+    },
+    [persistTtsCache]
+  )
+
+  const clearSentenceSelection = React.useCallback(
+    (sentenceId: string) => {
+      if (selectedSentenceId === sentenceId) {
+        setSelectedSentenceId(null)
+        setSelectedSentenceRole(null)
+      }
+      if (playingSentenceId === sentenceId) {
+        setPlayingSentenceId(null)
+        setPlayingRole(null)
+        setPlayingSpeed(null)
+      }
+    },
+    [
+      playingSentenceId,
+      selectedSentenceId,
+      setPlayingRole,
+      setPlayingSentenceId,
+      setPlayingSpeed,
+      setSelectedSentenceId,
+      setSelectedSentenceRole,
+    ]
   )
 
   const resolveVoiceId = React.useCallback(
@@ -2484,8 +2575,63 @@ export function ArticleList() {
 
                         return (
                           <Card key={sentence.id} className="border-0 shadow-none">
-                            <CardContent className="space-y-1.5 rounded-xl bg-muted/20 px-3 py-2 text-sm transition">
-                              {ordered.map((item) => {
+                          <CardContent className="space-y-1.5 rounded-xl bg-muted/20 px-3 py-2 text-sm transition">
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                              <button
+                                type="button"
+                                aria-label={t("article.editSentenceTitle")}
+                                className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-transparent transition hover:bg-muted"
+                                onClick={() => {
+                                  stopLoopPlayback()
+                                  setSentenceEditing({
+                                    id: sentence.id,
+                                    nativeText: sentence.nativeText ?? "",
+                                    targetText: sentence.targetText ?? "",
+                                  })
+                                  setSentenceEditOpen(true)
+                                }}
+                              >
+                                <svg
+                                  aria-hidden="true"
+                                  viewBox="0 0 24 24"
+                                  className="h-4 w-4"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="1.7"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                >
+                                  <path d="M12 20h9" />
+                                  <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                                </svg>
+                              </button>
+                              <button
+                                type="button"
+                                aria-label={t("article.deleteSentenceTitle")}
+                                className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-transparent transition hover:bg-muted"
+                                onClick={() => {
+                                  stopLoopPlayback()
+                                  setSentenceDeleteId(sentence.id)
+                                  setSentenceDeleteOpen(true)
+                                }}
+                              >
+                                <svg
+                                  aria-hidden="true"
+                                  viewBox="0 0 24 24"
+                                  className="h-4 w-4"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="1.7"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                >
+                                  <path d="M3 6h18" />
+                                  <path d="M8 6V4h8v2" />
+                                  <path d="M19 6l-1 14H6L5 6" />
+                                </svg>
+                              </button>
+                            </div>
+                            {ordered.map((item) => {
                                 if (!item.text) return null
                                 const isPlaying =
                                   sentence.id === playingSentenceId &&
@@ -2789,6 +2935,147 @@ export function ArticleList() {
               }}
             >
               {t("article.confirmDeleteAction")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={sentenceEditOpen}
+        onOpenChange={(open) => {
+          setSentenceEditOpen(open)
+          if (!open) {
+            setSentenceEditing(null)
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("article.editSentenceTitle")}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 text-sm">
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">
+                {t("article.editSentenceNative")}
+              </label>
+              <textarea
+                className="min-h-[80px] w-full rounded-md border bg-background px-2 py-1 text-sm"
+                value={sentenceEditing?.nativeText ?? ""}
+                onChange={(event) => {
+                  const value = event.target.value
+                  setSentenceEditing((prev) =>
+                    prev ? { ...prev, nativeText: value } : prev
+                  )
+                }}
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">
+                {t("article.editSentenceTarget")}
+              </label>
+              <textarea
+                className="min-h-[80px] w-full rounded-md border bg-background px-2 py-1 text-sm"
+                value={sentenceEditing?.targetText ?? ""}
+                onChange={(event) => {
+                  const value = event.target.value
+                  setSentenceEditing((prev) =>
+                    prev ? { ...prev, targetText: value } : prev
+                  )
+                }}
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <DialogClose asChild>
+              <Button variant="outline">{t("common.cancel")}</Button>
+            </DialogClose>
+            <Button
+              disabled={!sentenceEditing || updateSentenceMutation.isLoading}
+              onClick={async () => {
+                if (!sentenceEditing) return
+                try {
+                  const result = await updateSentenceMutation.mutateAsync({
+                    sentenceId: sentenceEditing.id,
+                    nativeText: sentenceEditing.nativeText,
+                    targetText: sentenceEditing.targetText,
+                  })
+                  updateSentenceLocal(
+                    result.sentenceId,
+                    result.nativeText,
+                    result.targetText
+                  )
+                  await clearSentenceCache(result.sentenceId)
+                  toast.success(t("article.sentenceUpdateSuccess"))
+                  setSentenceEditOpen(false)
+                  setSentenceEditing(null)
+                } catch {
+                  toast.error(t("common.updateFailed"))
+                }
+              }}
+            >
+              {t("common.save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={sentenceDeleteOpen}
+        onOpenChange={(open) => {
+          setSentenceDeleteOpen(open)
+          if (!open) {
+            setSentenceDeleteId(null)
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("article.deleteSentenceTitle")}</DialogTitle>
+            <DialogDescription>{t("article.deleteSentenceDesc")}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <DialogClose asChild>
+              <Button variant="outline">{t("common.cancel")}</Button>
+            </DialogClose>
+            <Button
+              variant="destructive"
+              disabled={!sentenceDeleteId || deleteSentenceMutation.isLoading}
+              onClick={async () => {
+                if (!sentenceDeleteId) return
+                const targetId = sentenceDeleteId
+                try {
+                  stopLoopPlayback()
+                  await deleteSentenceMutation.mutateAsync({ sentenceId: targetId })
+                  deleteSentenceLocal(targetId)
+                  clearSentenceSelection(targetId)
+                  await clearSentenceCache(targetId)
+                  setClozeInputs((prev) => {
+                    if (!prev[targetId]) return prev
+                    const next = { ...prev }
+                    delete next[targetId]
+                    return next
+                  })
+                  setClozeResults((prev) => {
+                    if (!prev[targetId]) return prev
+                    const next = { ...prev }
+                    delete next[targetId]
+                    return next
+                  })
+                  setClozeRevealed((prev) => {
+                    if (!prev[targetId]) return prev
+                    const next = { ...prev }
+                    delete next[targetId]
+                    return next
+                  })
+                  toast.success(t("article.sentenceDeleteSuccess"))
+                  setSentenceDeleteOpen(false)
+                  setSentenceDeleteId(null)
+                } catch {
+                  toast.error(t("common.deleteFailed"))
+                }
+              }}
+            >
+              {t("article.deleteSentenceConfirm")}
             </Button>
           </DialogFooter>
         </DialogContent>

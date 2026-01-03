@@ -2,8 +2,16 @@ import * as crypto from "node:crypto"
 import { TRPCError } from "@trpc/server"
 import { and, asc, desc, eq, inArray } from "drizzle-orm"
 import { z } from "zod"
+import fs from "node:fs"
+import path from "node:path"
 
-import { db, userArticles, userArticleSentences, users } from "@sola/db"
+import {
+  db,
+  userArticles,
+  userArticleSentences,
+  userArticleSentenceTts,
+  users,
+} from "@sola/db"
 
 import { requireAuthSession } from "../auth-session.js"
 import { router, publicProcedure } from "../trpc.js"
@@ -23,6 +31,16 @@ const getArticleInput = z.object({
 
 const deleteManyInput = z.object({
   articleIds: z.array(z.string().min(1)).min(1),
+})
+
+const updateSentenceInput = z.object({
+  sentenceId: z.string().min(1),
+  nativeText: z.string().optional(),
+  targetText: z.string().optional(),
+})
+
+const deleteSentenceInput = z.object({
+  sentenceId: z.string().min(1),
 })
 
 type SentenceDraft = {
@@ -97,6 +115,55 @@ function toTimestamp(value: unknown) {
   if (value instanceof Date) return value.getTime()
   if (typeof value === "number") return value
   return Number(value)
+}
+
+function resolvePublicTtsDir() {
+  const cwd = process.cwd()
+  const serverDir = cwd.endsWith(path.join("apps", "server"))
+    ? cwd
+    : path.join(cwd, "apps", "server")
+  return path.join(serverDir, "public", "tts")
+}
+
+async function deleteSentenceTtsFiles(params: {
+  userId: string
+  sentenceId: string
+}) {
+  const rows = await db.query.userArticleSentenceTts
+    .findMany({
+      where: and(
+        eq(userArticleSentenceTts.userId, params.userId),
+        eq(userArticleSentenceTts.sentenceId, params.sentenceId)
+      ),
+    })
+    .execute()
+
+  if (rows.length === 0) return
+
+  const storageDir = process.env.SOLA_TTS_DIR ?? resolvePublicTtsDir()
+  for (const row of rows) {
+    if (!row.url) continue
+    const fileName = row.url.split("/").pop()
+    if (!fileName) continue
+    const filePath = path.join(storageDir, fileName)
+    try {
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath)
+      }
+    } catch {
+      // ignore missing file cleanup errors
+    }
+  }
+
+  await db
+    .delete(userArticleSentenceTts)
+    .where(
+      and(
+        eq(userArticleSentenceTts.userId, params.userId),
+        eq(userArticleSentenceTts.sentenceId, params.sentenceId)
+      )
+    )
+    .run()
 }
 
 export const articleRouter = router({
@@ -240,4 +307,102 @@ export const articleRouter = router({
 
     return { ok: true }
   }),
+
+  updateSentence: publicProcedure
+    .input(updateSentenceInput)
+    .mutation(async ({ input, ctx }) => {
+      const session = await requireAuthSession(ctx)
+      const sentence = await db.query.userArticleSentences
+        .findFirst({
+          where: eq(userArticleSentences.id, input.sentenceId),
+        })
+        .execute()
+
+      if (!sentence) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Sentence not found" })
+      }
+
+      const article = await db.query.userArticles
+        .findFirst({
+          where: and(
+            eq(userArticles.id, sentence.articleId),
+            eq(userArticles.userId, session.user.id)
+          ),
+        })
+        .execute()
+
+      if (!article) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Article not found" })
+      }
+
+      const nextNative =
+        input.nativeText !== undefined ? input.nativeText.trim() || null : sentence.nativeText
+      const nextTarget =
+        input.targetText !== undefined ? input.targetText.trim() || null : sentence.targetText
+
+      const changed =
+        nextNative !== sentence.nativeText || nextTarget !== sentence.targetText
+
+      await db
+        .update(userArticleSentences)
+        .set({
+          nativeText: nextNative,
+          targetText: nextTarget,
+        })
+        .where(eq(userArticleSentences.id, input.sentenceId))
+        .run()
+
+      if (changed) {
+        await deleteSentenceTtsFiles({
+          userId: session.user.id,
+          sentenceId: input.sentenceId,
+        })
+      }
+
+      return {
+        sentenceId: input.sentenceId,
+        nativeText: nextNative,
+        targetText: nextTarget,
+      }
+    }),
+
+  deleteSentence: publicProcedure
+    .input(deleteSentenceInput)
+    .mutation(async ({ input, ctx }) => {
+      const session = await requireAuthSession(ctx)
+      const sentence = await db.query.userArticleSentences
+        .findFirst({
+          where: eq(userArticleSentences.id, input.sentenceId),
+        })
+        .execute()
+
+      if (!sentence) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Sentence not found" })
+      }
+
+      const article = await db.query.userArticles
+        .findFirst({
+          where: and(
+            eq(userArticles.id, sentence.articleId),
+            eq(userArticles.userId, session.user.id)
+          ),
+        })
+        .execute()
+
+      if (!article) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Article not found" })
+      }
+
+      await deleteSentenceTtsFiles({
+        userId: session.user.id,
+        sentenceId: input.sentenceId,
+      })
+
+      await db
+        .delete(userArticleSentences)
+        .where(eq(userArticleSentences.id, input.sentenceId))
+        .run()
+
+      return { ok: true }
+    }),
 })
