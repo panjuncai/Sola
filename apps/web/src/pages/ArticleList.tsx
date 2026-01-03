@@ -48,6 +48,7 @@ export function ArticleList() {
   const [isLoopingSingle, setIsLoopingSingle] = React.useState(false)
   const [isLoopingShadowing, setIsLoopingShadowing] = React.useState(false)
   const [isClozeEnabled, setIsClozeEnabled] = React.useState(false)
+  const [isRandomMode, setIsRandomMode] = React.useState(false)
   const [isCardMode, setIsCardMode] = React.useState(false)
   const [cardIndex, setCardIndex] = React.useState(0)
   const [cardFlipped, setCardFlipped] = React.useState(false)
@@ -244,6 +245,7 @@ export function ArticleList() {
     }[]
   >([])
   const userId = useAuthStore((state) => state.user?.id ?? null)
+  const userEmail = useAuthStore((state) => state.user?.email ?? "")
   const lastLoopModeRef = React.useRef<"all" | "target">("all")
   const ttsInitRef = React.useRef<string>("")
   const ttsOptionsQuery = trpc.user.getTtsOptions.useQuery(
@@ -677,6 +679,13 @@ export function ArticleList() {
   }, [detailQuery.data, isCardMode, activeArticleId])
 
   React.useEffect(() => {
+    if (!isRandomMode) return
+    setIsCardMode(true)
+    setCardIndex(0)
+    setCardFlipped(false)
+  }, [isRandomMode])
+
+  React.useEffect(() => {
     if (!aiInstructionAddOpen) return
     const providerId =
       aiInstructionAddProviderId ??
@@ -720,6 +729,21 @@ export function ArticleList() {
       })
     }
   }, [ttsOptionsQuery.data, nativeLanguageSetting, targetLanguageSetting, updateTtsVoices])
+
+  React.useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState !== "visible") {
+        stopLoopPlayback()
+        cardPlayTokenRef.current += 1
+        if (audioRef.current) {
+          audioRef.current.pause()
+          audioRef.current = null
+        }
+      }
+    }
+    document.addEventListener("visibilitychange", handleVisibility)
+    return () => document.removeEventListener("visibilitychange", handleVisibility)
+  }, [])
 
   React.useEffect(() => {
     const stored = window.localStorage.getItem("sola-theme")
@@ -1345,14 +1369,35 @@ export function ArticleList() {
     displayOrderSetting === "native_first" ? "native" : "target"
   const cardBackRole = cardFrontRole === "native" ? "target" : "native"
 
+  React.useEffect(() => {
+    if (!isRandomMode) return
+    if (cardSentences.length === 0) return
+    setCardIndex(0)
+    setCardFlipped(false)
+  }, [isRandomMode, cardSentences.length])
+
+  const cardCount = cardSentences.length
+  const activeCardSentence = cardSentences[cardIndex]
+
   const goCard = React.useCallback(
     (nextIndex: number) => {
-      if (cardSentences.length === 0) return
-      const bounded = Math.max(0, Math.min(nextIndex, cardSentences.length - 1))
+      if (cardCount === 0) return
+      let bounded = nextIndex
+      if (isRandomMode) {
+        if (cardCount === 1) {
+          bounded = 0
+        } else {
+          do {
+            bounded = Math.floor(Math.random() * cardCount)
+          } while (bounded === cardIndex)
+        }
+      } else {
+        bounded = Math.max(0, Math.min(nextIndex, cardCount - 1))
+      }
       setCardIndex(bounded)
       setCardFlipped(false)
     },
-    [cardSentences.length]
+    [cardCount, cardIndex, isRandomMode]
   )
 
   const handleCardPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -1445,7 +1490,7 @@ export function ArticleList() {
 
   React.useEffect(() => {
     if (!isCardMode) return
-    const sentence = cardSentences[cardIndex]
+    const sentence = activeCardSentence
     if (!sentence) return
     const role = cardFlipped ? cardBackRole : cardFrontRole
     playCardAudio(sentence.id, role)
@@ -1453,7 +1498,7 @@ export function ArticleList() {
     isCardMode,
     cardFlipped,
     cardIndex,
-    cardSentences,
+    activeCardSentence,
     cardFrontRole,
     cardBackRole,
     playCardAudio,
@@ -1739,13 +1784,26 @@ export function ArticleList() {
           <button
             ref={settingsButtonRef}
             type="button"
-            className="text-sm font-medium text-muted-foreground"
+            className="flex w-full items-center gap-2 text-sm font-medium text-muted-foreground"
             onClick={() => {
               setSettingsOpen((prev) => !prev)
               setMobileMenuOpen(false)
             }}
           >
-            Settings
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              className="h-5 w-5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M20 21a8 8 0 0 0-16 0" />
+              <circle cx="12" cy="8" r="4" />
+            </svg>
+            <span className="truncate">{userEmail || "Settings"}</span>
           </button>
         </div>
       </div>
@@ -2039,16 +2097,16 @@ export function ArticleList() {
               Close
             </button>
           </div>
-          <div className="flex h-full flex-col">{sidebarCore}</div>
+          <div className="flex h-full min-h-0 flex-col">{sidebarCore}</div>
         </div>
       </div>
 
       <div className="md:flex">
-        <aside className="hidden md:flex md:w-72 md:flex-col md:border-r md:bg-muted/30 md:min-h-screen md:sticky md:top-0">
+        <aside className="hidden md:flex md:w-72 md:flex-col md:border-r md:bg-muted/30 md:sticky md:top-0 md:h-screen md:overflow-hidden">
           <div className="h-16 px-5 flex items-center border-b">
             <div className="text-sm font-semibold tracking-wide">Sola</div>
           </div>
-          <div className="flex h-full flex-col">{sidebarCore}</div>
+          <div className="flex min-h-0 flex-1 flex-col">{sidebarCore}</div>
         </aside>
 
         <section className="flex-1 min-w-0 px-4 md:px-12">
@@ -2121,6 +2179,26 @@ export function ArticleList() {
                       >
                         🕳️
                       </Button>
+                      <button
+                        type="button"
+                        className="flex items-center text-xs text-muted-foreground"
+                        aria-label={t("article.randomMode")}
+                        onClick={() => setIsRandomMode((prev) => !prev)}
+                      >
+                        <span
+                          className={cn(
+                            "relative h-7 w-12 rounded-full border transition",
+                            isRandomMode ? "bg-primary/80" : "bg-muted"
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              "absolute top-0.5 h-6 w-6 rounded-full bg-background shadow transition",
+                              isRandomMode ? "left-5" : "left-1"
+                            )}
+                          />
+                        </span>
+                      </button>
                       <button
                         type="button"
                         className="flex items-center text-xs text-muted-foreground"
@@ -2282,7 +2360,7 @@ export function ArticleList() {
                                 transitionDuration: cardDragging ? "0ms" : "500ms",
                               }}
                             >
-                              {cardSentences[cardIndex]?.[
+                              {activeCardSentence?.[
                                 cardFrontRole === "native" ? "nativeText" : "targetText"
                               ] ?? ""}
                             </div>
@@ -2299,7 +2377,7 @@ export function ArticleList() {
                                 transitionDuration: cardDragging ? "0ms" : "500ms",
                               }}
                             >
-                              {cardSentences[cardIndex]?.[
+                              {activeCardSentence?.[
                                 cardBackRole === "native" ? "nativeText" : "targetText"
                               ] ?? ""}
                             </div>
@@ -2336,7 +2414,7 @@ export function ArticleList() {
                           className="h-11 w-20 rounded-full text-lg"
                           aria-label={t("article.cardPlay")}
                           onClick={() => {
-                            const sentence = cardSentences[cardIndex]
+                            const sentence = activeCardSentence
                             if (!sentence) return
                             const role = cardFlipped ? cardBackRole : cardFrontRole
                             playCardAudio(sentence.id, role)
@@ -2344,9 +2422,11 @@ export function ArticleList() {
                         >
                           ▶
                         </Button>
-                        <div className="text-xs text-muted-foreground">
-                          {cardIndex + 1}/{cardSentences.length}
-                        </div>
+                        {!isRandomMode ? (
+                          <div className="text-xs text-muted-foreground">
+                            {cardIndex + 1}/{cardCount}
+                          </div>
+                        ) : null}
                       </div>
                     ) : (
                       detailQuery.data.sentences.map((sentence) => {
