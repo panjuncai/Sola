@@ -48,6 +48,17 @@ export function ArticleList() {
   const [isLoopingSingle, setIsLoopingSingle] = React.useState(false)
   const [isLoopingShadowing, setIsLoopingShadowing] = React.useState(false)
   const [isClozeEnabled, setIsClozeEnabled] = React.useState(false)
+  const [isCardMode, setIsCardMode] = React.useState(false)
+  const [cardIndex, setCardIndex] = React.useState(0)
+  const [cardFlipped, setCardFlipped] = React.useState(false)
+  const [cardDragX, setCardDragX] = React.useState(0)
+  const [cardDragging, setCardDragging] = React.useState(false)
+  const cardPointerRef = React.useRef<{ id: number | null; x: number }>({
+    id: null,
+    x: 0,
+  })
+  const cardDragMovedRef = React.useRef(false)
+  const cardPlayTokenRef = React.useRef(0)
   const [selectedSentenceId, setSelectedSentenceId] = React.useState<string | null>(
     null
   )
@@ -658,6 +669,12 @@ export function ArticleList() {
     setClozeResults({})
     setClozeRevealed({})
   }, [isClozeEnabled, activeArticleId])
+
+  React.useEffect(() => {
+    if (!detailQuery.data || !isCardMode) return
+    setCardIndex(0)
+    setCardFlipped(false)
+  }, [detailQuery.data, isCardMode, activeArticleId])
 
   React.useEffect(() => {
     if (!aiInstructionAddOpen) return
@@ -1315,6 +1332,132 @@ export function ArticleList() {
       setSelectedSentenceRole("target")
     }
   }
+
+  const cardSentences = React.useMemo(() => {
+    if (!detailQuery.data) return []
+    return detailQuery.data.sentences.filter(
+      (sentence) =>
+        Boolean(sentence.targetText?.trim()) || Boolean(sentence.nativeText?.trim())
+    )
+  }, [detailQuery.data])
+
+  const cardFrontRole =
+    displayOrderSetting === "native_first" ? "native" : "target"
+  const cardBackRole = cardFrontRole === "native" ? "target" : "native"
+
+  const goCard = React.useCallback(
+    (nextIndex: number) => {
+      if (cardSentences.length === 0) return
+      const bounded = Math.max(0, Math.min(nextIndex, cardSentences.length - 1))
+      setCardIndex(bounded)
+      setCardFlipped(false)
+    },
+    [cardSentences.length]
+  )
+
+  const handleCardPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement
+    if (target.closest("[data-card-nav]")) return
+    event.currentTarget.setPointerCapture(event.pointerId)
+    cardPointerRef.current = { id: event.pointerId, x: event.clientX }
+    cardDragMovedRef.current = false
+    setCardDragging(true)
+  }
+
+  const handleCardPointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement
+    if (target.closest("[data-card-nav]")) return
+    if (cardPointerRef.current.id !== event.pointerId) return
+    const deltaX = event.clientX - cardPointerRef.current.x
+    cardPointerRef.current = { id: null, x: 0 }
+    setCardDragging(false)
+    setCardDragX(0)
+    if (Math.abs(deltaX) < 10) {
+      cardDragMovedRef.current = false
+      setCardFlipped((prev) => !prev)
+      return
+    }
+    if (Math.abs(deltaX) < 50) {
+      cardDragMovedRef.current = false
+      return
+    }
+    cardDragMovedRef.current = true
+    if (deltaX > 0) {
+      goCard(cardIndex - 1)
+    } else {
+      goCard(cardIndex + 1)
+    }
+  }
+
+  const handleCardPointerCancel = () => {
+    cardPointerRef.current = { id: null, x: 0 }
+    setCardDragging(false)
+    setCardDragX(0)
+    cardDragMovedRef.current = false
+  }
+
+  const handleCardPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement
+    if (target.closest("[data-card-nav]")) return
+    if (cardPointerRef.current.id !== event.pointerId) return
+    const deltaX = event.clientX - cardPointerRef.current.x
+    if (Math.abs(deltaX) > 5) {
+      cardDragMovedRef.current = true
+    }
+    setCardDragX(Math.max(-120, Math.min(120, deltaX)))
+  }
+
+  const playCardAudio = React.useCallback(
+    async (sentenceId: string, role: "native" | "target") => {
+      if (!detailQuery.data) return
+      const sentence = detailQuery.data.sentences.find((item) => item.id === sentenceId)
+      if (!sentence) return
+      const text = role === "native" ? sentence.nativeText ?? "" : sentence.targetText ?? ""
+      if (!text.trim()) return
+      const repeatTimes =
+        role === "native" ? playbackNativeRepeat : playbackTargetRepeat
+      const pauseMs = Math.max(0, Math.round(playbackPauseSeconds * 1000))
+      const token = cardPlayTokenRef.current + 1
+      cardPlayTokenRef.current = token
+      for (let i = 0; i < Math.max(1, repeatTimes); i += 1) {
+        if (cardPlayTokenRef.current !== token) return
+        const ok = await playSentenceRole(sentence, role)
+        if (cardPlayTokenRef.current !== token) return
+        if (!ok) {
+          toast.error(t("tts.audioPlayFailed"))
+          return
+        }
+        if (pauseMs > 0) {
+          await waitMs(pauseMs)
+        }
+      }
+    },
+    [
+      detailQuery.data,
+      playbackNativeRepeat,
+      playbackTargetRepeat,
+      playbackPauseSeconds,
+      playSentenceRole,
+      t,
+      waitMs,
+    ]
+  )
+
+  React.useEffect(() => {
+    if (!isCardMode) return
+    const sentence = cardSentences[cardIndex]
+    if (!sentence) return
+    const role = cardFlipped ? cardBackRole : cardFrontRole
+    playCardAudio(sentence.id, role)
+  }, [
+    isCardMode,
+    cardFlipped,
+    cardIndex,
+    cardSentences,
+    cardFrontRole,
+    cardBackRole,
+    playCardAudio,
+  ])
   const deleteTargets =
     selectedIds.length > 0 ? selectedIds : activeArticleId ? [activeArticleId] : []
 
@@ -1929,50 +2072,75 @@ export function ArticleList() {
                       <Button
                         type="button"
                         variant={isLoopingAll ? "secondary" : "outline"}
+                        aria-label={t("article.loopAll")}
                         onClick={() => {
                           if (isLoopingAll) stopLoopPlayback()
                           else startLoopAll()
                         }}
                       >
-                        🔁 {t("article.loopAll")}
+                        🔁
                       </Button>
                       <Button
                         type="button"
                         variant={isLoopingTarget ? "secondary" : "outline"}
+                        aria-label={t("article.loopTarget")}
                         onClick={() => {
                           if (isLoopingTarget) stopLoopPlayback()
                           else startLoopTarget()
                         }}
                       >
-                        🟠 {t("article.loopTarget")}
+                        🟠
                       </Button>
                       <Button
                         type="button"
                         variant={isLoopingSingle ? "secondary" : "outline"}
+                        aria-label={t("article.loopSingle")}
                         onClick={() => {
                           if (isLoopingSingle) stopLoopPlayback()
                           else startLoopSingle()
                         }}
                       >
-                        🔂 {t("article.loopSingle")}
+                        🔂
                       </Button>
                       <Button
                         type="button"
                         variant={isLoopingShadowing ? "secondary" : "outline"}
+                        aria-label={t("article.shadowing")}
                         onClick={() => {
                           if (isLoopingShadowing) stopLoopPlayback()
                           else startLoopShadowing()
                         }}
                       >
-                        🌫️ {t("article.shadowing")}
+                        🌫️
                       </Button>
                       <Button
                         type="button"
                         variant={isClozeEnabled ? "secondary" : "outline"}
+                        aria-label={t("article.clozePractice")}
                         onClick={() => setIsClozeEnabled((prev) => !prev)}
                       >
-                        🕳️ {t("article.clozePractice")}
+                        🕳️
                       </Button>
+                      <button
+                        type="button"
+                        className="flex items-center text-xs text-muted-foreground"
+                        aria-label={t("article.cardMode")}
+                        onClick={() => setIsCardMode((prev) => !prev)}
+                      >
+                        <span
+                          className={cn(
+                            "relative h-7 w-12 rounded-full border transition",
+                            isCardMode ? "bg-primary/80" : "bg-muted"
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              "absolute top-0.5 h-6 w-6 rounded-full bg-background shadow transition",
+                              isCardMode ? "left-5" : "left-1"
+                            )}
+                          />
+                        </span>
+                      </button>
                       <button
                         type="button"
                         className={cn(
@@ -2080,6 +2248,106 @@ export function ArticleList() {
                           {t("article.noSentences")}
                         </CardContent>
                       </Card>
+                    ) : isCardMode ? (
+                      <div className="flex flex-col items-center gap-3">
+                        <div
+                          className="w-full max-w-xl"
+                          onPointerDown={handleCardPointerDown}
+                          onPointerMove={handleCardPointerMove}
+                          onPointerUp={handleCardPointerUp}
+                          onPointerCancel={handleCardPointerCancel}
+                        >
+                          <div
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter" || event.key === " ") {
+                                event.preventDefault()
+                                setCardFlipped((prev) => !prev)
+                              }
+                            }}
+                            className="group relative mx-auto h-56 w-full max-w-xl cursor-pointer select-none"
+                            style={{ perspective: "1200px" }}
+                          >
+                            <div
+                              className={cn(
+                                "absolute inset-0 rounded-2xl border border-muted/30 bg-background shadow-[0_20px_60px_rgba(15,23,42,0.12)] transition-transform duration-500",
+                                "flex items-center justify-center px-6 text-center text-xl font-semibold"
+                              )}
+                              style={{
+                                backfaceVisibility: "hidden",
+                                transform: `${
+                                  cardFlipped ? "rotateY(180deg)" : "rotateY(0deg)"
+                                } translateX(${cardDragX}px)`,
+                                transitionDuration: cardDragging ? "0ms" : "500ms",
+                              }}
+                            >
+                              {cardSentences[cardIndex]?.[
+                                cardFrontRole === "native" ? "nativeText" : "targetText"
+                              ] ?? ""}
+                            </div>
+                            <div
+                              className={cn(
+                                "absolute inset-0 rounded-2xl border border-muted/30 bg-muted/30 shadow-[0_16px_40px_rgba(15,23,42,0.08)] transition-transform duration-500",
+                                "flex items-center justify-center px-6 text-center text-xl font-semibold"
+                              )}
+                              style={{
+                                backfaceVisibility: "hidden",
+                                transform: `${
+                                  cardFlipped ? "rotateY(0deg)" : "rotateY(-180deg)"
+                                } translateX(${cardDragX}px)`,
+                                transitionDuration: cardDragging ? "0ms" : "500ms",
+                              }}
+                            >
+                              {cardSentences[cardIndex]?.[
+                                cardBackRole === "native" ? "nativeText" : "targetText"
+                              ] ?? ""}
+                            </div>
+                            <button
+                              type="button"
+                              data-card-nav
+                              aria-label={t("article.cardPrev")}
+                              onClick={(event) => {
+                                event.stopPropagation()
+                                goCard(cardIndex - 1)
+                              }}
+                              className="absolute inset-y-0 left-0 flex items-center px-2 text-muted-foreground/60 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
+                              style={{ opacity: cardDragging ? 1 : undefined }}
+                            >
+                              ◀
+                            </button>
+                            <button
+                              type="button"
+                              data-card-nav
+                              aria-label={t("article.cardNext")}
+                              onClick={(event) => {
+                                event.stopPropagation()
+                                goCard(cardIndex + 1)
+                              }}
+                              className="absolute inset-y-0 right-0 flex items-center px-2 text-muted-foreground/60 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
+                              style={{ opacity: cardDragging ? 1 : undefined }}
+                            >
+                              ▶
+                            </button>
+                          </div>
+                        </div>
+                        <Button
+                          type="button"
+                          className="h-11 w-20 rounded-full text-lg"
+                          aria-label={t("article.cardPlay")}
+                          onClick={() => {
+                            const sentence = cardSentences[cardIndex]
+                            if (!sentence) return
+                            const role = cardFlipped ? cardBackRole : cardFrontRole
+                            playCardAudio(sentence.id, role)
+                          }}
+                        >
+                          ▶
+                        </Button>
+                        <div className="text-xs text-muted-foreground">
+                          {cardIndex + 1}/{cardSentences.length}
+                        </div>
+                      </div>
                     ) : (
                       detailQuery.data.sentences.map((sentence) => {
                         const nativeFirst = displayOrderSetting === "native_first"
