@@ -9,7 +9,10 @@
     "typecheck": "pnpm -r typecheck",
     "tts:sync:azure": "node scripts/sync-azure-voices.mjs",
     "db:seed:ai": "node scripts/seed-public-ai.mjs",
-    "db:seed:ai-instruction": "node scripts/seed-public-ai-instruction.mjs"
+    "db:seed:ai-instruction": "node scripts/seed-public-ai-instruction.mjs",
+    "db:seed:tts": "node scripts/seed-public-tts.mjs",
+    "db:seed:ai-json": "node scripts/seed-public-ai-from-json.mjs",
+    "db:export:ai": "node scripts/export-public-ai-data.mjs"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

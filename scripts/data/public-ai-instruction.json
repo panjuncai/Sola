@@ -1,0 +1,15 @@
+[
+  {
+    "id": "87340786-23c4-4996-85e2-759f31f53d6c",
+    "name": "翻译",
+    "instruction_type": "translate",
+    "system_prompt": "You are a professional translator.",
+    "user_prompt_template": "Translate the following text into {{native_language}}. Keep it concise and faithful.\n\nText:\n{{target_text}}",
+    "input_schema_json": "{\"target_text\":\"string\",\"native_language\":\"string\"}",
+    "output_schema_json": "{\"translation\":\"string\"}",
+    "enabled": 1,
+    "is_default": 1,
+    "created_at": 1767339065647,
+    "updated_at": 1767339065647
+  }
+]

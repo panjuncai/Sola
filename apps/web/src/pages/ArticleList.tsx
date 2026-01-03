@@ -33,6 +33,16 @@ export function ArticleList() {
   const listQuery = trpc.article.list.useQuery()
   const utils = trpc.useUtils()
 
+  const languageOptions = ["zh-CN", "en-US", "fr-FR"] as const
+  type LanguageOption = (typeof languageOptions)[number]
+  type DisplayOrder = "native_first" | "target_first"
+  type AiProviderType = "volcengine" | "qwen" | "openai" | "gemini" | "aihubmix"
+  type ClozeSegment =
+    | { kind: "same"; text: string }
+    | { kind: "extra"; text: string }
+    | { kind: "missing"; text: string }
+    | { kind: "mismatch"; parts: { type: "same" | "extra" | "missing"; text: string }[] }
+
   const [content, setContent] = React.useState("")
   const [selectedIds, setSelectedIds] = React.useState<string[]>([])
   const inputRef = React.useRef<HTMLTextAreaElement>(null)
@@ -95,24 +105,7 @@ export function ArticleList() {
       string,
       {
         correct: boolean
-        segments: (
-          | {
-              kind: "same"
-              text: string
-            }
-          | {
-              kind: "extra"
-              text: string
-            }
-          | {
-              kind: "missing"
-              text: string
-            }
-          | {
-              kind: "mismatch"
-              parts: { type: "same" | "extra" | "missing"; text: string }[]
-            }
-        )[]
+        segments: ClozeSegment[]
       }
     >
   >({})
@@ -120,10 +113,13 @@ export function ArticleList() {
 
   const settingsQuery = trpc.user.getSettings.useQuery()
   const updateSettings = trpc.user.updateSettings.useMutation()
-  const [uiLanguage, setUiLanguage] = React.useState("zh-CN")
-  const [nativeLanguageSetting, setNativeLanguageSetting] = React.useState("zh-CN")
-  const [targetLanguageSetting, setTargetLanguageSetting] = React.useState("en-US")
-  const [displayOrderSetting, setDisplayOrderSetting] = React.useState("native_first")
+  const [uiLanguage, setUiLanguage] = React.useState<LanguageOption>("zh-CN")
+  const [nativeLanguageSetting, setNativeLanguageSetting] =
+    React.useState<LanguageOption>("zh-CN")
+  const [targetLanguageSetting, setTargetLanguageSetting] =
+    React.useState<LanguageOption>("en-US")
+  const [displayOrderSetting, setDisplayOrderSetting] =
+    React.useState<DisplayOrder>("native_first")
   const [playbackNativeRepeat, setPlaybackNativeRepeat] = React.useState(1)
   const [playbackTargetRepeat, setPlaybackTargetRepeat] = React.useState(1)
   const [playbackPauseSeconds, setPlaybackPauseSeconds] = React.useState(0)
@@ -196,7 +192,8 @@ export function ArticleList() {
     string | null
   >(null)
   const [newAiProviderName, setNewAiProviderName] = React.useState("")
-  const [newAiProviderType, setNewAiProviderType] = React.useState("openai")
+  const [newAiProviderType, setNewAiProviderType] =
+    React.useState<AiProviderType>("openai")
   const [newAiProviderApiUrl, setNewAiProviderApiUrl] = React.useState("")
   const [newAiProviderModels, setNewAiProviderModels] = React.useState("")
   const [newAiProviderEnabled, setNewAiProviderEnabled] = React.useState(true)
@@ -345,10 +342,12 @@ export function ArticleList() {
     )
     for (let i = 1; i <= a.length; i += 1) {
       for (let j = 1; j <= b.length; j += 1) {
-        if (a[i - 1] === b[j - 1]) {
-          dp[i][j] = dp[i - 1][j - 1] + 1
+        const aChar = a[i - 1]
+        const bChar = b[j - 1]
+        if (aChar === bChar) {
+          dp[i]![j] = dp[i - 1]![j - 1]! + 1
         } else {
-          dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1])
+          dp[i]![j] = Math.max(dp[i - 1]![j]!, dp[i]![j - 1]!)
         }
       }
     }
@@ -356,15 +355,17 @@ export function ArticleList() {
     let i = a.length
     let j = b.length
     while (i > 0 || j > 0) {
-      if (i > 0 && j > 0 && a[i - 1] === b[j - 1]) {
-        ops.push({ type: "same", char: a[i - 1] })
+      const aChar = i > 0 ? a[i - 1] : undefined
+      const bChar = j > 0 ? b[j - 1] : undefined
+      if (i > 0 && j > 0 && aChar === bChar) {
+        ops.push({ type: "same", char: aChar ?? "" })
         i -= 1
         j -= 1
-      } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
-        ops.push({ type: "extra", char: b[j - 1] })
+      } else if (j > 0 && (i === 0 || dp[i]![j - 1]! >= dp[i - 1]![j]!)) {
+        ops.push({ type: "extra", char: bChar ?? "" })
         j -= 1
       } else if (i > 0) {
-        ops.push({ type: "missing", char: a[i - 1] })
+        ops.push({ type: "missing", char: aChar ?? "" })
         i -= 1
       }
     }
@@ -382,13 +383,9 @@ export function ArticleList() {
   }, [])
 
   const diffClozeTokens = React.useCallback(
-    (expected: string[], actual: string[]) => {
+    (expected: string[], actual: string[]): ClozeSegment[] => {
       const maxLen = Math.max(expected.length, actual.length)
-      const segments: {
-        kind: "same" | "extra" | "missing" | "mismatch"
-        text?: string
-        parts?: { type: "same" | "extra" | "missing"; text: string }[]
-      }[] = []
+      const segments: ClozeSegment[] = []
       for (let i = 0; i < maxLen; i += 1) {
         const exp = expected[i]
         const act = actual[i]
@@ -544,15 +541,14 @@ export function ArticleList() {
             updateSentenceTranslation(result.sentenceId, result.translation)
           } catch {
             failed += 1
-          } finally {
-            if (aiRunIdRef.current !== runId) return
-            completed += 1
-            setAiProgress((prev) =>
-              prev && prev.instructionId === instructionId
-                ? { ...prev, completed }
-                : prev
-            )
           }
+          if (aiRunIdRef.current !== runId) return
+          completed += 1
+          setAiProgress((prev) =>
+            prev && prev.instructionId === instructionId
+              ? { ...prev, completed }
+              : prev
+          )
         }
       }
 
@@ -642,16 +638,36 @@ export function ArticleList() {
     if (!aiInstructionDialogOpen) return
     if (aiInstructionQuery.data) {
       setAiInstructionDrafts(
-        [...aiInstructionQuery.data].sort((a, b) => a.name.localeCompare(b.name))
+        [...aiInstructionQuery.data]
+          .map((item) => ({
+            ...item,
+            model:
+              "model" in item && item.model != null
+                ? (item.model as string | null)
+                : null,
+            userAiProviderId:
+              "userAiProviderId" in item ? (item.userAiProviderId as string | null) : null,
+          }))
+          .sort((a, b) => a.name.localeCompare(b.name))
       )
     }
     if (publicAiInstructionQuery.data) {
-      setPublicAiInstructions(publicAiInstructionQuery.data)
+      setPublicAiInstructions(
+        publicAiInstructionQuery.data.map((item) => ({
+          ...item,
+          model: "model" in item && item.model != null ? (item.model as string | null) : null,
+        }))
+      )
     }
     setAiInstructionAddProviderId(
       aiProvidersQuery.data?.find((item) => item.isDefault)?.id ?? null
     )
-  }, [aiInstructionDialogOpen, aiInstructionQuery.data, publicAiInstructionQuery.data])
+  }, [
+    aiInstructionDialogOpen,
+    aiInstructionQuery.data,
+    publicAiInstructionQuery.data,
+    aiProvidersQuery.data,
+  ])
 
   React.useEffect(() => {
     if (isClozeEnabled) {
@@ -729,6 +745,19 @@ export function ArticleList() {
       })
     }
   }, [ttsOptionsQuery.data, nativeLanguageSetting, targetLanguageSetting, updateTtsVoices])
+
+  const stopLoopPlayback = () => {
+    loopTokenRef.current += 1
+    setIsLoopingAll(false)
+    setIsLoopingTarget(false)
+    setIsLoopingSingle(false)
+    setIsLoopingShadowing(false)
+    if (audioRef.current) {
+      audioRef.current.pause()
+      audioRef.current.currentTime = 0
+      audioRef.current = null
+    }
+  }
 
   React.useEffect(() => {
     const handleVisibility = () => {
@@ -828,16 +857,16 @@ export function ArticleList() {
   }
 
   const languages = [
-    { value: "zh-CN", label: t("lang.zhCN") },
-    { value: "en-US", label: t("lang.enUS") },
-    { value: "fr-FR", label: t("lang.frFR") },
+    { value: "zh-CN" as LanguageOption, label: t("lang.zhCN") },
+    { value: "en-US" as LanguageOption, label: t("lang.enUS") },
+    { value: "fr-FR" as LanguageOption, label: t("lang.frFR") },
   ]
 
   const persistSettings = (next?: Partial<{
-    uiLanguage: string
-    nativeLanguage: string
-    targetLanguage: string
-    displayOrder: string
+    uiLanguage: LanguageOption
+    nativeLanguage: LanguageOption
+    targetLanguage: LanguageOption
+    displayOrder: DisplayOrder
     playbackNativeRepeat: number
     playbackTargetRepeat: number
     playbackPauseSeconds: number
@@ -845,7 +874,7 @@ export function ArticleList() {
     shadowing: { enabled: boolean; speeds: number[] }
   }>) => {
     if (!settingsQuery.data) return
-    const payload = {
+    const payload: Parameters<typeof updateSettings.mutate>[0] = {
       uiLanguage: next?.uiLanguage ?? uiLanguage,
       nativeLanguage: next?.nativeLanguage ?? nativeLanguageSetting,
       targetLanguage: next?.targetLanguage ?? targetLanguageSetting,
@@ -864,19 +893,6 @@ export function ArticleList() {
     updateSettings.mutate(payload)
   }
 
-  const stopLoopPlayback = () => {
-    loopTokenRef.current += 1
-    setIsLoopingAll(false)
-    setIsLoopingTarget(false)
-    setIsLoopingSingle(false)
-    setIsLoopingShadowing(false)
-    if (audioRef.current) {
-      audioRef.current.pause()
-      audioRef.current.currentTime = 0
-      audioRef.current = null
-    }
-  }
-
   React.useEffect(() => {
     try {
       const raw = window.localStorage.getItem("sola-tts-cache")
@@ -891,7 +907,7 @@ export function ArticleList() {
     }
   }, [])
 
-  const persistTtsCache = () => {
+  const persistTtsCache = React.useCallback(() => {
     try {
       window.localStorage.setItem(
         "sola-tts-cache",
@@ -900,7 +916,7 @@ export function ArticleList() {
     } catch {
       // ignore quota errors
     }
-  }
+  }, [])
 
   const clearTtsCache = async () => {
     ttsCacheRef.current = {}
@@ -919,88 +935,63 @@ export function ArticleList() {
     toast.success(t("settings.cacheCleared"))
   }
 
-  const getCachedAudioUrl = (cacheKey: string) => {
-    const cached = ttsCacheRef.current[cacheKey]
-    if (!cached) return undefined
-    if (cached.startsWith("/")) {
-      const upgraded = `${apiBaseUrl}${cached}`
-      ttsCacheRef.current[cacheKey] = upgraded
-      persistTtsCache()
-      return upgraded
-    }
-    return cached
-  }
-  const setCachedAudioUrl = (cacheKey: string, url: string) => {
-    ttsCacheRef.current[cacheKey] = url
-    persistTtsCache()
-  }
-
-  const resolveVoiceId = (role: "native" | "target") => {
-    const data = ttsOptionsQuery.data
-    if (!data) return null
-    const selectedId = role === "native" ? nativeVoiceId : targetVoiceId
-    const options = role === "native" ? data.nativeOptions : data.targetOptions
-    const match = options.find((voice) => voice.id === selectedId)
-    return match?.voiceId ?? null
-  }
-
-  const buildLocalCacheKey = (
-    sentenceId: string,
-    role: "native" | "target",
-    speed?: number
-  ) => {
-    if (!userId || !detailQuery.data || !ttsOptionsQuery.data) return null
-    const voiceId = resolveVoiceId(role)
-    if (!voiceId) return null
-    const languageCode =
-      role === "native"
-        ? detailQuery.data.article.nativeLanguage
-        : detailQuery.data.article.targetLanguage
-    return buildTtsCacheKey({
-      userId,
-      sentenceId,
-      languageCode,
-      providerType: ttsOptionsQuery.data.providerType,
-      voiceId,
-      region: ttsOptionsQuery.data.providerRegion ?? "",
-      speed: speed ?? 1,
-    })
-  }
-
-  const playSentenceRole = async (
-    sentence: (typeof detailQuery.data)["sentences"][number],
-    role: "native" | "target",
-    speed?: number
-  ) => {
-    const text = role === "native" ? sentence.nativeText ?? "" : sentence.targetText ?? ""
-    if (!text) return false
-    const localKey = buildLocalCacheKey(sentence.id, role, speed)
-    if (localKey) {
-      const cached = getCachedAudioUrl(localKey)
-      if (cached) {
-        setPlayingSentenceId(sentence.id)
-        setPlayingRole(role)
-        setPlayingSpeed(speed ?? 1)
-        return playAudioUrl(cached)
+  const getCachedAudioUrl = React.useCallback(
+    (cacheKey: string) => {
+      const cached = ttsCacheRef.current[cacheKey]
+      if (!cached) return undefined
+      if (cached.startsWith("/")) {
+        const upgraded = `${apiBaseUrl}${cached}`
+        ttsCacheRef.current[cacheKey] = upgraded
+        persistTtsCache()
+        return upgraded
       }
-    }
-    const result = await sentenceAudioMutation.mutateAsync({
-      sentenceId: sentence.id,
-      role,
-      speed,
-    })
-    let url = getCachedAudioUrl(result.cacheKey)
-    if (!url) {
-      url = result.url
-      setCachedAudioUrl(result.cacheKey, url)
-    }
-    setPlayingSentenceId(sentence.id)
-    setPlayingRole(role)
-    setPlayingSpeed(speed ?? 1)
-    return playAudioUrl(url)
-  }
+      return cached
+    },
+    [apiBaseUrl, persistTtsCache]
+  )
+  const setCachedAudioUrl = React.useCallback(
+    (cacheKey: string, url: string) => {
+      ttsCacheRef.current[cacheKey] = url
+      persistTtsCache()
+    },
+    [persistTtsCache]
+  )
 
-  const playAudioUrl = async (url: string) => {
+  const resolveVoiceId = React.useCallback(
+    (role: "native" | "target") => {
+      const data = ttsOptionsQuery.data
+      if (!data) return null
+      const selectedId = role === "native" ? nativeVoiceId : targetVoiceId
+      const options = role === "native" ? data.nativeOptions : data.targetOptions
+      const match = options.find((voice) => voice.id === selectedId)
+      return match?.voiceId ?? null
+    },
+    [nativeVoiceId, targetVoiceId, ttsOptionsQuery.data]
+  )
+
+  const buildLocalCacheKey = React.useCallback(
+    (sentenceId: string, role: "native" | "target", speed?: number) => {
+      if (!userId || !detailQuery.data || !ttsOptionsQuery.data) return null
+      const voiceId = resolveVoiceId(role)
+      if (!voiceId) return null
+      const languageCode =
+        role === "native"
+          ? detailQuery.data.article.nativeLanguage
+          : detailQuery.data.article.targetLanguage
+      return buildTtsCacheKey({
+        userId,
+        sentenceId,
+        languageCode,
+        providerType: ttsOptionsQuery.data.providerType,
+        voiceId,
+        region: ttsOptionsQuery.data.providerRegion ?? "",
+        speed: speed ?? 1,
+      })
+    },
+    [detailQuery.data, resolveVoiceId, ttsOptionsQuery.data, userId]
+  )
+
+  const playAudioUrl = React.useCallback(async (url: string) => {
     let objectUrl: string | null = null
     if ("caches" in window) {
       try {
@@ -1062,13 +1053,65 @@ export function ArticleList() {
 
       play(objectUrl ?? url)
     })
+  }, [])
+
+  type PlaybackSentence = {
+    id: string
+    nativeText: string | null
+    targetText: string | null
   }
 
-  const waitMs = (ms: number) =>
-    new Promise<void>((resolve) => {
-      if (!ms) return resolve()
-      setTimeout(resolve, ms)
-    })
+  const playSentenceRole = React.useCallback(
+    async (
+      sentence: PlaybackSentence,
+      role: "native" | "target",
+      speed?: number
+    ) => {
+      const text =
+        role === "native" ? sentence.nativeText ?? "" : sentence.targetText ?? ""
+      if (!text) return false
+      const localKey = buildLocalCacheKey(sentence.id, role, speed)
+      if (localKey) {
+        const cached = getCachedAudioUrl(localKey)
+        if (cached) {
+          setPlayingSentenceId(sentence.id)
+          setPlayingRole(role)
+          setPlayingSpeed(speed ?? 1)
+          return playAudioUrl(cached)
+        }
+      }
+      const result = await sentenceAudioMutation.mutateAsync({
+        sentenceId: sentence.id,
+        role,
+        speed,
+      })
+      let url = getCachedAudioUrl(result.cacheKey)
+      if (!url) {
+        url = result.url
+        setCachedAudioUrl(result.cacheKey, url)
+      }
+      setPlayingSentenceId(sentence.id)
+      setPlayingRole(role)
+      setPlayingSpeed(speed ?? 1)
+      return playAudioUrl(url)
+    },
+    [
+      buildLocalCacheKey,
+      getCachedAudioUrl,
+      playAudioUrl,
+      sentenceAudioMutation,
+      setCachedAudioUrl,
+    ]
+  )
+
+  const waitMs = React.useCallback(
+    (ms: number) =>
+      new Promise<void>((resolve) => {
+        if (!ms) return resolve()
+        setTimeout(resolve, ms)
+      }),
+    []
+  )
 
   const startLoopAll = async () => {
     if (!detailQuery.data) return
@@ -1092,6 +1135,7 @@ export function ArticleList() {
     while (loopTokenRef.current === token) {
       for (let sIndex = startIndex; sIndex < sentences.length; sIndex += 1) {
         const sentence = sentences[sIndex]
+        if (!sentence) continue
         if (loopTokenRef.current !== token) break
         const order =
           orderSetting === "native_first" ? ["native", "target"] : ["target", "native"]
@@ -1177,6 +1221,7 @@ export function ArticleList() {
     while (loopTokenRef.current === token) {
       for (let sIndex = startIndex; sIndex < sentences.length; sIndex += 1) {
         const sentence = sentences[sIndex]
+        if (!sentence) continue
         if (loopTokenRef.current !== token) break
         const isFirstSentence = sIndex === startIndex
         const shouldPlaySelectedFirst =
@@ -1630,7 +1675,7 @@ export function ArticleList() {
                     className="h-8 rounded-md border bg-background px-2 text-sm"
                     value={uiLanguage}
                     onChange={(event) => {
-                      const value = event.target.value
+                      const value = event.target.value as LanguageOption
                       setUiLanguage(value)
                       persistSettings({ uiLanguage: value })
                       i18n.changeLanguage(value)
@@ -1665,7 +1710,7 @@ export function ArticleList() {
                     className="h-8 rounded-md border bg-background px-2 text-sm"
                     value={displayOrderSetting}
                     onChange={(event) => {
-                      const value = event.target.value
+                      const value = event.target.value as DisplayOrder
                       setDisplayOrderSetting(value)
                       persistSettings({ displayOrder: value })
                     }}
@@ -1915,7 +1960,7 @@ export function ArticleList() {
                     className="h-8 rounded-md border bg-background px-2 text-sm"
                     value={uiLanguage}
                     onChange={(event) => {
-                      const value = event.target.value
+                      const value = event.target.value as LanguageOption
                       setUiLanguage(value)
                       persistSettings({ uiLanguage: value })
                       i18n.changeLanguage(value)
@@ -1950,7 +1995,7 @@ export function ArticleList() {
                     className="h-8 rounded-md border bg-background px-2 text-sm"
                     value={displayOrderSetting}
                     onChange={(event) => {
-                      const value = event.target.value
+                      const value = event.target.value as DisplayOrder
                       setDisplayOrderSetting(value)
                       persistSettings({ displayOrder: value })
                     }}
@@ -2450,6 +2495,7 @@ export function ArticleList() {
                                   selectedSentenceRole === item.role
                                 const isTarget = item.role === "target"
                                 const isRevealed = clozeRevealed[sentence.id] === true
+                                const clozeResult = clozeResults[sentence.id]
                                 const shouldBlur =
                                   isTarget && isClozeEnabled
                                     ? !isRevealed
@@ -2579,15 +2625,11 @@ export function ArticleList() {
                                             }
                                           }}
                                         />
-                                        {clozeResults[sentence.id] ? (
+                                        {clozeResult ? (
                                           <div className="text-xs">
-                                            {clozeResults[sentence.id].segments.map(
-                                              (segment, index) => {
+                                            {clozeResult.segments.map((segment, index) => {
                                                 const isLast =
-                                                  index ===
-                                                  clozeResults[sentence.id].segments
-                                                    .length -
-                                                    1
+                                                  index === clozeResult.segments.length - 1
                                                 const suffix = isLast ? "" : " "
                                                 if (segment.kind === "same") {
                                                   return (
@@ -2803,7 +2845,7 @@ export function ArticleList() {
                   className="h-9 rounded-md border bg-background px-2 text-sm"
                   value={nativeLanguageSetting}
                   onChange={(event) => {
-                    const value = event.target.value
+                    const value = event.target.value as LanguageOption
                     setNativeLanguageSetting(value)
                     persistSettings({ nativeLanguage: value })
                   }}
@@ -2855,7 +2897,7 @@ export function ArticleList() {
                   className="h-9 rounded-md border bg-background px-2 text-sm"
                   value={targetLanguageSetting}
                   onChange={(event) => {
-                    const value = event.target.value
+                    const value = event.target.value as LanguageOption
                     setTargetLanguageSetting(value)
                     persistSettings({ targetLanguage: value })
                   }}
@@ -3088,7 +3130,9 @@ export function ArticleList() {
             <select
               className="h-9 rounded-md border bg-background px-2 text-sm"
               value={newAiProviderType}
-              onChange={(event) => setNewAiProviderType(event.target.value)}
+              onChange={(event) =>
+                setNewAiProviderType(event.target.value as AiProviderType)
+              }
             >
               {["volcengine", "qwen", "openai", "gemini", "aihubmix"].map((type) => (
                 <option key={type} value={type}>

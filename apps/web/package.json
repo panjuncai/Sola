@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "pnpm --filter @sola/shared build && tsc -b && vite build",
     "lint": "eslint .",
     "type-check": "tsc -b",
     "typecheck": "pnpm run type-check",
