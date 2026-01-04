@@ -17,6 +17,7 @@ import { CreateArticlePanel } from "@/components/article/CreateArticlePanel"
 import { useClozePractice } from "@/hooks/useClozePractice"
 import { useCardMode } from "@/hooks/useCardMode"
 import { useArticleToolbar } from "@/hooks/useArticleToolbar"
+import { useAiManagement } from "@/hooks/useAiManagement"
 import { useArticles } from "@/hooks/useArticles"
 import { useSettings } from "@/hooks/useSettings"
 import { DialogsContainer } from "@/components/article/DialogsContainer"
@@ -32,7 +33,6 @@ export function ArticleList() {
 
   const languageOptions = ["zh-CN", "en-US", "fr-FR"] as const
   type LanguageOption = (typeof languageOptions)[number]
-  type AiProviderType = "volcengine" | "qwen" | "openai" | "gemini" | "aihubmix"
   const inputRef = React.useRef<HTMLTextAreaElement>(null)
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false)
   const [mobileToolbarOpen, setMobileToolbarOpen] = React.useState(false)
@@ -117,86 +117,6 @@ export function ArticleList() {
   const mobileSettingsButtonRef = React.useRef<HTMLButtonElement>(null)
   const [shadowingDialogOpen, setShadowingDialogOpen] = React.useState(false)
   const [clearCacheOpen, setClearCacheOpen] = React.useState(false)
-  const [aiDialogOpen, setAiDialogOpen] = React.useState(false)
-  const [aiInstructionDialogOpen, setAiInstructionDialogOpen] = React.useState(false)
-  const [aiInstructionEditOpen, setAiInstructionEditOpen] = React.useState(false)
-  const [aiInstructionAddOpen, setAiInstructionAddOpen] = React.useState(false)
-  const [aiInstructionDeleteOpen, setAiInstructionDeleteOpen] = React.useState(false)
-  const [aiInstructionAddModel, setAiInstructionAddModel] = React.useState<string | null>(
-    null
-  )
-  const [aiProvidersDraft, setAiProvidersDraft] = React.useState<
-    {
-      id: string
-      providerType: string
-      apiUrl: string
-      name: string | null
-      apiKey: string | null
-      models: string[]
-      availableModels: string[]
-      isDefault: boolean
-      enabled: boolean
-      isPublic: boolean
-    }[]
-  >([])
-  const [aiInstructionDrafts, setAiInstructionDrafts] = React.useState<
-    {
-      id: string
-      name: string
-      instructionType: "translate" | "explain" | "custom"
-      systemPrompt: string
-      userPromptTemplate: string
-      model: string | null
-      inputSchemaJson: string | null
-      outputSchemaJson: string | null
-      enabled: boolean
-      isDefault: boolean
-      userAiProviderId: string | null
-    }[]
-  >([])
-  const [aiInstructionEditing, setAiInstructionEditing] = React.useState<{
-    id: string
-    name: string
-    instructionType: "translate" | "explain" | "custom"
-    systemPrompt: string
-    userPromptTemplate: string
-    model: string | null
-    inputSchemaJson: string | null
-    outputSchemaJson: string | null
-    enabled: boolean
-    isDefault: boolean
-    userAiProviderId: string | null
-  } | null>(null)
-  const [aiInstructionDeleteId, setAiInstructionDeleteId] = React.useState<string | null>(
-    null
-  )
-  const [aiInstructionAddProviderId, setAiInstructionAddProviderId] = React.useState<
-    string | null
-  >(null)
-  const [newAiProviderName, setNewAiProviderName] = React.useState("")
-  const [newAiProviderType, setNewAiProviderType] =
-    React.useState<AiProviderType>("openai")
-  const [newAiProviderApiUrl, setNewAiProviderApiUrl] = React.useState("")
-  const [newAiProviderModels, setNewAiProviderModels] = React.useState("")
-  const [newAiProviderEnabled, setNewAiProviderEnabled] = React.useState(true)
-  const [newAiProviderApiKey, setNewAiProviderApiKey] = React.useState("")
-  const [newAiProviderKeyVisible, setNewAiProviderKeyVisible] = React.useState(false)
-  const [aiProviderAddOpen, setAiProviderAddOpen] = React.useState(false)
-  const [aiProviderEditOpen, setAiProviderEditOpen] = React.useState(false)
-  const [aiProviderEditing, setAiProviderEditing] = React.useState<{
-    id: string
-    providerType: string
-    name: string | null
-    apiUrl: string
-    apiKey: string | null
-    models: string[]
-    enabled: boolean
-    isPublic: boolean
-  } | null>(null)
-  const [aiProviderDeleteId, setAiProviderDeleteId] = React.useState<string | null>(
-    null
-  )
-  const [aiProviderEditKeyVisible, setAiProviderEditKeyVisible] = React.useState(false)
   const [sentenceEditOpen, setSentenceEditOpen] = React.useState(false)
   const [sentenceDeleteOpen, setSentenceDeleteOpen] = React.useState(false)
   const [sentenceEditing, setSentenceEditing] = React.useState<{
@@ -205,32 +125,6 @@ export function ArticleList() {
     targetText: string
   } | null>(null)
   const [sentenceDeleteId, setSentenceDeleteId] = React.useState<string | null>(null)
-  const [aiProviderEditModels, setAiProviderEditModels] = React.useState("")
-  const [aiProviderResetOpen, setAiProviderResetOpen] = React.useState(false)
-  const [aiProgress, setAiProgress] = React.useState<{
-    instructionId: string
-    total: number
-    completed: number
-    running: boolean
-  } | null>(null)
-  const [aiLastInstructionId, setAiLastInstructionId] = React.useState<string | null>(
-    null
-  )
-  const aiRunIdRef = React.useRef(0)
-  const [publicAiInstructions, setPublicAiInstructions] = React.useState<
-    {
-      id: string
-      name: string
-      instructionType: "translate" | "explain" | "custom"
-      systemPrompt: string
-      userPromptTemplate: string
-      model: string | null
-      inputSchemaJson: string | null
-      outputSchemaJson: string | null
-      enabled: boolean
-      isDefault: boolean
-    }[]
-  >([])
   const userId = useAuthStore((state) => state.user?.id ?? null)
   const userEmail = useAuthStore((state) => state.user?.email ?? "")
   const ttsInitRef = React.useRef<string>("")
@@ -241,105 +135,86 @@ export function ArticleList() {
     },
     { enabled: settingsQuery.isSuccess }
   )
-  const aiProvidersQuery = trpc.user.getAiProviders.useQuery()
-  const updateAiProviderDefault = trpc.user.updateAiProviderDefault.useMutation()
-  const updateAiProviderConfig = trpc.user.updateAiProviderConfig.useMutation()
-  const createUserAiProvider = trpc.user.createUserAiProvider.useMutation()
-  const deleteAiProvider = trpc.user.deleteAiProvider.useMutation()
-  const resetAiProvidersToPublic = trpc.user.resetAiProvidersToPublic.useMutation()
-  const aiInstructionQuery = trpc.user.getUserAiInstructions.useQuery()
-  const publicAiInstructionQuery = trpc.user.getPublicAiInstructions.useQuery()
-  const createUserAiInstructionFromPublic =
-    trpc.user.createUserAiInstructionFromPublic.useMutation()
-  const updateUserAiInstruction = trpc.user.updateUserAiInstruction.useMutation()
-  const deleteUserAiInstruction = trpc.user.deleteUserAiInstruction.useMutation()
-  const translateSentence = trpc.ai.translateSentence.useMutation()
-
-  const aiInstructionList = React.useMemo(() => {
-    const list = aiInstructionQuery.data ?? []
-    return list
-      .filter((instruction) => instruction.enabled)
-      .slice()
-      .sort((a, b) => {
-        const defaultRank = Number(b.isDefault) - Number(a.isDefault)
-        if (defaultRank !== 0) return defaultRank
-        return a.name.localeCompare(b.name)
-      })
-  }, [aiInstructionQuery.data])
-
-  const aiInstructionGroups = React.useMemo(() => {
-    const groups = new Map<string, typeof aiInstructionList>()
-    for (const instruction of aiInstructionList) {
-      const list = groups.get(instruction.instructionType) ?? []
-      list.push(instruction)
-      groups.set(instruction.instructionType, list)
-    }
-    return Array.from(groups.entries())
-  }, [aiInstructionList])
-
-  const defaultInstructionId = React.useMemo(() => {
-    return aiInstructionList.find((instruction) => instruction.isDefault)?.id ?? null
-  }, [aiInstructionList])
-
-  const resolveInstructionLabel = React.useCallback(
-    (type: "translate" | "explain" | "custom") => {
-      if (type === "translate") return t("ai.typeTranslate")
-      if (type === "explain") return t("ai.typeExplain")
-      return t("ai.typeCustom")
-    },
-    [t]
-  )
-  const resolveProvider = React.useCallback(
-    (providerId: string | null) => {
-      const defaultProvider =
-        aiProvidersQuery.data?.find((item) => item.isDefault) ?? null
-      if (providerId) {
-        return aiProvidersQuery.data?.find((item) => item.id === providerId) ?? null
-      }
-      return defaultProvider
-    },
-    [aiProvidersQuery.data]
-  )
-  const resolveProviderModels = React.useCallback(
-    (providerId: string | null) => {
-      const provider = resolveProvider(providerId)
-      return provider?.models ?? provider?.availableModels ?? []
-    },
-    [resolveProvider]
-  )
+  const {
+    aiProvidersQuery,
+    aiInstructionQuery,
+    aiDialogOpen,
+    setAiDialogOpen,
+    aiInstructionDialogOpen,
+    setAiInstructionDialogOpen,
+    aiInstructionEditOpen,
+    setAiInstructionEditOpen,
+    aiInstructionAddOpen,
+    setAiInstructionAddOpen,
+    aiInstructionDeleteOpen,
+    setAiInstructionDeleteOpen,
+    aiInstructionAddModel,
+    setAiInstructionAddModel,
+    aiProvidersDraft,
+    setAiProvidersDraft,
+    aiInstructionDrafts,
+    aiInstructionEditing,
+    setAiInstructionEditing,
+    aiInstructionDeleteId,
+    setAiInstructionDeleteId,
+    aiInstructionAddProviderId,
+    setAiInstructionAddProviderId,
+    newAiProviderName,
+    setNewAiProviderName,
+    newAiProviderType,
+    setNewAiProviderType,
+    newAiProviderApiUrl,
+    setNewAiProviderApiUrl,
+    newAiProviderModels,
+    setNewAiProviderModels,
+    newAiProviderEnabled,
+    setNewAiProviderEnabled,
+    newAiProviderApiKey,
+    setNewAiProviderApiKey,
+    newAiProviderKeyVisible,
+    setNewAiProviderKeyVisible,
+    aiProviderAddOpen,
+    setAiProviderAddOpen,
+    aiProviderEditOpen,
+    setAiProviderEditOpen,
+    aiProviderEditing,
+    setAiProviderEditing,
+    aiProviderDeleteId,
+    setAiProviderDeleteId,
+    aiProviderEditKeyVisible,
+    setAiProviderEditKeyVisible,
+    aiProviderEditModels,
+    setAiProviderEditModels,
+    aiProviderResetOpen,
+    setAiProviderResetOpen,
+    aiProgress,
+    publicAiInstructions,
+    aiInstructionGroups,
+    missingNativeCount,
+    resolveInstructionLabel,
+    resolveProviderModels,
+    startAiTranslation,
+    cancelAiTranslation,
+    retryMissingTranslations,
+    saveAiProvidersDraft,
+    addAiProvider,
+    updateAiProvider,
+    removeAiProvider,
+    resetAiProviders,
+    updateInstruction,
+    createInstructionFromPublic,
+    deleteInstruction,
+  } = useAiManagement({
+    t,
+    detail: detailQuery.data,
+    useAiUserKey,
+  })
 
   const updateSentenceMutation = trpc.article.updateSentence.useMutation()
   const deleteSentenceMutation = trpc.article.deleteSentence.useMutation()
   const deleteAccountMutation = trpc.user.deleteAccount.useMutation()
   const signOutMutation = trpc.auth.signOut.useMutation()
   const sentenceAudioMutation = trpc.tts.getSentenceAudio.useMutation()
-  const missingNativeCount = React.useMemo(() => {
-    if (!detailQuery.data) return 0
-    return detailQuery.data.sentences.filter(
-      (sentence) =>
-        Boolean(sentence.targetText?.trim()) && !sentence.nativeText?.trim()
-    ).length
-  }, [detailQuery.data])
-
-  const updateSentenceTranslation = React.useCallback(
-    (sentenceId: string, translation: string) => {
-      const articleId = detailQuery.data?.article.id
-      if (!articleId) return
-      utils.article.get.setData({ articleId }, (current) => {
-        if (!current) return current
-        return {
-          ...current,
-          sentences: current.sentences.map((sentence) =>
-            sentence.id === sentenceId
-              ? { ...sentence, nativeText: translation }
-              : sentence
-          ),
-        }
-      })
-    },
-    [detailQuery.data?.article.id, utils.article.get]
-  )
-
   const updateSentenceLocal = React.useCallback(
     (sentenceId: string, nativeText: string | null, targetText: string | null) => {
       const articleId = detailQuery.data?.article.id
@@ -374,114 +249,6 @@ export function ArticleList() {
     [detailQuery.data?.article.id, utils.article.get]
   )
 
-  const getTranslationTargets = React.useCallback(
-    (missingOnly: boolean) => {
-      if (!detailQuery.data) return []
-      return detailQuery.data.sentences.filter((sentence) => {
-        if (!sentence.targetText?.trim()) return false
-        if (missingOnly) return !sentence.nativeText?.trim()
-        return true
-      })
-    },
-    [detailQuery.data]
-  )
-
-  const startAiTranslation = React.useCallback(
-    async (instructionId: string, missingOnly: boolean) => {
-      if (aiProgress?.running) {
-        toast.error(t("ai.translationInProgress"))
-        return
-      }
-      if (!detailQuery.data) {
-        toast.error(t("ai.noArticleSelected"))
-        return
-      }
-      const targets = getTranslationTargets(missingOnly)
-      if (targets.length === 0) {
-        toast.error(
-          missingOnly ? t("ai.noMissingTargets") : t("ai.noTargets")
-        )
-        return
-      }
-
-      const runId = aiRunIdRef.current + 1
-      aiRunIdRef.current = runId
-      setAiLastInstructionId(instructionId)
-      setAiProgress({
-        instructionId,
-        total: targets.length,
-        completed: 0,
-        running: true,
-      })
-
-      let completed = 0
-      let failed = 0
-      let index = 0
-      const concurrency = Math.min(3, targets.length)
-
-      const worker = async () => {
-        while (true) {
-          const nextIndex = index
-          index += 1
-          const sentence = targets[nextIndex]
-          if (!sentence) return
-          if (aiRunIdRef.current !== runId) return
-          try {
-            const result = await translateSentence.mutateAsync({
-              sentenceId: sentence.id,
-              instructionId,
-            })
-            if (aiRunIdRef.current !== runId) return
-            updateSentenceTranslation(result.sentenceId, result.translation)
-          } catch {
-            failed += 1
-          }
-          if (aiRunIdRef.current !== runId) return
-          completed += 1
-          setAiProgress((prev) =>
-            prev && prev.instructionId === instructionId
-              ? { ...prev, completed }
-              : prev
-          )
-        }
-      }
-
-      await Promise.all(Array.from({ length: concurrency }, () => worker()))
-
-      if (aiRunIdRef.current !== runId) return
-      setAiProgress((prev) => (prev ? { ...prev, running: false } : prev))
-      if (failed > 0) {
-        toast.error(t("ai.translationFailed", { count: failed }))
-      } else {
-        toast.success(t("ai.translationComplete", { count: targets.length }))
-      }
-    },
-    [
-      aiProgress?.running,
-      detailQuery.data,
-      getTranslationTargets,
-      t,
-      translateSentence,
-      updateSentenceTranslation,
-    ]
-  )
-
-  const cancelAiTranslation = React.useCallback(() => {
-    if (!aiProgress?.running) return
-    aiRunIdRef.current += 1
-    setAiProgress((prev) => (prev ? { ...prev, running: false } : prev))
-    toast.success(t("ai.translationCanceled"))
-  }, [aiProgress?.running, t])
-
-  const retryMissingTranslations = React.useCallback(() => {
-    const instructionId = aiLastInstructionId ?? defaultInstructionId
-    if (!instructionId) {
-      toast.error(t("ai.noInstructionAvailable"))
-      return
-    }
-    startAiTranslation(instructionId, true)
-  }, [aiLastInstructionId, defaultInstructionId, startAiTranslation, t])
-
   React.useEffect(() => {
     if (settingsQuery.data) {
       setUiLanguage(settingsQuery.data.uiLanguage)
@@ -506,81 +273,6 @@ export function ArticleList() {
     setShadowingDraftEnabled(shadowingEnabled)
     setShadowingDraftSpeeds(shadowingSpeeds)
   }, [shadowingDialogOpen, shadowingEnabled, shadowingSpeeds])
-
-  React.useEffect(() => {
-    if (!aiDialogOpen) return
-    if (!aiProvidersQuery.data) return
-    setAiProvidersDraft(
-      [...aiProvidersQuery.data].sort(
-        (a, b) => Number(b.isDefault) - Number(a.isDefault)
-      )
-    )
-    setNewAiProviderName("")
-    setNewAiProviderType("openai")
-    setNewAiProviderApiUrl("")
-    setNewAiProviderModels("")
-    setNewAiProviderEnabled(true)
-    setNewAiProviderApiKey("")
-    setNewAiProviderKeyVisible(false)
-  }, [aiDialogOpen, aiProvidersQuery.data])
-
-  React.useEffect(() => {
-    if (!aiInstructionDialogOpen) return
-    if (aiInstructionQuery.data) {
-      setAiInstructionDrafts(
-        [...aiInstructionQuery.data]
-          .map((item) => ({
-            ...item,
-            model:
-              "model" in item && item.model != null
-                ? (item.model as string | null)
-                : null,
-            userAiProviderId:
-              "userAiProviderId" in item ? (item.userAiProviderId as string | null) : null,
-          }))
-          .sort((a, b) => a.name.localeCompare(b.name))
-      )
-    }
-    if (publicAiInstructionQuery.data) {
-      setPublicAiInstructions(
-        publicAiInstructionQuery.data.map((item) => ({
-          ...item,
-          model: "model" in item && item.model != null ? (item.model as string | null) : null,
-        }))
-      )
-    }
-    setAiInstructionAddProviderId(
-      aiProvidersQuery.data?.find((item) => item.isDefault)?.id ?? null
-    )
-  }, [
-    aiInstructionDialogOpen,
-    aiInstructionQuery.data,
-    publicAiInstructionQuery.data,
-    aiProvidersQuery.data,
-  ])
-
-
-  React.useEffect(() => {
-    if (!aiInstructionAddOpen) return
-    const providerId =
-      aiInstructionAddProviderId ??
-      aiProvidersQuery.data?.find((item) => item.isDefault)?.id ??
-      null
-    const models = resolveProviderModels(providerId)
-    if (!models.length) {
-      setAiInstructionAddModel(null)
-      return
-    }
-    if (!aiInstructionAddModel || !models.includes(aiInstructionAddModel)) {
-      setAiInstructionAddModel(models[0] ?? null)
-    }
-  }, [
-    aiInstructionAddOpen,
-    aiInstructionAddProviderId,
-    aiInstructionAddModel,
-    aiProvidersQuery.data,
-    resolveProviderModels,
-  ])
 
   React.useEffect(() => {
     if (!ttsOptionsQuery.data) return
@@ -1382,26 +1074,7 @@ export function ArticleList() {
           onDelete: (id) => setAiProviderDeleteId(id),
           onReset: () => setAiProviderResetOpen(true),
           onAddCustom: () => setAiProviderAddOpen(true),
-          onSave: async () => {
-            if (aiProvidersDraft.length === 0) return
-            const defaultProvider = aiProvidersDraft.find((item) => item.isDefault)
-            if (defaultProvider) {
-              await updateAiProviderDefault.mutateAsync({
-                id: defaultProvider.id,
-              })
-            }
-            for (const provider of aiProvidersDraft) {
-              const models = provider.models.map((value) => value.trim()).filter(Boolean)
-              await updateAiProviderConfig.mutateAsync({
-                id: provider.id,
-                apiUrl: provider.apiUrl.trim(),
-                enabled: provider.enabled,
-                models,
-                apiKey: useAiUserKey ? provider.apiKey ?? "" : null,
-              })
-            }
-            await aiProvidersQuery.refetch()
-          },
+          onSave: saveAiProvidersDraft,
         }}
         aiProviderAdd={{
           open: aiProviderAddOpen,
@@ -1421,41 +1094,7 @@ export function ArticleList() {
           onModelsChange: setNewAiProviderModels,
           enabled: newAiProviderEnabled,
           onEnabledChange: setNewAiProviderEnabled,
-          onSave: async () => {
-            const name = newAiProviderName.trim()
-            const apiUrl = newAiProviderApiUrl.trim()
-            const models = newAiProviderModels
-              .split(",")
-              .map((item) => item.trim())
-              .filter(Boolean)
-            if (!name || !apiUrl || models.length === 0) {
-              toast.error(t("ai.addCustomError"))
-              return
-            }
-            try {
-              await createUserAiProvider.mutateAsync({
-                name,
-                providerType: newAiProviderType,
-                apiUrl,
-                models,
-                enabled: newAiProviderEnabled,
-                apiKey: useAiUserKey ? newAiProviderApiKey.trim() || null : null,
-              })
-              await aiProvidersQuery.refetch()
-              setNewAiProviderName("")
-              setNewAiProviderType("openai")
-              setNewAiProviderApiUrl("")
-              setNewAiProviderModels("")
-              setNewAiProviderEnabled(true)
-              setNewAiProviderApiKey("")
-              setNewAiProviderKeyVisible(false)
-              setAiProviderAddOpen(false)
-              toast.success(t("ai.addCustomSuccess"))
-            } catch (error) {
-              const message = error instanceof Error ? error.message : t("ai.addCustomFailed")
-              toast.error(message)
-            }
-          },
+          onSave: addAiProvider,
         }}
         aiProviderEdit={{
           open: aiProviderEditOpen,
@@ -1467,65 +1106,17 @@ export function ArticleList() {
           modelsValue: aiProviderEditModels,
           onModelsChange: setAiProviderEditModels,
           onChangeProvider: (provider) => setAiProviderEditing(provider),
-          onSave: async () => {
-            if (!aiProviderEditing) return
-            const models = aiProviderEditModels
-              .split(",")
-              .map((item) => item.trim())
-              .filter(Boolean)
-            if (!aiProviderEditing.apiUrl.trim()) {
-              toast.error(t("ai.baseUrlRequired"))
-              return
-            }
-            try {
-              await updateAiProviderConfig.mutateAsync({
-                id: aiProviderEditing.id,
-                apiUrl: aiProviderEditing.apiUrl.trim(),
-                name: aiProviderEditing.isPublic ? undefined : aiProviderEditing.name ?? "",
-                models,
-                enabled: aiProviderEditing.enabled,
-                apiKey: useAiUserKey ? aiProviderEditing.apiKey ?? "" : null,
-              })
-              await aiProvidersQuery.refetch()
-              setAiProviderEditOpen(false)
-              setAiProviderEditing(null)
-              toast.success(t("ai.editProviderSuccess"))
-            } catch (error) {
-              const message = error instanceof Error ? error.message : t("common.updateFailed")
-              toast.error(message)
-            }
-          },
+          onSave: updateAiProvider,
         }}
         aiProviderDelete={{
           open: Boolean(aiProviderDeleteId),
           onOpenChange: () => setAiProviderDeleteId(null),
-          onConfirm: async () => {
-            if (!aiProviderDeleteId) return
-            try {
-              await deleteAiProvider.mutateAsync({ id: aiProviderDeleteId })
-              await aiProvidersQuery.refetch()
-              setAiProviderDeleteId(null)
-              toast.success(t("ai.deleteProviderSuccess"))
-            } catch (error) {
-              const message = error instanceof Error ? error.message : t("common.deleteFailed")
-              toast.error(message)
-            }
-          },
+          onConfirm: removeAiProvider,
         }}
         aiProviderReset={{
           open: aiProviderResetOpen,
           onOpenChange: setAiProviderResetOpen,
-          onConfirm: async () => {
-            try {
-              await resetAiProvidersToPublic.mutateAsync({ confirm: true })
-              await aiProvidersQuery.refetch()
-              setAiProviderResetOpen(false)
-              toast.success(t("ai.resetSuccess"))
-            } catch (error) {
-              const message = error instanceof Error ? error.message : t("ai.resetFailed")
-              toast.error(message)
-            }
-          },
+          onConfirm: resetAiProviders,
         }}
         aiInstructionPanel={{
           aiInstructionDialogOpen,
@@ -1538,7 +1129,7 @@ export function ArticleList() {
           setAiInstructionAddOpen,
           aiInstructionEditOpen,
           aiInstructionEditing,
-          updateInstruction: (payload) => updateUserAiInstruction.mutateAsync(payload),
+          updateInstruction,
           refetchInstructions: aiInstructionQuery.refetch,
           aiInstructionAddOpen,
           publicAiInstructions,
@@ -1548,10 +1139,10 @@ export function ArticleList() {
           setAiInstructionAddModel,
           aiProviders: aiProvidersQuery.data ?? [],
           resolveProviderModels,
-          createFromPublic: (payload) => createUserAiInstructionFromPublic.mutateAsync(payload),
+          createFromPublic: createInstructionFromPublic,
           aiInstructionDeleteOpen,
           aiInstructionDeleteId,
-          deleteInstruction: (payload) => deleteUserAiInstruction.mutateAsync(payload),
+          deleteInstruction,
         }}
         shadowing={{
           open: shadowingDialogOpen,
