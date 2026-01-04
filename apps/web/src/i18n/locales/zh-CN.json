@@ -14,6 +14,7 @@
     "disabled": "已停用",
     "show": "显示",
     "hide": "隐藏",
+    "open": "打开",
     "updateFailed": "更新失败",
     "deleteFailed": "删除失败"
   },

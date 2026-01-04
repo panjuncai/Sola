@@ -47,6 +47,7 @@ export function ArticleList() {
   const [selectedIds, setSelectedIds] = React.useState<string[]>([])
   const inputRef = React.useRef<HTMLTextAreaElement>(null)
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false)
+  const [mobileToolbarOpen, setMobileToolbarOpen] = React.useState(false)
   const [activeArticleId, setActiveArticleId] = React.useState<string | null>(null)
   const [isCreating, setIsCreating] = React.useState(false)
   const [confirmOpen, setConfirmOpen] = React.useState(false)
@@ -57,6 +58,7 @@ export function ArticleList() {
   const [isLoopingTarget, setIsLoopingTarget] = React.useState(false)
   const [isLoopingSingle, setIsLoopingSingle] = React.useState(false)
   const [isLoopingShadowing, setIsLoopingShadowing] = React.useState(false)
+  const shadowingLoopRef = React.useRef(false)
   const [isClozeEnabled, setIsClozeEnabled] = React.useState(false)
   const [isRandomMode, setIsRandomMode] = React.useState(false)
   const [isCardMode, setIsCardMode] = React.useState(false)
@@ -70,6 +72,7 @@ export function ArticleList() {
   })
   const cardDragMovedRef = React.useRef(false)
   const cardPlayTokenRef = React.useRef(0)
+  const userSelectedRef = React.useRef(false)
   const [selectedSentenceId, setSelectedSentenceId] = React.useState<string | null>(
     null
   )
@@ -500,7 +503,7 @@ export function ArticleList() {
           ...current,
           sentences: current.sentences.map((sentence) =>
             sentence.id === sentenceId
-              ? { ...sentence, nativeText, targetText }
+              ? { ...sentence, nativeText, targetText: targetText ?? "" }
               : sentence
           ),
         }
@@ -739,7 +742,18 @@ export function ArticleList() {
   }, [detailQuery.data, isCardMode, activeArticleId])
 
   React.useEffect(() => {
-    if (!isRandomMode) return
+    shadowingLoopRef.current = isLoopingShadowing
+  }, [isLoopingShadowing])
+
+  React.useEffect(() => {
+    userSelectedRef.current = false
+  }, [activeArticleId])
+
+  React.useEffect(() => {
+    if (!isRandomMode) {
+      setIsCardMode(false)
+      return
+    }
     setIsCardMode(true)
     setCardIndex(0)
     setCardFlipped(false)
@@ -1113,12 +1127,14 @@ export function ArticleList() {
         audioRef.current.pause()
       }
       let retried = false
+      let started = false
       const play = (src: string) => {
         const audio = new Audio(src)
         audioRef.current = audio
         const cleanup = () => {
           audio.onended = null
           audio.onerror = null
+          audio.onplay = null
           if (objectUrl) {
             URL.revokeObjectURL(objectUrl)
             objectUrl = null
@@ -1130,6 +1146,10 @@ export function ArticleList() {
         }
         const fail = () => {
           cleanup()
+          if (started) {
+            resolve(true)
+            return
+          }
           if (objectUrl && !retried) {
             retried = true
             play(url)
@@ -1139,6 +1159,9 @@ export function ArticleList() {
         }
         audio.onended = finalize
         audio.onerror = fail
+        audio.onplay = () => {
+          started = true
+        }
         audio.play().catch(fail)
       }
 
@@ -1204,6 +1227,46 @@ export function ArticleList() {
     []
   )
 
+  const playWithShadowing = React.useCallback(
+    async (
+      sentence: PlaybackSentence,
+      role: "native" | "target",
+      repeatTimes: number,
+      token?: number
+    ) => {
+      const pauseMs = Math.max(0, Math.round(playbackPauseSeconds * 1000))
+      const speeds =
+        shadowingLoopRef.current && role === "target"
+          ? shadowingSpeeds.length > 0
+            ? shadowingSpeeds
+            : [1, 1, 1, 1]
+          : [1]
+      for (let i = 0; i < Math.max(1, repeatTimes); i += 1) {
+        for (const speed of speeds) {
+          if (token && loopTokenRef.current !== token) return false
+          setSelectedSentenceId(sentence.id)
+          setSelectedSentenceRole(role)
+          const ok = await playSentenceRole(
+            sentence,
+            role,
+            shadowingLoopRef.current && role === "target" ? speed : undefined
+          )
+          if (!ok) return false
+          if (pauseMs > 0) {
+            await waitMs(pauseMs)
+          }
+        }
+      }
+      return true
+    },
+    [
+      playbackPauseSeconds,
+      playSentenceRole,
+      shadowingSpeeds,
+      waitMs,
+    ]
+  )
+
   const startLoopAll = async () => {
     if (!detailQuery.data) return
     stopLoopPlayback()
@@ -1214,14 +1277,13 @@ export function ArticleList() {
 
     const sentences = detailQuery.data.sentences
     const startIndex =
-      selectedSentenceId != null
+      userSelectedRef.current && selectedSentenceId != null
         ? Math.max(
             0,
             sentences.findIndex((sentence) => sentence.id === selectedSentenceId)
           )
         : 0
     const orderSetting = displayOrderSetting ?? "native_first"
-    const pauseMs = Math.max(0, Math.round(playbackPauseSeconds * 1000))
 
     while (loopTokenRef.current === token) {
       for (let sIndex = startIndex; sIndex < sentences.length; sIndex += 1) {
@@ -1232,7 +1294,7 @@ export function ArticleList() {
           orderSetting === "native_first" ? ["native", "target"] : ["target", "native"]
         const isFirstSentence = sIndex === startIndex
         const orderedRoles =
-          isFirstSentence && selectedSentenceRole
+          userSelectedRef.current && isFirstSentence && selectedSentenceRole
             ? [
                 selectedSentenceRole,
                 ...order.filter((role) => role !== selectedSentenceRole),
@@ -1272,18 +1334,16 @@ export function ArticleList() {
 
           const repeatTimes =
             role === "native" ? playbackNativeRepeat : playbackTargetRepeat
-
-          for (let i = 0; i < Math.max(1, repeatTimes); i += 1) {
-            if (loopTokenRef.current !== token) break
-            const ok = await playSentenceRole(sentence, role as "native" | "target")
-            if (!ok) {
-              stopLoopPlayback()
-              toast.error(t("tts.audioPlayFailed"))
-              return
-            }
-            if (pauseMs > 0) {
-              await waitMs(pauseMs)
-            }
+          const ok = await playWithShadowing(
+            sentence,
+            role as "native" | "target",
+            repeatTimes,
+            token
+          )
+          if (!ok) {
+            stopLoopPlayback()
+            toast.error(t("tts.audioPlayFailed"))
+            return
           }
         }
         prefetch()
@@ -1301,14 +1361,12 @@ export function ArticleList() {
 
     const sentences = detailQuery.data.sentences
     const startIndex =
-      selectedSentenceId != null
+      userSelectedRef.current && selectedSentenceId != null
         ? Math.max(
             0,
             sentences.findIndex((sentence) => sentence.id === selectedSentenceId)
           )
         : 0
-    const pauseMs = Math.max(0, Math.round(playbackPauseSeconds * 1000))
-
     while (loopTokenRef.current === token) {
       for (let sIndex = startIndex; sIndex < sentences.length; sIndex += 1) {
         const sentence = sentences[sIndex]
@@ -1317,6 +1375,7 @@ export function ArticleList() {
         const isFirstSentence = sIndex === startIndex
         const shouldPlaySelectedFirst =
           isFirstSentence &&
+          userSelectedRef.current &&
           selectedSentenceRole === "native" &&
           sentence.nativeText &&
           sentence.nativeText.trim().length > 0
@@ -1343,28 +1402,29 @@ export function ArticleList() {
         }
 
         if (shouldPlaySelectedFirst) {
-          const ok = await playSentenceRole(sentence, "native")
+          const ok = await playWithShadowing(
+            sentence,
+            "native",
+            playbackNativeRepeat,
+            token
+          )
           if (!ok) {
             stopLoopPlayback()
             toast.error(t("tts.audioPlayFailed"))
             return
-          }
-          if (pauseMs > 0) {
-            await waitMs(pauseMs)
           }
         }
 
-        for (let i = 0; i < Math.max(1, playbackTargetRepeat); i += 1) {
-          if (loopTokenRef.current !== token) break
-          const ok = await playSentenceRole(sentence, "target")
-          if (!ok) {
-            stopLoopPlayback()
-            toast.error(t("tts.audioPlayFailed"))
-            return
-          }
-          if (pauseMs > 0) {
-            await waitMs(pauseMs)
-          }
+        const ok = await playWithShadowing(
+          sentence,
+          "target",
+          playbackTargetRepeat,
+          token
+        )
+        if (!ok) {
+          stopLoopPlayback()
+          toast.error(t("tts.audioPlayFailed"))
+          return
         }
 
         prefetch()
@@ -1390,36 +1450,40 @@ export function ArticleList() {
       return
     }
 
-    const pauseMs = Math.max(0, Math.round(playbackPauseSeconds * 1000))
     const repeatTimes =
       selectedSentenceRole === "native" ? playbackNativeRepeat : playbackTargetRepeat
 
     while (loopTokenRef.current === token) {
-      for (let i = 0; i < Math.max(1, repeatTimes); i += 1) {
-        if (loopTokenRef.current !== token) break
-        const ok = await playSentenceRole(sentence, selectedSentenceRole)
-        if (!ok) {
-          stopLoopPlayback()
-          toast.error(t("tts.audioPlayFailed"))
-          return
-        }
-        if (pauseMs > 0) {
-          await waitMs(pauseMs)
-        }
+      const ok = await playWithShadowing(
+        sentence,
+        selectedSentenceRole,
+        repeatTimes,
+        token
+      )
+      if (!ok) {
+        stopLoopPlayback()
+        toast.error(t("tts.audioPlayFailed"))
+        return
       }
     }
   }
 
   const startLoopShadowing = async () => {
     if (!detailQuery.data) return
+    if (isLoopingAll || isLoopingTarget || isLoopingSingle) {
+      setIsLoopingShadowing((prev) => !prev)
+      return
+    }
     stopLoopPlayback()
     const token = loopTokenRef.current + 1
     loopTokenRef.current = token
     setIsLoopingShadowing(true)
+    shadowingLoopRef.current = true
 
     const sentences = detailQuery.data.sentences
     if (sentences.length === 0) {
       setIsLoopingShadowing(false)
+      shadowingLoopRef.current = false
       return
     }
     const targetSentence =
@@ -1428,29 +1492,26 @@ export function ArticleList() {
         : sentences[0]
     if (!targetSentence) {
       setIsLoopingShadowing(false)
+      shadowingLoopRef.current = false
       return
     }
-    const role = selectedSentenceRole ?? "target"
+    const role =
+      targetSentence.targetText && targetSentence.targetText.trim().length > 0
+        ? "target"
+        : (selectedSentenceRole ?? "target")
     if (selectedSentenceId == null) {
       setSelectedSentenceId(targetSentence.id)
       setSelectedSentenceRole(role)
     }
-    const pauseMs = Math.max(0, Math.round(playbackPauseSeconds * 1000))
-    const speeds = shadowingSpeeds.length > 0 ? shadowingSpeeds : [1, 1, 1, 1]
-    for (const speed of speeds) {
-      if (loopTokenRef.current !== token) break
-      const ok = await playSentenceRole(targetSentence, role, speed)
-      if (!ok) {
-        stopLoopPlayback()
-        toast.error(t("tts.audioPlayFailed"))
-        return
-      }
-      if (pauseMs > 0) {
-        await waitMs(pauseMs)
-      }
+    const ok = await playWithShadowing(targetSentence, role, 1, token)
+    if (!ok) {
+      stopLoopPlayback()
+      toast.error(t("tts.audioPlayFailed"))
+      return
     }
     if (loopTokenRef.current === token) {
       setIsLoopingShadowing(false)
+      shadowingLoopRef.current = false
     }
   }
 
@@ -2261,199 +2322,635 @@ export function ArticleList() {
                 </div>
               ) : detailQuery.data ? (
                 <div className="space-y-4">
-                  <div className="sticky top-0 z-30 -mx-4 md:-mx-12 mb-4 border-b bg-background/95 px-4 md:px-12 py-2 backdrop-blur">
-                    <div className="flex items-center justify-center gap-2">
-                      <Button
-                        type="button"
-                        variant={isLoopingAll ? "secondary" : "outline"}
-                        aria-label={t("article.loopAll")}
-                        onClick={() => {
-                          if (isLoopingAll) stopLoopPlayback()
-                          else startLoopAll()
-                        }}
-                      >
-                        🔁
-                      </Button>
-                      <Button
-                        type="button"
-                        variant={isLoopingTarget ? "secondary" : "outline"}
-                        aria-label={t("article.loopTarget")}
-                        onClick={() => {
-                          if (isLoopingTarget) stopLoopPlayback()
-                          else startLoopTarget()
-                        }}
-                      >
-                        🟠
-                      </Button>
-                      <Button
-                        type="button"
-                        variant={isLoopingSingle ? "secondary" : "outline"}
-                        aria-label={t("article.loopSingle")}
-                        onClick={() => {
-                          if (isLoopingSingle) stopLoopPlayback()
-                          else startLoopSingle()
-                        }}
-                      >
-                        🔂
-                      </Button>
-                      <Button
-                        type="button"
-                        variant={isLoopingShadowing ? "secondary" : "outline"}
-                        aria-label={t("article.shadowing")}
-                        onClick={() => {
-                          if (isLoopingShadowing) stopLoopPlayback()
-                          else startLoopShadowing()
-                        }}
-                      >
-                        🌫️
-                      </Button>
-                      <Button
-                        type="button"
-                        variant={isClozeEnabled ? "secondary" : "outline"}
-                        aria-label={t("article.clozePractice")}
-                        onClick={() => setIsClozeEnabled((prev) => !prev)}
-                      >
-                        🕳️
-                      </Button>
-                      <button
-                        type="button"
-                        className="flex items-center text-xs text-muted-foreground"
-                        aria-label={t("article.randomMode")}
-                        onClick={() => setIsRandomMode((prev) => !prev)}
-                      >
-                        <span
-                          className={cn(
-                            "relative h-7 w-12 rounded-full border transition",
-                            isRandomMode ? "bg-primary/80" : "bg-muted"
-                          )}
-                        >
-                          <span
+                  <div className="hidden md:block">
+                    <div className="fixed top-0 left-0 right-0 md:left-72 z-40 border-b bg-background/95 px-4 md:px-12 py-2 backdrop-blur">
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="flex items-center justify-center gap-2 rounded-full bg-muted/40 px-3 py-2 shadow-sm">
+                          <Button
+                            type="button"
+                            variant={isLoopingAll ? "secondary" : "outline"}
+                            aria-label={t("article.loopAll")}
                             className={cn(
-                              "absolute top-0.5 h-6 w-6 rounded-full bg-background shadow transition",
-                              isRandomMode ? "left-5" : "left-1"
+                              "relative h-9 w-9 rounded-full p-0 group",
+                              isLoopingAll &&
+                                "bg-primary text-primary-foreground shadow-md ring-2 ring-primary/30"
                             )}
-                          />
-                        </span>
-                      </button>
-                      <button
-                        type="button"
-                        className="flex items-center text-xs text-muted-foreground"
-                        aria-label={t("article.cardMode")}
-                        onClick={() => setIsCardMode((prev) => !prev)}
-                      >
-                        <span
-                          className={cn(
-                            "relative h-7 w-12 rounded-full border transition",
-                            isCardMode ? "bg-primary/80" : "bg-muted"
-                          )}
-                        >
-                          <span
-                            className={cn(
-                              "absolute top-0.5 h-6 w-6 rounded-full bg-background shadow transition",
-                              isCardMode ? "left-5" : "left-1"
-                            )}
-                          />
-                        </span>
-                      </button>
-                      <button
-                        type="button"
-                        className={cn(
-                          "relative h-8 w-12 rounded-full border transition",
-                          blurTarget ? "bg-primary/80" : "bg-muted"
-                        )}
-                        onClick={() => setBlurTarget((prev) => !prev)}
-                        aria-label={t("article.maskTarget")}
-                      >
-                        <span
-                          className={cn(
-                            "absolute top-1 h-6 w-6 rounded-full bg-background shadow transition",
-                            blurTarget ? "left-5" : "left-1"
-                          )}
-                        />
-                      </button>
-                      <button
-                        type="button"
-                        className={cn(
-                          "relative h-8 w-12 rounded-full border transition",
-                          blurNative ? "bg-primary/80" : "bg-muted"
-                        )}
-                        onClick={() => setBlurNative((prev) => !prev)}
-                        aria-label={t("article.maskNative")}
-                      >
-                        <span
-                          className={cn(
-                            "absolute top-1 h-6 w-6 rounded-full bg-background shadow transition",
-                            blurNative ? "left-5" : "left-1"
-                          )}
-                        />
-                      </button>
-                    </div>
-                    <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
-                      {aiInstructionGroups.length === 0 ? (
-                        <span className="text-xs text-muted-foreground">
-                          {t("ai.noInstructions")}
-                        </span>
-                      ) : (
-                        aiInstructionGroups.map(([type, items]) => (
-                          <div
-                            key={type}
-                            className="flex flex-wrap items-center gap-1.5 rounded-full bg-muted/40 px-2 py-1"
+                            onClick={() => {
+                              if (isLoopingAll) stopLoopPlayback()
+                              else startLoopAll()
+                            }}
                           >
-                            <span className="text-[11px] font-medium text-muted-foreground">
-                              {resolveInstructionLabel(
-                                type as "translate" | "explain" | "custom"
-                              )}
+                            <svg
+                              aria-hidden="true"
+                              viewBox="0 0 24 24"
+                              className="h-4 w-4"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="1.8"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <path d="M3 12a9 9 0 0 1 15.5-6.4" />
+                              <path d="M18.5 5.6H21V3" />
+                              <path d="M21 12a9 9 0 0 1-15.5 6.4" />
+                              <path d="M5.5 18.4H3V21" />
+                            </svg>
+                            <span className="pointer-events-none absolute -bottom-10 left-1/2 z-50 -translate-x-1/2 whitespace-nowrap rounded-full bg-foreground px-2 py-0.5 text-[10px] font-medium text-background opacity-0 shadow-md transition-opacity group-hover:opacity-100">
+                              {t("article.loopAll")}
                             </span>
-                            {items.map((instruction) => (
-                              <Button
-                                key={instruction.id}
-                                type="button"
-                                variant={
-                                  aiProgress?.running &&
-                                  aiProgress.instructionId === instruction.id
-                                    ? "secondary"
-                                    : "outline"
+                          </Button>
+                          <Button
+                            type="button"
+                            variant={isLoopingTarget ? "secondary" : "outline"}
+                            aria-label={t("article.loopTarget")}
+                            className={cn(
+                              "relative h-9 w-9 rounded-full p-0 group",
+                              isLoopingTarget &&
+                                "bg-primary text-primary-foreground shadow-md ring-2 ring-primary/30"
+                            )}
+                            onClick={() => {
+                              if (isLoopingTarget) stopLoopPlayback()
+                              else startLoopTarget()
+                            }}
+                          >
+                            <svg
+                              aria-hidden="true"
+                              viewBox="0 0 24 24"
+                              className="h-4 w-4"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="1.8"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <circle cx="12" cy="12" r="7" />
+                              <path d="M12 5v2" />
+                              <circle cx="12" cy="12" r="2.5" />
+                            </svg>
+                            <span className="pointer-events-none absolute -bottom-10 left-1/2 z-50 -translate-x-1/2 whitespace-nowrap rounded-full bg-foreground px-2 py-0.5 text-[10px] font-medium text-background opacity-0 shadow-md transition-opacity group-hover:opacity-100">
+                              {t("article.loopTarget")}
+                            </span>
+                          </Button>
+                          <Button
+                            type="button"
+                            variant={isLoopingSingle ? "secondary" : "outline"}
+                            aria-label={t("article.loopSingle")}
+                            className={cn(
+                              "relative h-9 w-9 rounded-full p-0 group",
+                              isLoopingSingle &&
+                                "bg-primary text-primary-foreground shadow-md ring-2 ring-primary/30"
+                            )}
+                            onClick={() => {
+                              if (isLoopingSingle) stopLoopPlayback()
+                              else startLoopSingle()
+                            }}
+                          >
+                            <svg
+                              aria-hidden="true"
+                              viewBox="0 0 24 24"
+                              className="h-4 w-4"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="1.8"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <path d="M4 7h9a4 4 0 0 1 4 4v6" />
+                              <path d="M7 10 4 7l3-3" />
+                              <path d="M20 17H11a4 4 0 0 1-4-4V7" />
+                              <path d="M17 14l3 3-3 3" />
+                            </svg>
+                            <span className="pointer-events-none absolute -bottom-10 left-1/2 z-50 -translate-x-1/2 whitespace-nowrap rounded-full bg-foreground px-2 py-0.5 text-[10px] font-medium text-background opacity-0 shadow-md transition-opacity group-hover:opacity-100">
+                              {t("article.loopSingle")}
+                            </span>
+                          </Button>
+                          <Button
+                            type="button"
+                            variant={isLoopingShadowing ? "secondary" : "outline"}
+                            aria-label={t("article.shadowing")}
+                            className={cn(
+                              "relative h-9 w-9 rounded-full p-0 group",
+                              isLoopingShadowing &&
+                                "bg-primary text-primary-foreground shadow-md ring-2 ring-primary/30"
+                            )}
+                            onClick={() => {
+                              if (isLoopingShadowing) {
+                                setIsLoopingShadowing(false)
+                                if (
+                                  !isLoopingAll &&
+                                  !isLoopingTarget &&
+                                  !isLoopingSingle
+                                ) {
+                                  stopLoopPlayback()
                                 }
-                                className="h-7 px-2 text-xs"
-                                onClick={() => {
-                                  startAiTranslation(instruction.id, false)
-                                }}
-                              >
-                                {instruction.name}
-                              </Button>
-                            ))}
-                          </div>
-                        ))
-                      )}
-                      {aiProgress ? (
-                        <span className="text-xs text-muted-foreground">
-                          {t("ai.translationProgress", {
-                            completed: aiProgress.completed,
-                            total: aiProgress.total,
-                          })}
-                        </span>
-                      ) : null}
-                      {aiProgress?.running ? (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="h-7 px-2 text-xs"
-                          onClick={cancelAiTranslation}
-                        >
-                          {t("ai.cancel")}
-                        </Button>
-                      ) : null}
-                      {!aiProgress?.running && missingNativeCount > 0 ? (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="h-7 px-2 text-xs"
-                          onClick={retryMissingTranslations}
-                        >
-                          {t("ai.retryMissing")}
-                        </Button>
-                      ) : null}
+                              } else {
+                                startLoopShadowing()
+                              }
+                            }}
+                          >
+                            <svg
+                              aria-hidden="true"
+                              viewBox="0 0 24 24"
+                              className="h-4 w-4"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="1.8"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <path d="M3 16c3.5 0 3.5-4 7-4s3.5 4 7 4 3.5-4 7-4" />
+                              <path d="M3 20c3.5 0 3.5-4 7-4s3.5 4 7 4 3.5-4 7-4" />
+                            </svg>
+                            <span className="pointer-events-none absolute -bottom-10 left-1/2 z-50 -translate-x-1/2 whitespace-nowrap rounded-full bg-foreground px-2 py-0.5 text-[10px] font-medium text-background opacity-0 shadow-md transition-opacity group-hover:opacity-100">
+                              {t("article.shadowing")}
+                            </span>
+                          </Button>
+                        </div>
+                        <div className="flex flex-wrap items-center justify-center gap-3 text-[11px] text-muted-foreground">
+                          <button
+                            type="button"
+                            className="flex items-center gap-2"
+                            aria-label={t("article.randomMode")}
+                            onClick={() => setIsRandomMode((prev) => !prev)}
+                          >
+                            <span
+                              className={cn(
+                                "relative h-7 w-12 rounded-full border transition",
+                                isRandomMode ? "bg-primary/80" : "bg-muted"
+                              )}
+                            >
+                              <span
+                                className={cn(
+                                  "absolute top-0.5 h-6 w-6 rounded-full bg-background shadow transition",
+                                  isRandomMode ? "left-5" : "left-1"
+                                )}
+                              />
+                            </span>
+                            <span>{t("article.randomMode")}</span>
+                          </button>
+                          <button
+                            type="button"
+                            className="flex items-center gap-2"
+                            aria-label={t("article.cardMode")}
+                            onClick={() => setIsCardMode((prev) => !prev)}
+                          >
+                            <span
+                              className={cn(
+                                "relative h-7 w-12 rounded-full border transition",
+                                isCardMode ? "bg-primary/80" : "bg-muted"
+                              )}
+                            >
+                              <span
+                                className={cn(
+                                  "absolute top-0.5 h-6 w-6 rounded-full bg-background shadow transition",
+                                  isCardMode ? "left-5" : "left-1"
+                                )}
+                              />
+                            </span>
+                            <span>{t("article.cardMode")}</span>
+                          </button>
+                          <button
+                            type="button"
+                            className="flex items-center gap-2"
+                            aria-label={t("article.clozePractice")}
+                            onClick={() => setIsClozeEnabled((prev) => !prev)}
+                          >
+                            <span
+                              className={cn(
+                                "relative h-7 w-12 rounded-full border transition",
+                                isClozeEnabled ? "bg-primary/80" : "bg-muted"
+                              )}
+                            >
+                              <span
+                                className={cn(
+                                  "absolute top-0.5 h-6 w-6 rounded-full bg-background shadow transition",
+                                  isClozeEnabled ? "left-5" : "left-1"
+                                )}
+                              />
+                            </span>
+                            <span>{t("article.clozePractice")}</span>
+                          </button>
+                          <button
+                            type="button"
+                            className="flex items-center gap-2"
+                            onClick={() => setBlurTarget((prev) => !prev)}
+                            aria-label={t("article.maskTarget")}
+                          >
+                            <span
+                              className={cn(
+                                "relative h-8 w-12 rounded-full border transition",
+                                blurTarget ? "bg-primary/80" : "bg-muted"
+                              )}
+                            >
+                              <span
+                                className={cn(
+                                  "absolute top-1 h-6 w-6 rounded-full bg-background shadow transition",
+                                  blurTarget ? "left-5" : "left-1"
+                                )}
+                              />
+                            </span>
+                            <span>{t("article.maskTarget")}</span>
+                          </button>
+                          <button
+                            type="button"
+                            className="flex items-center gap-2"
+                            onClick={() => setBlurNative((prev) => !prev)}
+                            aria-label={t("article.maskNative")}
+                          >
+                            <span
+                              className={cn(
+                                "relative h-8 w-12 rounded-full border transition",
+                                blurNative ? "bg-primary/80" : "bg-muted"
+                              )}
+                            >
+                              <span
+                                className={cn(
+                                  "absolute top-1 h-6 w-6 rounded-full bg-background shadow transition",
+                                  blurNative ? "left-5" : "left-1"
+                                )}
+                              />
+                            </span>
+                            <span>{t("article.maskNative")}</span>
+                          </button>
+                        </div>
+                      </div>
+                      <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
+                        {aiInstructionGroups.length === 0 ? (
+                          <span className="text-xs text-muted-foreground">
+                            {t("ai.noInstructions")}
+                          </span>
+                        ) : (
+                          aiInstructionGroups.map(([type, items]) => (
+                            <div
+                              key={type}
+                              className="flex flex-wrap items-center gap-1.5 rounded-full bg-muted/40 px-2 py-1"
+                            >
+                              <span className="text-[11px] font-medium text-muted-foreground">
+                                {resolveInstructionLabel(
+                                  type as "translate" | "explain" | "custom"
+                                )}
+                              </span>
+                              {items.map((instruction) => (
+                                <Button
+                                  key={instruction.id}
+                                  type="button"
+                                  variant={
+                                    aiProgress?.running &&
+                                    aiProgress.instructionId === instruction.id
+                                      ? "secondary"
+                                      : "outline"
+                                  }
+                                  className="h-7 px-2 text-xs"
+                                  onClick={() => {
+                                    startAiTranslation(instruction.id, false)
+                                  }}
+                                >
+                                  {instruction.name}
+                                </Button>
+                              ))}
+                            </div>
+                          ))
+                        )}
+                        {aiProgress ? (
+                          <span className="text-xs text-muted-foreground">
+                            {t("ai.translationProgress", {
+                              completed: aiProgress.completed,
+                              total: aiProgress.total,
+                            })}
+                          </span>
+                        ) : null}
+                        {aiProgress?.running ? (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="h-7 px-2 text-xs"
+                            onClick={cancelAiTranslation}
+                          >
+                            {t("ai.cancel")}
+                          </Button>
+                        ) : null}
+                        {!aiProgress?.running && missingNativeCount > 0 ? (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="h-7 px-2 text-xs"
+                            onClick={retryMissingTranslations}
+                          >
+                            {t("ai.retryMissing")}
+                          </Button>
+                        ) : null}
+                      </div>
                     </div>
+                    <div className="h-28 md:h-24" />
+                  </div>
+                  <div className="md:hidden">
+                    <button
+                      type="button"
+                      className="fixed bottom-6 right-4 z-50 flex h-12 w-12 items-center justify-center rounded-full bg-foreground text-background shadow-lg"
+                      onClick={() => setMobileToolbarOpen((prev) => !prev)}
+                      aria-label={t("common.open")}
+                    >
+                      <svg
+                        aria-hidden="true"
+                        viewBox="0 0 24 24"
+                        className="h-5 w-5"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M4 12h16" />
+                        <path d="M12 4v16" />
+                      </svg>
+                    </button>
+                    {mobileToolbarOpen ? (
+                      <div className="fixed bottom-20 right-4 z-50 w-[min(92vw,320px)] rounded-2xl border bg-background/95 p-3 shadow-2xl backdrop-blur">
+                        <div className="flex flex-col gap-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-medium text-muted-foreground">
+                              {t("article.loopAll")}
+                            </span>
+                            <button
+                              type="button"
+                              className="text-xs text-muted-foreground"
+                              onClick={() => setMobileToolbarOpen(false)}
+                            >
+                              {t("common.close")}
+                            </button>
+                          </div>
+                          <div className="flex items-center justify-center gap-2 rounded-full bg-muted/40 px-3 py-2">
+                            <Button
+                              type="button"
+                              variant={isLoopingAll ? "secondary" : "outline"}
+                              aria-label={t("article.loopAll")}
+                              className={cn(
+                                "h-9 w-9 rounded-full p-0",
+                                isLoopingAll &&
+                                  "bg-primary text-primary-foreground shadow-md ring-2 ring-primary/30"
+                              )}
+                              onClick={() => {
+                                if (isLoopingAll) stopLoopPlayback()
+                                else startLoopAll()
+                              }}
+                            >
+                              <svg
+                                aria-hidden="true"
+                                viewBox="0 0 24 24"
+                                className="h-4 w-4"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="1.8"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              >
+                                <path d="M3 12a9 9 0 0 1 15.5-6.4" />
+                                <path d="M18.5 5.6H21V3" />
+                                <path d="M21 12a9 9 0 0 1-15.5 6.4" />
+                                <path d="M5.5 18.4H3V21" />
+                              </svg>
+                            </Button>
+                            <Button
+                              type="button"
+                              variant={isLoopingTarget ? "secondary" : "outline"}
+                              aria-label={t("article.loopTarget")}
+                              className={cn(
+                                "h-9 w-9 rounded-full p-0",
+                                isLoopingTarget &&
+                                  "bg-primary text-primary-foreground shadow-md ring-2 ring-primary/30"
+                              )}
+                              onClick={() => {
+                                if (isLoopingTarget) stopLoopPlayback()
+                                else startLoopTarget()
+                              }}
+                            >
+                              <svg
+                                aria-hidden="true"
+                                viewBox="0 0 24 24"
+                                className="h-4 w-4"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="1.8"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              >
+                                <circle cx="12" cy="12" r="7" />
+                                <path d="M12 5v2" />
+                                <circle cx="12" cy="12" r="2.5" />
+                              </svg>
+                            </Button>
+                            <Button
+                              type="button"
+                              variant={isLoopingSingle ? "secondary" : "outline"}
+                              aria-label={t("article.loopSingle")}
+                              className={cn(
+                                "h-9 w-9 rounded-full p-0",
+                                isLoopingSingle &&
+                                  "bg-primary text-primary-foreground shadow-md ring-2 ring-primary/30"
+                              )}
+                              onClick={() => {
+                                if (isLoopingSingle) stopLoopPlayback()
+                                else startLoopSingle()
+                              }}
+                            >
+                              <svg
+                                aria-hidden="true"
+                                viewBox="0 0 24 24"
+                                className="h-4 w-4"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="1.8"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              >
+                                <path d="M4 7h9a4 4 0 0 1 4 4v6" />
+                                <path d="M7 10 4 7l3-3" />
+                                <path d="M20 17H11a4 4 0 0 1-4-4V7" />
+                                <path d="M17 14l3 3-3 3" />
+                              </svg>
+                            </Button>
+                            <Button
+                              type="button"
+                              variant={isLoopingShadowing ? "secondary" : "outline"}
+                              aria-label={t("article.shadowing")}
+                              className={cn(
+                                "h-9 w-9 rounded-full p-0",
+                                isLoopingShadowing &&
+                                  "bg-primary text-primary-foreground shadow-md ring-2 ring-primary/30"
+                              )}
+                              onClick={() => {
+                                if (isLoopingShadowing) {
+                                  setIsLoopingShadowing(false)
+                                  if (
+                                    !isLoopingAll &&
+                                    !isLoopingTarget &&
+                                    !isLoopingSingle
+                                  ) {
+                                    stopLoopPlayback()
+                                  }
+                                } else {
+                                  startLoopShadowing()
+                                }
+                              }}
+                            >
+                              <svg
+                                aria-hidden="true"
+                                viewBox="0 0 24 24"
+                                className="h-4 w-4"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="1.8"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              >
+                                <path d="M3 16c3.5 0 3.5-4 7-4s3.5 4 7 4 3.5-4 7-4" />
+                                <path d="M3 20c3.5 0 3.5-4 7-4s3.5 4 7 4 3.5-4 7-4" />
+                              </svg>
+                            </Button>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                            <button
+                              type="button"
+                              className="flex items-center gap-2"
+                              onClick={() => setIsRandomMode((prev) => !prev)}
+                            >
+                              <span
+                                className={cn(
+                                  "relative h-7 w-12 rounded-full border transition",
+                                  isRandomMode ? "bg-primary/80" : "bg-muted"
+                                )}
+                              >
+                                <span
+                                  className={cn(
+                                    "absolute top-0.5 h-6 w-6 rounded-full bg-background shadow transition",
+                                    isRandomMode ? "left-5" : "left-1"
+                                  )}
+                                />
+                              </span>
+                              <span>{t("article.randomMode")}</span>
+                            </button>
+                            <button
+                              type="button"
+                              className="flex items-center gap-2"
+                              onClick={() => setIsCardMode((prev) => !prev)}
+                            >
+                              <span
+                                className={cn(
+                                  "relative h-7 w-12 rounded-full border transition",
+                                  isCardMode ? "bg-primary/80" : "bg-muted"
+                                )}
+                              >
+                                <span
+                                  className={cn(
+                                    "absolute top-0.5 h-6 w-6 rounded-full bg-background shadow transition",
+                                    isCardMode ? "left-5" : "left-1"
+                                  )}
+                                />
+                              </span>
+                              <span>{t("article.cardMode")}</span>
+                            </button>
+                            <button
+                              type="button"
+                              className="flex items-center gap-2"
+                              onClick={() => setIsClozeEnabled((prev) => !prev)}
+                            >
+                              <span
+                                className={cn(
+                                  "relative h-7 w-12 rounded-full border transition",
+                                  isClozeEnabled ? "bg-primary/80" : "bg-muted"
+                                )}
+                              >
+                                <span
+                                  className={cn(
+                                    "absolute top-0.5 h-6 w-6 rounded-full bg-background shadow transition",
+                                    isClozeEnabled ? "left-5" : "left-1"
+                                  )}
+                                />
+                              </span>
+                              <span>{t("article.clozePractice")}</span>
+                            </button>
+                            <button
+                              type="button"
+                              className="flex items-center gap-2"
+                              onClick={() => setBlurTarget((prev) => !prev)}
+                            >
+                              <span
+                                className={cn(
+                                  "relative h-8 w-12 rounded-full border transition",
+                                  blurTarget ? "bg-primary/80" : "bg-muted"
+                                )}
+                              >
+                                <span
+                                  className={cn(
+                                    "absolute top-1 h-6 w-6 rounded-full bg-background shadow transition",
+                                    blurTarget ? "left-5" : "left-1"
+                                  )}
+                                />
+                              </span>
+                              <span>{t("article.maskTarget")}</span>
+                            </button>
+                            <button
+                              type="button"
+                              className="flex items-center gap-2"
+                              onClick={() => setBlurNative((prev) => !prev)}
+                            >
+                              <span
+                                className={cn(
+                                  "relative h-8 w-12 rounded-full border transition",
+                                  blurNative ? "bg-primary/80" : "bg-muted"
+                                )}
+                              >
+                                <span
+                                  className={cn(
+                                    "absolute top-1 h-6 w-6 rounded-full bg-background shadow transition",
+                                    blurNative ? "left-5" : "left-1"
+                                  )}
+                                />
+                              </span>
+                              <span>{t("article.maskNative")}</span>
+                            </button>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            {aiInstructionGroups.length === 0 ? (
+                              <span className="text-xs text-muted-foreground">
+                                {t("ai.noInstructions")}
+                              </span>
+                            ) : (
+                              aiInstructionGroups.map(([type, items]) => (
+                                <div
+                                  key={type}
+                                  className="flex flex-wrap items-center gap-1.5 rounded-full bg-muted/40 px-2 py-1"
+                                >
+                                  <span className="text-[11px] font-medium text-muted-foreground">
+                                    {resolveInstructionLabel(
+                                      type as "translate" | "explain" | "custom"
+                                    )}
+                                  </span>
+                                  {items.map((instruction) => (
+                                    <Button
+                                      key={instruction.id}
+                                      type="button"
+                                      variant={
+                                        aiProgress?.running &&
+                                        aiProgress.instructionId === instruction.id
+                                          ? "secondary"
+                                          : "outline"
+                                      }
+                                      className="h-7 px-2 text-xs"
+                                      onClick={() => {
+                                        startAiTranslation(instruction.id, false)
+                                      }}
+                                    >
+                                      {instruction.name}
+                                    </Button>
+                                  ))}
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                   <div className="space-y-4">
                     {detailQuery.data.sentences.length === 0 ? (
@@ -2659,6 +3156,7 @@ export function ArticleList() {
                                       tabIndex={0}
                                       onClick={() => {
                                         stopLoopPlayback()
+                                        userSelectedRef.current = true
                                         setSelectedSentenceId(sentence.id)
                                         setSelectedSentenceRole(item.role)
                                         if (isTarget && isClozeEnabled) {
@@ -2685,6 +3183,7 @@ export function ArticleList() {
                                         if (event.key === "Enter" || event.key === " ") {
                                           event.preventDefault()
                                           stopLoopPlayback()
+                                          userSelectedRef.current = true
                                           setSelectedSentenceId(sentence.id)
                                           setSelectedSentenceRole(item.role)
                                           if (isTarget && isClozeEnabled) {
@@ -2864,14 +3363,7 @@ export function ArticleList() {
                     )}
                   </div>
                 </div>
-                  ) : (
-                    <div className="text-center space-y-2">
-                      <h1 className="text-3xl font-semibold">{t("article.heroTitle")}</h1>
-                      <p className="text-sm text-muted-foreground">
-                        {t("article.heroSubtitle")}
-                  </p>
-                </div>
-              )}
+              ) : null}
 
               {showCreate ? (
                 <>

@@ -14,6 +14,7 @@
     "disabled": "Désactivé",
     "show": "Afficher",
     "hide": "Masquer",
+    "open": "Ouvrir",
     "updateFailed": "Mise à jour échouée",
     "deleteFailed": "Suppression échouée"
   },

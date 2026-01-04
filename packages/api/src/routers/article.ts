@@ -338,7 +338,9 @@ export const articleRouter = router({
       const nextNative =
         input.nativeText !== undefined ? input.nativeText.trim() || null : sentence.nativeText
       const nextTarget =
-        input.targetText !== undefined ? input.targetText.trim() || null : sentence.targetText
+        input.targetText !== undefined
+          ? input.targetText.trim() || ""
+          : sentence.targetText
 
       const changed =
         nextNative !== sentence.nativeText || nextTarget !== sentence.targetText

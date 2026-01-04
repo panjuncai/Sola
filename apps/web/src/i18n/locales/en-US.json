@@ -14,6 +14,7 @@
     "disabled": "Disabled",
     "show": "Show",
     "hide": "Hide",
+    "open": "Open",
     "updateFailed": "Update failed",
     "deleteFailed": "Delete failed"
   },

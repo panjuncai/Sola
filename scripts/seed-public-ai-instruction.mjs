@@ -55,42 +55,88 @@ const instruction = {
   isDefault: 1,
 }
 
+const explainInstruction = {
+  name: "法语词汇",
+  instructionType: "explain",
+  systemPrompt:
+    "You are a French language expert.",
+  userPromptTemplate:
+    `Explain the target French word or phrase in {{native_language}}.
+
+Strict Constraints:
+
+Language: The explanation must be written in {{native_language}}.
+
+Noun Format: {{native_language}}翻译 + (阳性名词/阴性名词：记忆诀窍).
+
+Adjective Format: {{native_language}}翻译 + (阳性形容词/阴性形容词).
+
+Verb Format: {{native_language}}翻译 + (动词).
+
+Memory Tip (Crucial): Create a mnemonic that logically or visually connects the word's meaning to its gender. For example, associate masculine nouns with "strength/sun/blue" and feminine nouns with "nature/beauty/pink" or specific letter patterns.
+
+Conciseness: Keep it brief and scannable.
+
+Return Example:
+注意、小心（阴性名词：法语中以 -tion 结尾的单词几乎全是阴性。可以想象一位“女性”在细心地观察每一个细节）
+
+Now The Given French Text is:
+{{target_text}}
+
+Return a concise native-language explanation in the requested format.`,
+  inputSchemaJson: JSON.stringify({
+    target_text: "string",
+    native_language: "string",
+  }),
+  outputSchemaJson: JSON.stringify({
+    explanation: "string",
+  }),
+  enabled: 1,
+  isDefault: 1,
+}
+
 const selectStmt = db.prepare(
   "SELECT id FROM public_ai_instruction WHERE instruction_type = ? LIMIT 1"
 )
-const existing = selectStmt.get(instruction.instructionType)
-if (existing?.id) {
-  db.prepare(
-    `UPDATE public_ai_instruction
-     SET name = ?, system_prompt = ?, user_prompt_template = ?, input_schema_json = ?, output_schema_json = ?, enabled = 1, is_default = 1, updated_at = ?
-     WHERE id = ?`
-  ).run(
-    instruction.name,
-    instruction.systemPrompt,
-    instruction.userPromptTemplate,
-    instruction.inputSchemaJson,
-    instruction.outputSchemaJson,
-    now,
-    existing.id
-  )
-  console.log("updated translate instruction")
-} else {
-  db.prepare(
-    `INSERT INTO public_ai_instruction
-     (id, name, instruction_type, system_prompt, user_prompt_template, input_schema_json, output_schema_json, enabled, is_default, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).run(
-    crypto.randomUUID(),
-    instruction.name,
-    instruction.instructionType,
-    instruction.systemPrompt,
-    instruction.userPromptTemplate,
-    instruction.inputSchemaJson,
-    instruction.outputSchemaJson,
-    instruction.enabled,
-    instruction.isDefault,
-    now,
-    now
-  )
-  console.log("inserted translate instruction")
+const upsertInstruction = (item, label) => {
+  const existing = selectStmt.get(item.instructionType)
+  if (existing?.id) {
+    db.prepare(
+      `UPDATE public_ai_instruction
+       SET name = ?, system_prompt = ?, user_prompt_template = ?, input_schema_json = ?, output_schema_json = ?, enabled = 1, is_default = ?, updated_at = ?
+       WHERE id = ?`
+    ).run(
+      item.name,
+      item.systemPrompt,
+      item.userPromptTemplate,
+      item.inputSchemaJson,
+      item.outputSchemaJson,
+      item.isDefault,
+      now,
+      existing.id
+    )
+    console.log(`updated ${label} instruction`)
+  } else {
+    db.prepare(
+      `INSERT INTO public_ai_instruction
+       (id, name, instruction_type, system_prompt, user_prompt_template, input_schema_json, output_schema_json, enabled, is_default, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(
+      crypto.randomUUID(),
+      item.name,
+      item.instructionType,
+      item.systemPrompt,
+      item.userPromptTemplate,
+      item.inputSchemaJson,
+      item.outputSchemaJson,
+      item.enabled,
+      item.isDefault,
+      now,
+      now
+    )
+    console.log(`inserted ${label} instruction`)
+  }
 }
+
+upsertInstruction(instruction, "translate")
+upsertInstruction(explainInstruction, "explain")
