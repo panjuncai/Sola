@@ -23,6 +23,7 @@ import { DialogsContainer } from "@/components/article/DialogsContainer"
 import { usePlayback } from "@/hooks/usePlayback"
 import { useSettingsDialogs } from "@/hooks/useSettingsDialogs"
 import { ArticleProviders } from "@/components/article/ArticleProviders"
+import { useArticleDialogsActions } from "@/atoms/articleDialogs"
 
 function deriveTitle(content: string) {
   return content.trim().slice(0, 10)
@@ -48,7 +49,6 @@ export function ArticleListPage() {
     deleteTargets,
     toggleSelected,
     deleteMutation,
-    setConfirmOpen,
   } = articlesState
   const {
     uiLanguage,
@@ -148,6 +148,7 @@ export function ArticleListPage() {
     t,
     anySettingsDialogOpen,
   })
+  const { setBulkDeleteOpen } = useArticleDialogsActions()
 
   const clearSentenceSelection = React.useCallback(
     (sentenceId: string) => {
@@ -229,7 +230,7 @@ export function ArticleListPage() {
       setIsCreating,
       setMobileMenuOpen,
       setActiveArticleId,
-      setConfirmOpen,
+      setConfirmOpen: setBulkDeleteOpen,
       deleteTargetsLength: deleteTargets.length,
       deleteLoading: deleteMutation.isLoading,
     })

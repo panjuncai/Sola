@@ -1,5 +1,4 @@
-import * as React from "react"
-import type { TFunction } from "i18next"
+import { useTranslation } from "react-i18next"
 
 import {
   Button,
@@ -12,32 +11,22 @@ import {
   DialogTitle,
 } from "@sola/ui"
 
-type TranslateFn = TFunction<"translation">
+import { useArticleDialogsActions, useArticleDialogsState } from "@/atoms/articleDialogs"
+import { useArticlesContext } from "@/hooks/useArticles"
 
-type ArticleBulkDeleteDialogProps = {
-  t: TranslateFn
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  deleteCount: number
-  isLoading: boolean
-  onConfirm: () => void
-}
+export const ArticleBulkDeleteDialog = () => {
+  const { t } = useTranslation()
+  const { bulkDeleteOpen } = useArticleDialogsState()
+  const { setBulkDeleteOpen } = useArticleDialogsActions()
+  const { deleteTargets, deleteMutation } = useArticlesContext()
 
-export const ArticleBulkDeleteDialog: React.FC<ArticleBulkDeleteDialogProps> = ({
-  t,
-  open,
-  onOpenChange,
-  deleteCount,
-  isLoading,
-  onConfirm,
-}) => {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{t("article.confirmDeleteTitle")}</DialogTitle>
           <DialogDescription>
-            {t("article.confirmDeleteDesc", { count: deleteCount })}
+            {t("article.confirmDeleteDesc", { count: deleteTargets.length })}
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="gap-2 sm:gap-2">
@@ -49,8 +38,18 @@ export const ArticleBulkDeleteDialog: React.FC<ArticleBulkDeleteDialogProps> = (
           <Button
             type="button"
             variant="destructive"
-            disabled={isLoading}
-            onClick={onConfirm}
+            disabled={deleteMutation.isLoading}
+            onClick={() => {
+              if (deleteTargets.length === 0) {
+                setBulkDeleteOpen(false)
+                return
+              }
+              deleteMutation
+                .mutateAsync({ articleIds: deleteTargets })
+                .finally(() => {
+                  setBulkDeleteOpen(false)
+                })
+            }}
           >
             {t("article.confirmDeleteAction")}
           </Button>

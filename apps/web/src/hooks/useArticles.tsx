@@ -16,7 +16,6 @@ const useArticlesState = ({ deriveTitle }: UseArticlesParams) => {
   const [selectedIds, setSelectedIds] = React.useState<string[]>([])
   const [activeArticleId, setActiveArticleId] = React.useState<string | null>(null)
   const [isCreating, setIsCreating] = React.useState(false)
-  const [confirmOpen, setConfirmOpen] = React.useState(false)
 
   const listQuery = trpc.article.list.useQuery()
 
@@ -124,8 +123,6 @@ const useArticlesState = ({ deriveTitle }: UseArticlesParams) => {
     toggleSelected,
     createMutation,
     deleteMutation,
-    confirmOpen,
-    setConfirmOpen,
   }
 }
 
