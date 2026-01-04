@@ -28,7 +28,11 @@ import {
 import { useArticles } from "@/hooks/useArticles"
 import { useSettings } from "@/hooks/useSettings"
 import { DialogsContainer } from "@/components/article/DialogsContainer"
-import { usePlayback } from "@/hooks/usePlayback"
+import { PlaybackProvider, usePlayback } from "@/hooks/usePlayback"
+import {
+  SettingsDialogsProvider,
+  useSettingsDialogs,
+} from "@/hooks/useSettingsDialogs"
 
 function deriveTitle(content: string) {
   return content.trim().slice(0, 10)
@@ -61,12 +65,9 @@ export function ArticleList() {
   } = useArticles({ deriveTitle })
   const {
     settingsQuery,
-    updateTtsVoices,
     uiLanguage,
     setUiLanguage,
-    nativeLanguageSetting,
     setNativeLanguageSetting,
-    targetLanguageSetting,
     setTargetLanguageSetting,
     displayOrderSetting,
     setDisplayOrderSetting,
@@ -77,9 +78,7 @@ export function ArticleList() {
     playbackPauseSeconds,
     setPlaybackPauseSeconds,
     nativeVoiceId,
-    setNativeVoiceId,
     targetVoiceId,
-    setTargetVoiceId,
     shadowingEnabled,
     setShadowingEnabled,
     shadowingSpeeds,
@@ -100,8 +99,6 @@ export function ArticleList() {
   } = useSettings()
   const [confirmOpen, setConfirmOpen] = React.useState(false)
   const [settingsOpen, setSettingsOpen] = React.useState(false)
-  const [deleteAccountOpen, setDeleteAccountOpen] = React.useState(false)
-  const [languageDialogOpen, setLanguageDialogOpen] = React.useState(false)
   const [selectedSentenceId, setSelectedSentenceId] = React.useState<string | null>(
     null
   )
@@ -122,17 +119,22 @@ export function ArticleList() {
   const mobileSettingsPanelRef = React.useRef<HTMLDivElement>(null)
   const mobileSettingsButtonRef = React.useRef<HTMLButtonElement>(null)
   const [shadowingDialogOpen, setShadowingDialogOpen] = React.useState(false)
-  const [clearCacheOpen, setClearCacheOpen] = React.useState(false)
+  const settingsDialogs = useSettingsDialogs({
+    onDeleteAccountSuccess: () => {
+      window.location.href = "/auth/login"
+    },
+  })
+  const {
+    languageDialogOpen,
+    setLanguageDialogOpen,
+    deleteAccountOpen,
+    setDeleteAccountOpen,
+    clearCacheOpen,
+    setClearCacheOpen,
+    ttsOptionsQuery,
+  } = settingsDialogs
   const userId = useAuthStore((state) => state.user?.id ?? null)
   const userEmail = useAuthStore((state) => state.user?.email ?? "")
-  const ttsInitRef = React.useRef<string>("")
-  const ttsOptionsQuery = trpc.user.getTtsOptions.useQuery(
-    {
-      nativeLanguage: nativeLanguageSetting as "zh-CN" | "en-US" | "fr-FR",
-      targetLanguage: targetLanguageSetting as "zh-CN" | "en-US" | "fr-FR",
-    },
-    { enabled: settingsQuery.isSuccess }
-  )
   const aiManagement = useAiManagement({
     t,
     detail: detailQuery.data,
@@ -187,7 +189,6 @@ export function ArticleList() {
     resetAiProviders,
   } = aiManagement
 
-  const deleteAccountMutation = trpc.user.deleteAccount.useMutation()
   const signOutMutation = trpc.auth.signOut.useMutation()
   const sentenceAudioMutation = trpc.tts.getSentenceAudio.useMutation()
 
@@ -215,29 +216,6 @@ export function ArticleList() {
     setShadowingDraftEnabled(shadowingEnabled)
     setShadowingDraftSpeeds(shadowingSpeeds)
   }, [shadowingDialogOpen, shadowingEnabled, shadowingSpeeds])
-
-  React.useEffect(() => {
-    if (!ttsOptionsQuery.data) return
-    const langKey = `${nativeLanguageSetting}|${targetLanguageSetting}`
-    if (ttsInitRef.current === langKey) return
-    ttsInitRef.current = langKey
-
-    const { nativeOptions, targetOptions, nativeVoiceId, targetVoiceId } =
-      ttsOptionsQuery.data
-
-    const nextNative = nativeVoiceId ?? nativeOptions[0]?.id ?? null
-    const nextTarget = targetVoiceId ?? targetOptions[0]?.id ?? null
-
-    setNativeVoiceId(nextNative)
-    setTargetVoiceId(nextTarget)
-
-    if (!nativeVoiceId && !targetVoiceId && nextNative && nextTarget) {
-      updateTtsVoices.mutate({
-        nativeVoiceId: nextNative,
-        targetVoiceId: nextTarget,
-      })
-    }
-  }, [ttsOptionsQuery.data, nativeLanguageSetting, targetLanguageSetting, updateTtsVoices])
 
   const handlePlayError = React.useCallback(() => {
     toast.error(t("tts.audioPlayFailed"))
@@ -272,7 +250,8 @@ export function ArticleList() {
     aiInstructionDeleteOpen ||
     languageDialogOpen ||
     shadowingDialogOpen ||
-    deleteAccountOpen
+    deleteAccountOpen ||
+    clearCacheOpen
 
   React.useEffect(() => {
     if (!settingsOpen) return
@@ -318,15 +297,7 @@ export function ArticleList() {
     ]
   )
 
-  const {
-    buildLocalCacheKey,
-    getCachedAudioUrl,
-    setCachedAudioUrl,
-    playSentenceRole,
-    stopAudioPlayback,
-    clearTtsCache,
-    clearSentenceCache,
-  } = usePlayback({
+  const playback = usePlayback({
     userId,
     apiBaseUrl,
     detail: detailQuery.data,
@@ -339,6 +310,14 @@ export function ArticleList() {
     setPlayingSpeed,
     onCacheCleared: () => toast.success(t("settings.cacheCleared")),
   })
+  const {
+    buildLocalCacheKey,
+    getCachedAudioUrl,
+    setCachedAudioUrl,
+    playSentenceRole,
+    stopAudioPlayback,
+    clearSentenceCache,
+  } = playback
 
   const requestSentenceAudio = React.useCallback(
     (input: { sentenceId: string; role: "native" | "target" }) =>
@@ -636,8 +615,10 @@ export function ArticleList() {
 
   return (
     <AiManagementProvider value={aiManagement}>
-      <SentenceOperationsProvider value={sentenceOperations}>
-        <div className="w-full">
+      <PlaybackProvider value={playback}>
+        <SettingsDialogsProvider value={settingsDialogs}>
+          <SentenceOperationsProvider value={sentenceOperations}>
+            <div className="w-full">
       <MobileHeader
         t={t}
         settingsOpen={settingsOpen}
@@ -844,65 +825,6 @@ export function ArticleList() {
             setConfirmOpen(false)
           },
         }}
-        accountDelete={{
-          open: deleteAccountOpen,
-          onOpenChange: setDeleteAccountOpen,
-          isLoading: deleteAccountMutation.isLoading,
-          onConfirm: () => {
-            deleteAccountMutation
-              .mutateAsync()
-              .catch(() => {})
-              .finally(() => {
-                window.location.href = "/auth/login"
-              })
-            setDeleteAccountOpen(false)
-          },
-        }}
-        languageSettings={{
-          open: languageDialogOpen,
-          onOpenChange: setLanguageDialogOpen,
-          languages,
-          nativeLanguageSetting,
-          targetLanguageSetting,
-          onNativeLanguageChange: (value) => {
-            const next = value as LanguageOption
-            setNativeLanguageSetting(next)
-            persistSettings({ nativeLanguage: next })
-          },
-          onTargetLanguageChange: (value) => {
-            const next = value as LanguageOption
-            setTargetLanguageSetting(next)
-            persistSettings({ targetLanguage: next })
-          },
-          nativeVoiceId,
-          targetVoiceId,
-          nativeVoiceOptions: ttsOptionsQuery.data?.nativeOptions ?? [],
-          targetVoiceOptions: ttsOptionsQuery.data?.targetOptions ?? [],
-          onNativeVoiceChange: (value) => {
-            setNativeVoiceId(value)
-            if (value && targetVoiceId) {
-              updateTtsVoices.mutate({
-                nativeVoiceId: value,
-                targetVoiceId,
-              })
-            }
-          },
-          onTargetVoiceChange: (value) => {
-            setTargetVoiceId(value)
-            if (nativeVoiceId && value) {
-              updateTtsVoices.mutate({
-                nativeVoiceId,
-                targetVoiceId: value,
-              })
-            }
-          },
-          voiceLabel: (voice) =>
-            voice.gender === "Female"
-              ? t("settings.voiceFemale")
-              : voice.gender === "Male"
-                ? t("settings.voiceMale")
-                : t("settings.voice"),
-        }}
         aiProviderAdd={{
           open: aiProviderAddOpen,
           onOpenChange: setAiProviderAddOpen,
@@ -967,16 +889,11 @@ export function ArticleList() {
             })
           },
         }}
-        clearCache={{
-          open: clearCacheOpen,
-          onOpenChange: setClearCacheOpen,
-          onConfirm: () => {
-            clearTtsCache().catch(() => {})
-          },
-        }}
       />
-        </div>
-      </SentenceOperationsProvider>
+            </div>
+          </SentenceOperationsProvider>
+        </SettingsDialogsProvider>
+      </PlaybackProvider>
     </AiManagementProvider>
   )
 }

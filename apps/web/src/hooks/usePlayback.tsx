@@ -43,7 +43,7 @@ type UsePlaybackParams = {
   onCacheCleared?: () => void
 }
 
-export const usePlayback = ({
+const usePlaybackState = ({
   userId,
   apiBaseUrl,
   detail,
@@ -306,4 +306,27 @@ export const usePlayback = ({
     clearTtsCache,
     clearSentenceCache,
   }
+}
+
+type PlaybackContextValue = ReturnType<typeof usePlaybackState>
+
+const PlaybackContext = React.createContext<PlaybackContextValue | null>(null)
+
+export const PlaybackProvider = ({
+  value,
+  children,
+}: {
+  value: PlaybackContextValue
+  children: React.ReactNode
+}) => {
+  return <PlaybackContext.Provider value={value}>{children}</PlaybackContext.Provider>
+}
+
+export const usePlayback = (params?: UsePlaybackParams) => {
+  const context = React.useContext(PlaybackContext)
+  if (context) return context
+  if (!params) {
+    throw new Error("usePlayback requires params when no provider is set.")
+  }
+  return usePlaybackState(params)
 }

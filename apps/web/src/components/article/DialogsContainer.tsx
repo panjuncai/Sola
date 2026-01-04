@@ -4,8 +4,8 @@ import type { TFunction } from "i18next"
 import { ArticleBulkDeleteDialog } from "@/components/article/dialogs/ArticleBulkDeleteDialog"
 import { SentenceEditDialog } from "@/components/article/dialogs/SentenceEditDialog"
 import { SentenceDeleteDialog } from "@/components/article/dialogs/SentenceDeleteDialog"
-import { DeleteAccountDialog } from "@/components/article/DeleteAccountDialog"
-import { LanguageSettingsDialog } from "@/components/article/LanguageSettingsDialog"
+import { DeleteAccountDialog } from "@/components/article/dialogs/DeleteAccountDialog"
+import { LanguageSettingsDialog } from "@/components/article/dialogs/LanguageSettingsDialog"
 import { AiSettingsDialog } from "@/components/article/dialogs/AiSettingsDialog"
 import { AiProviderAddDialog } from "@/components/article/dialogs/AiProviderAddDialog"
 import { AiProviderEditDialog } from "@/components/article/dialogs/AiProviderEditDialog"
@@ -13,11 +13,7 @@ import { AiProviderDeleteDialog } from "@/components/article/dialogs/AiProviderD
 import { AiProviderResetDialog } from "@/components/article/dialogs/AiProviderResetDialog"
 import { AiInstructionPanelDialog } from "@/components/article/dialogs/AiInstructionPanelDialog"
 import { ShadowingDialog } from "@/components/article/ShadowingDialog"
-import { ClearCacheDialog } from "@/components/article/ClearCacheDialog"
-
-type LanguageOption = "zh-CN" | "en-US" | "fr-FR"
-
-type VoiceOption = { id: string; voiceId: string; gender?: string | null }
+import { ClearCacheDialog } from "@/components/article/dialogs/ClearCacheDialog"
 
 type DialogsContainerProps = {
   t: TFunction<"translation">
@@ -27,28 +23,6 @@ type DialogsContainerProps = {
     deleteCount: number
     isLoading: boolean
     onConfirm: () => void
-  }
-  accountDelete: {
-    open: boolean
-    onOpenChange: (open: boolean) => void
-    isLoading: boolean
-    onConfirm: () => void
-  }
-  languageSettings: {
-    open: boolean
-    onOpenChange: (open: boolean) => void
-    languages: Array<{ value: LanguageOption; label: string }>
-    nativeLanguageSetting: LanguageOption
-    targetLanguageSetting: LanguageOption
-    onNativeLanguageChange: (value: LanguageOption | string) => void
-    onTargetLanguageChange: (value: LanguageOption | string) => void
-    nativeVoiceId: string | null
-    targetVoiceId: string | null
-    nativeVoiceOptions: VoiceOption[]
-    targetVoiceOptions: VoiceOption[]
-    onNativeVoiceChange: (value: string | null) => void
-    onTargetVoiceChange: (value: string | null) => void
-    voiceLabel: (voice: VoiceOption) => string
   }
   aiProviderAdd: {
     open: boolean
@@ -101,24 +75,16 @@ type DialogsContainerProps = {
     setShadowingDraftSpeeds: React.Dispatch<React.SetStateAction<number[]>>
     onConfirm: () => void
   }
-  clearCache: {
-    open: boolean
-    onOpenChange: (open: boolean) => void
-    onConfirm: () => void
-  }
 }
 
 export const DialogsContainer: React.FC<DialogsContainerProps> = ({
   t,
   deleteConfirm,
-  accountDelete,
-  languageSettings,
   aiProviderAdd,
   aiProviderEdit,
   aiProviderDelete,
   aiProviderReset,
   shadowing,
-  clearCache,
 }) => {
   return (
     <>
@@ -135,31 +101,9 @@ export const DialogsContainer: React.FC<DialogsContainerProps> = ({
 
       <SentenceDeleteDialog />
 
-      <DeleteAccountDialog
-        t={t}
-        open={accountDelete.open}
-        onOpenChange={accountDelete.onOpenChange}
-        isLoading={accountDelete.isLoading}
-        onConfirm={accountDelete.onConfirm}
-      />
+      <DeleteAccountDialog />
 
-      <LanguageSettingsDialog
-        t={t}
-        open={languageSettings.open}
-        onOpenChange={languageSettings.onOpenChange}
-        languages={languageSettings.languages}
-        nativeLanguageSetting={languageSettings.nativeLanguageSetting}
-        targetLanguageSetting={languageSettings.targetLanguageSetting}
-        onNativeLanguageChange={languageSettings.onNativeLanguageChange}
-        onTargetLanguageChange={languageSettings.onTargetLanguageChange}
-        nativeVoiceId={languageSettings.nativeVoiceId}
-        targetVoiceId={languageSettings.targetVoiceId}
-        nativeVoiceOptions={languageSettings.nativeVoiceOptions}
-        targetVoiceOptions={languageSettings.targetVoiceOptions}
-        onNativeVoiceChange={languageSettings.onNativeVoiceChange}
-        onTargetVoiceChange={languageSettings.onTargetVoiceChange}
-        voiceLabel={languageSettings.voiceLabel}
-      />
+      <LanguageSettingsDialog />
 
       <AiSettingsDialog />
 
@@ -226,12 +170,7 @@ export const DialogsContainer: React.FC<DialogsContainerProps> = ({
         onConfirm={shadowing.onConfirm}
       />
 
-      <ClearCacheDialog
-        t={t}
-        open={clearCache.open}
-        onOpenChange={clearCache.onOpenChange}
-        onConfirm={clearCache.onConfirm}
-      />
+      <ClearCacheDialog />
     </>
   )
 }
