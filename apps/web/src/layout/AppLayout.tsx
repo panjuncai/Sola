@@ -2,7 +2,6 @@ import { Link, Outlet, useLocation } from "react-router-dom"
 
 import { AppShell } from "@sola/ui"
 
-import { GlobalPlayer } from "@/components/GlobalPlayer"
 
 const navItems = [
   { to: "/dashboard", label: "Dashboard" },
@@ -22,7 +21,6 @@ export function AppLayout() {
       header={<div className="text-sm text-muted-foreground">Mobile-first UI</div>}
     >
       <Outlet />
-      <GlobalPlayer />
     </AppShell>
   )
 }
