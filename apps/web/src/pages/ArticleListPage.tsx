@@ -1,26 +1,25 @@
 import * as React from "react"
 import { useTranslation } from "react-i18next"
 
-import { Button, Card, CardContent, toast, cn } from "@sola/ui"
+import { toast } from "@sola/ui"
 
-import i18n from "@/i18n"
 import { trpc } from "@/lib/trpc"
 import { useAuthStore } from "@/stores/useAuthStore"
-import { ArticleToolbar } from "@/components/article/ArticleToolbar"
-import { SentenceItem } from "@/components/article/SentenceItem"
-import { CardModeView } from "@/components/article/CardModeView"
-import { SettingsPanel } from "@/components/article/SettingsPanel"
+import { ArticleSidebarPanel } from "@/components/article/layout/ArticleSidebarPanel"
+import { ArticleContentView } from "@/components/article/layout/ArticleContentView"
 import { ArticleSidebar } from "@/components/article/layout/ArticleSidebar"
 import { ArticleMain } from "@/components/article/layout/ArticleMain"
 import { MobileHeader } from "@/components/article/layout/MobileHeader"
-import { CreateArticlePanel } from "@/components/article/CreateArticlePanel"
 import { useClozePractice } from "@/hooks/useClozePractice"
 import { useCardMode } from "@/hooks/useCardMode"
 import { useArticleToolbar } from "@/hooks/useArticleToolbar"
 import { useAiManagement } from "@/hooks/useAiManagement"
 import { useSentenceOperations } from "@/hooks/useSentenceOperations"
 import { useArticles } from "@/hooks/useArticles"
-import { useSettings } from "@/hooks/useSettings"
+import { useSettingsView } from "@/hooks/useSettingsView"
+import { useToolbarView } from "@/hooks/useToolbarView"
+import { useSettingsPanelView } from "@/hooks/useSettingsPanelView"
+import { useSidebarView } from "@/hooks/useSidebarView"
 import { DialogsContainer } from "@/components/article/DialogsContainer"
 import { usePlayback } from "@/hooks/usePlayback"
 import { useSettingsDialogs } from "@/hooks/useSettingsDialogs"
@@ -37,7 +36,7 @@ export function ArticleListPage() {
   type LanguageOption = (typeof languageOptions)[number]
   const inputRef = React.useRef<HTMLTextAreaElement>(null)
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false)
-  const [mobileToolbarOpen, setMobileToolbarOpen] = React.useState(false)
+  const articlesState = useArticles({ deriveTitle })
   const {
     articles,
     content,
@@ -54,43 +53,31 @@ export function ArticleListPage() {
     toggleSelected,
     createMutation,
     deleteMutation,
-  } = useArticles({ deriveTitle })
+    setConfirmOpen,
+  } = articlesState
   const {
-    settingsQuery,
     uiLanguage,
-    setUiLanguage,
-    setNativeLanguageSetting,
-    setTargetLanguageSetting,
     displayOrderSetting,
-    setDisplayOrderSetting,
     playbackNativeRepeat,
-    setPlaybackNativeRepeat,
     playbackTargetRepeat,
-    setPlaybackTargetRepeat,
     playbackPauseSeconds,
-    setPlaybackPauseSeconds,
     nativeVoiceId,
     targetVoiceId,
-    shadowingEnabled,
-    setShadowingEnabled,
-    shadowingSpeeds,
-    setShadowingSpeeds,
-    shadowingDraftEnabled,
-    setShadowingDraftEnabled,
-    shadowingDraftSpeeds,
-    setShadowingDraftSpeeds,
     useAiUserKey,
-    setUseAiUserKey,
     blurTarget,
-    setBlurTarget,
     blurNative,
-    setBlurNative,
+    shadowingSpeeds,
     darkMode,
-    setDarkMode,
-    persistSettings,
-  } = useSettings()
-  const [confirmOpen, setConfirmOpen] = React.useState(false)
-  const [settingsOpen, setSettingsOpen] = React.useState(false)
+    handleUiLanguageChange,
+    handleDisplayOrderChange,
+    handlePlaybackNativeRepeatChange,
+    handlePlaybackTargetRepeatChange,
+    handlePlaybackPauseSecondsChange,
+    handleToggleDarkMode,
+    handleToggleBlurTarget,
+    handleToggleBlurNative,
+    handleSetBlurTarget,
+  } = useSettingsView()
   const [selectedSentenceId, setSelectedSentenceId] = React.useState<string | null>(
     null
   )
@@ -106,11 +93,6 @@ export function ArticleListPage() {
     if (import.meta.env.DEV) return "http://localhost:6001"
     return window.location.origin
   }, [])
-  const settingsPanelRef = React.useRef<HTMLDivElement>(null)
-  const settingsButtonRef = React.useRef<HTMLButtonElement>(null)
-  const mobileSettingsPanelRef = React.useRef<HTMLDivElement>(null)
-  const mobileSettingsButtonRef = React.useRef<HTMLButtonElement>(null)
-  const [shadowingDialogOpen, setShadowingDialogOpen] = React.useState(false)
   const settingsDialogs = useSettingsDialogs({
     onDeleteAccountSuccess: () => {
       window.location.href = "/auth/login"
@@ -123,6 +105,8 @@ export function ArticleListPage() {
     setDeleteAccountOpen,
     clearCacheOpen,
     setClearCacheOpen,
+    shadowingDialogOpen,
+    setShadowingDialogOpen,
     ttsOptionsQuery,
   } = settingsDialogs
   const userId = useAuthStore((state) => state.user?.id ?? null)
@@ -140,34 +124,6 @@ export function ArticleListPage() {
     aiInstructionEditOpen,
     aiInstructionAddOpen,
     aiInstructionDeleteOpen,
-    newAiProviderName,
-    setNewAiProviderName,
-    newAiProviderType,
-    setNewAiProviderType,
-    newAiProviderApiUrl,
-    setNewAiProviderApiUrl,
-    newAiProviderModels,
-    setNewAiProviderModels,
-    newAiProviderEnabled,
-    setNewAiProviderEnabled,
-    newAiProviderApiKey,
-    setNewAiProviderApiKey,
-    newAiProviderKeyVisible,
-    setNewAiProviderKeyVisible,
-    aiProviderAddOpen,
-    setAiProviderAddOpen,
-    aiProviderEditOpen,
-    setAiProviderEditOpen,
-    aiProviderEditing,
-    setAiProviderEditing,
-    aiProviderDeleteId,
-    setAiProviderDeleteId,
-    aiProviderEditKeyVisible,
-    setAiProviderEditKeyVisible,
-    aiProviderEditModels,
-    setAiProviderEditModels,
-    aiProviderResetOpen,
-    setAiProviderResetOpen,
     aiProgress,
     aiInstructionGroups,
     missingNativeCount,
@@ -175,64 +131,14 @@ export function ArticleListPage() {
     startAiTranslation,
     cancelAiTranslation,
     retryMissingTranslations,
-    addAiProvider,
-    updateAiProvider,
-    removeAiProvider,
-    resetAiProviders,
   } = aiManagement
 
   const signOutMutation = trpc.auth.signOut.useMutation()
   const sentenceAudioMutation = trpc.tts.getSentenceAudio.useMutation()
 
-  React.useEffect(() => {
-    if (settingsQuery.data) {
-      setUiLanguage(settingsQuery.data.uiLanguage)
-      setNativeLanguageSetting(settingsQuery.data.nativeLanguage)
-      setTargetLanguageSetting(settingsQuery.data.targetLanguage)
-      setDisplayOrderSetting(settingsQuery.data.displayOrder)
-      setPlaybackNativeRepeat(settingsQuery.data.playbackNativeRepeat)
-      setPlaybackTargetRepeat(settingsQuery.data.playbackTargetRepeat)
-      setPlaybackPauseSeconds(settingsQuery.data.playbackPauseMs / 1000)
-      setUseAiUserKey(settingsQuery.data.useAiUserKey)
-      setShadowingEnabled(settingsQuery.data.shadowing.enabled)
-      setShadowingSpeeds(settingsQuery.data.shadowing.speeds)
-      i18n.changeLanguage(settingsQuery.data.uiLanguage)
-      if (typeof window !== "undefined") {
-        localStorage.setItem("sola_ui_lang", settingsQuery.data.uiLanguage)
-      }
-    }
-  }, [settingsQuery.data])
-
-  React.useEffect(() => {
-    if (!shadowingDialogOpen) return
-    setShadowingDraftEnabled(shadowingEnabled)
-    setShadowingDraftSpeeds(shadowingSpeeds)
-  }, [shadowingDialogOpen, shadowingEnabled, shadowingSpeeds])
-
   const handlePlayError = React.useCallback(() => {
     toast.error(t("tts.audioPlayFailed"))
   }, [t])
-
-  React.useEffect(() => {
-    const stored = window.localStorage.getItem("sola-theme")
-    if (stored === "dark") {
-      setDarkMode(true)
-      document.documentElement.classList.add("dark")
-    } else if (stored === "light") {
-      setDarkMode(false)
-      document.documentElement.classList.remove("dark")
-    }
-  }, [])
-
-  React.useEffect(() => {
-    if (darkMode) {
-      document.documentElement.classList.add("dark")
-      window.localStorage.setItem("sola-theme", "dark")
-    } else {
-      document.documentElement.classList.remove("dark")
-      window.localStorage.setItem("sola-theme", "light")
-    }
-  }, [darkMode])
 
   const anySettingsDialogOpen =
     aiDialogOpen ||
@@ -245,26 +151,18 @@ export function ArticleListPage() {
     deleteAccountOpen ||
     clearCacheOpen
 
-  React.useEffect(() => {
-    if (!settingsOpen) return
-    if (anySettingsDialogOpen) return
-    const handleOutside = (event: MouseEvent) => {
-      const target = event.target as Node
-      if (settingsPanelRef.current?.contains(target)) return
-      if (settingsButtonRef.current?.contains(target)) return
-      if (mobileSettingsPanelRef.current?.contains(target)) return
-      if (mobileSettingsButtonRef.current?.contains(target)) return
-      setSettingsOpen(false)
-    }
-    document.addEventListener("mousedown", handleOutside)
-    return () => document.removeEventListener("mousedown", handleOutside)
-  }, [settingsOpen, anySettingsDialogOpen])
-
-  const languages = [
-    { value: "zh-CN" as LanguageOption, label: t("lang.zhCN") },
-    { value: "en-US" as LanguageOption, label: t("lang.enUS") },
-    { value: "fr-FR" as LanguageOption, label: t("lang.frFR") },
-  ]
+  const {
+    settingsOpen,
+    toggleSettings,
+    settingsPanelRef,
+    settingsButtonRef,
+    mobileSettingsPanelRef,
+    mobileSettingsButtonRef,
+    languages,
+  } = useSettingsPanelView({
+    t,
+    anySettingsDialogOpen,
+  })
 
   const clearSentenceSelection = React.useCallback(
     (sentenceId: string) => {
@@ -354,6 +252,17 @@ export function ArticleListPage() {
     onStopAudio: stopAudioPlayback,
   })
 
+  const { handleCreateClick, handleDeleteClick, handleSelectArticle } =
+    useSidebarView({
+      inputRef,
+      setIsCreating,
+      setMobileMenuOpen,
+      setActiveArticleId,
+      setConfirmOpen,
+      deleteTargetsLength: deleteTargets.length,
+      deleteLoading: deleteMutation.isLoading,
+    })
+
   const {
     isCardMode,
     setIsCardMode,
@@ -383,6 +292,8 @@ export function ArticleListPage() {
     playSentenceRole,
     onPlayError: handlePlayError,
   })
+  const { mobileToolbarOpen, toggleCardMode, toggleMobileToolbar, closeMobileToolbar } =
+    useToolbarView({ setIsCardMode })
 
   const {
     clozeInputs,
@@ -396,7 +307,7 @@ export function ArticleListPage() {
   } = useClozePractice({
     isClozeEnabled,
     blurTarget,
-    setBlurTarget,
+    setBlurTarget: handleSetBlurTarget,
     activeArticleId,
     detail: detailQuery.data,
     stopLoopPlayback,
@@ -454,160 +365,60 @@ export function ArticleListPage() {
   )
 
   const sidebarCore = (
-    <>
-      <div className="flex-none border-b p-4 space-y-2">
-        <Button
-          type="button"
-          className="w-full justify-start"
-          onClick={() => {
-            setIsCreating(true)
-            inputRef.current?.focus()
-            setMobileMenuOpen(false)
-          }}
-        >
-          + {t("article.add")}
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full justify-start"
-          disabled={deleteTargets.length === 0 || deleteMutation.isLoading}
-          onClick={() => {
-            if (deleteTargets.length === 0) return
-            setConfirmOpen(true)
-          }}
-        >
-          {t("article.bulkDelete")}
-        </Button>
-      </div>
-
-      <div className="flex-1 overflow-y-auto p-4 space-y-2">
-        {listQuery.isLoading ? (
-          <div className="text-sm text-muted-foreground">{t("common.loading")}</div>
-        ) : listQuery.isError ? (
-          <div className="text-sm text-muted-foreground">{t("common.loadFailed")}</div>
-        ) : articles.length === 0 ? (
-          <div className="text-sm text-muted-foreground">{t("article.noArticles")}</div>
-        ) : (
-          articles.map((article) => (
-            <div
-              key={article.id}
-              className={cn(
-                "flex items-center gap-2 rounded-lg border px-2 py-2 text-sm",
-                activeArticleId === article.id && "border-primary/60 bg-primary/5"
-              )}
-            >
-              <input
-                type="checkbox"
-                checked={selectedIds.includes(article.id)}
-                onChange={() => toggleSelected(article.id)}
-                aria-label="Select article"
-              />
-              <button
-                type="button"
-                className="min-w-0 flex-1 truncate text-left font-medium"
-                onClick={() => {
-                  setIsCreating(false)
-                  setActiveArticleId(article.id)
-                  setMobileMenuOpen(false)
-                }}
-              >
-                {article.title ?? t("article.untitled")}
-              </button>
-            </div>
-          ))
-        )}
-      </div>
-
-      <div className="flex-none border-t p-4">
-        <div className="relative">
-          {settingsOpen ? (
-            <SettingsPanel
-              t={t}
-              panelRef={settingsPanelRef}
-              className="absolute bottom-12 left-0 right-0 z-20 rounded-xl border bg-card shadow-[0_16px_40px_rgba(15,23,42,0.18)]"
-              darkMode={darkMode}
-              onToggleDarkMode={() => setDarkMode((prev) => !prev)}
-              onOpenAiSettings={() => setAiDialogOpen(true)}
-              onOpenAiInstructions={() => setAiInstructionDialogOpen(true)}
-              uiLanguage={uiLanguage}
-              languages={languages}
-              onUiLanguageChange={(value) => {
-                const next = value as LanguageOption
-                setUiLanguage(next)
-                persistSettings({ uiLanguage: next })
-                i18n.changeLanguage(next)
-                if (typeof window !== "undefined") {
-                  localStorage.setItem("sola_ui_lang", next)
-                }
-              }}
-              displayOrderSetting={displayOrderSetting}
-              onDisplayOrderChange={(value) => {
-                setDisplayOrderSetting(value)
-                persistSettings({ displayOrder: value })
-              }}
-              onOpenLanguageSettings={() => setLanguageDialogOpen(true)}
-              onOpenShadowing={() => setShadowingDialogOpen(true)}
-              playbackNativeRepeat={playbackNativeRepeat}
-              onPlaybackNativeRepeatChange={(value) => {
-                setPlaybackNativeRepeat(value)
-                persistSettings({ playbackNativeRepeat: value })
-              }}
-              playbackTargetRepeat={playbackTargetRepeat}
-              onPlaybackTargetRepeatChange={(value) => {
-                setPlaybackTargetRepeat(value)
-                persistSettings({ playbackTargetRepeat: value })
-              }}
-              playbackPauseSeconds={playbackPauseSeconds}
-              onPlaybackPauseSecondsChange={(value) => {
-                setPlaybackPauseSeconds(value)
-                persistSettings({ playbackPauseSeconds: value })
-              }}
-              onClearCache={() => setClearCacheOpen(true)}
-              onDeleteAccount={() => setDeleteAccountOpen(true)}
-              onSignOut={() => {
-                signOutMutation
-                  .mutateAsync()
-                  .catch(() => {})
-                  .finally(() => {
-                    window.location.href = "/auth/login"
-                  })
-              }}
-            />
-          ) : null}
-
-          <button
-            ref={settingsButtonRef}
-            type="button"
-            className="flex w-full items-center gap-2 text-sm font-medium text-muted-foreground"
-            onClick={() => {
-              setSettingsOpen((prev) => !prev)
-              setMobileMenuOpen(false)
-            }}
-          >
-            <svg
-              aria-hidden="true"
-              viewBox="0 0 24 24"
-              className="h-5 w-5"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M20 21a8 8 0 0 0-16 0" />
-              <circle cx="12" cy="8" r="4" />
-            </svg>
-            <span className="truncate">{userEmail || "Settings"}</span>
-          </button>
-        </div>
-      </div>
-    </>
+    <ArticleSidebarPanel
+      t={t}
+      isLoading={listQuery.isLoading}
+      isError={listQuery.isError}
+      articles={articles}
+      activeArticleId={activeArticleId}
+      selectedIds={selectedIds}
+      deleteDisabled={deleteTargets.length === 0 || deleteMutation.isLoading}
+      onToggleSelected={toggleSelected}
+      onSelectArticle={handleSelectArticle}
+      onCreate={handleCreateClick}
+      onDelete={handleDeleteClick}
+      settingsOpen={settingsOpen}
+      onToggleSettings={() => {
+        toggleSettings()
+        setMobileMenuOpen(false)
+      }}
+      settingsPanelRef={settingsPanelRef}
+      settingsButtonRef={settingsButtonRef}
+      darkMode={darkMode}
+      onToggleDarkMode={handleToggleDarkMode}
+      onOpenAiSettings={() => setAiDialogOpen(true)}
+      onOpenAiInstructions={() => setAiInstructionDialogOpen(true)}
+      uiLanguage={uiLanguage}
+      languages={languages}
+      onUiLanguageChange={(value) => handleUiLanguageChange(value as LanguageOption)}
+      displayOrderSetting={displayOrderSetting}
+      onDisplayOrderChange={handleDisplayOrderChange}
+      onOpenLanguageSettings={() => setLanguageDialogOpen(true)}
+      onOpenShadowing={() => setShadowingDialogOpen(true)}
+      playbackNativeRepeat={playbackNativeRepeat}
+      onPlaybackNativeRepeatChange={handlePlaybackNativeRepeatChange}
+      playbackTargetRepeat={playbackTargetRepeat}
+      onPlaybackTargetRepeatChange={handlePlaybackTargetRepeatChange}
+      playbackPauseSeconds={playbackPauseSeconds}
+      onPlaybackPauseSecondsChange={handlePlaybackPauseSecondsChange}
+      onClearCache={() => setClearCacheOpen(true)}
+      onDeleteAccount={() => setDeleteAccountOpen(true)}
+      onSignOut={() => {
+        signOutMutation
+          .mutateAsync()
+          .catch(() => {})
+          .finally(() => {
+            window.location.href = "/auth/login"
+          })
+      }}
+      userEmail={userEmail}
+    />
   )
 
   return (
     <ArticleProviders
       aiManagement={aiManagement}
+      articles={articlesState}
       playback={playback}
       settingsDialogs={settingsDialogs}
       sentenceOperations={sentenceOperations}
@@ -617,49 +428,29 @@ export function ArticleListPage() {
         t={t}
         settingsOpen={settingsOpen}
         onToggleSettings={() => {
-          setSettingsOpen((prev) => !prev)
+          toggleSettings()
           setMobileMenuOpen(false)
         }}
         onOpenMenu={() => setMobileMenuOpen(true)}
         settingsButtonRef={mobileSettingsButtonRef}
         settingsPanelRef={mobileSettingsPanelRef}
         darkMode={darkMode}
-        onToggleDarkMode={() => setDarkMode((prev) => !prev)}
+        onToggleDarkMode={handleToggleDarkMode}
         onOpenAiSettings={() => setAiDialogOpen(true)}
         onOpenAiInstructions={() => setAiInstructionDialogOpen(true)}
         uiLanguage={uiLanguage}
         languages={languages}
-        onUiLanguageChange={(value) => {
-          const next = value as LanguageOption
-          setUiLanguage(next)
-          persistSettings({ uiLanguage: next })
-          i18n.changeLanguage(next)
-          if (typeof window !== "undefined") {
-            localStorage.setItem("sola_ui_lang", next)
-          }
-        }}
+        onUiLanguageChange={(value) => handleUiLanguageChange(value as LanguageOption)}
         displayOrderSetting={displayOrderSetting}
-        onDisplayOrderChange={(value) => {
-          setDisplayOrderSetting(value)
-          persistSettings({ displayOrder: value })
-        }}
+        onDisplayOrderChange={handleDisplayOrderChange}
         onOpenLanguageSettings={() => setLanguageDialogOpen(true)}
         onOpenShadowing={() => setShadowingDialogOpen(true)}
         playbackNativeRepeat={playbackNativeRepeat}
-        onPlaybackNativeRepeatChange={(value) => {
-          setPlaybackNativeRepeat(value)
-          persistSettings({ playbackNativeRepeat: value })
-        }}
+        onPlaybackNativeRepeatChange={handlePlaybackNativeRepeatChange}
         playbackTargetRepeat={playbackTargetRepeat}
-        onPlaybackTargetRepeatChange={(value) => {
-          setPlaybackTargetRepeat(value)
-          persistSettings({ playbackTargetRepeat: value })
-        }}
+        onPlaybackTargetRepeatChange={handlePlaybackTargetRepeatChange}
         playbackPauseSeconds={playbackPauseSeconds}
-        onPlaybackPauseSecondsChange={(value) => {
-          setPlaybackPauseSeconds(value)
-          persistSettings({ playbackPauseSeconds: value })
-        }}
+        onPlaybackPauseSecondsChange={handlePlaybackPauseSecondsChange}
         onClearCache={() => setClearCacheOpen(true)}
         onDeleteAccount={() => setDeleteAccountOpen(true)}
         onSignOut={() => {
@@ -680,210 +471,85 @@ export function ArticleListPage() {
         />
 
         <ArticleMain>
-              {showCreate ? (
-                <div className="text-center space-y-2">
-                  <h1 className="text-3xl font-semibold">{t("article.heroTitle")}</h1>
-                  <p className="text-sm text-muted-foreground">
-                    {t("article.heroSubtitle")}
-                  </p>
-                </div>
-              ) : detailQuery.isLoading ? (
-                <div className="text-sm text-muted-foreground">
-                  {t("article.loading")}
-                </div>
-              ) : detailQuery.data ? (
-                <div className="space-y-4">
-                  <ArticleToolbar
-                    t={t}
-                    isLoopingAll={isLoopingAll}
-                    isLoopingTarget={isLoopingTarget}
-                    isLoopingSingle={isLoopingSingle}
-                    isLoopingShadowing={isLoopingShadowing}
-                    isRandomMode={isRandomMode}
-                    isCardMode={isCardMode}
-                    isClozeEnabled={isClozeEnabled}
-                    blurTarget={blurTarget}
-                    blurNative={blurNative}
-                    mobileToolbarOpen={mobileToolbarOpen}
-                    aiInstructionGroups={aiInstructionGroups}
-                    aiProgress={aiProgress}
-                    missingNativeCount={missingNativeCount}
-                    resolveInstructionLabel={resolveInstructionLabel}
-                    onStartLoopAll={startLoopAll}
-                    onStartLoopTarget={startLoopTarget}
-                    onStartLoopSingle={startLoopSingle}
-                    onStopLoopPlayback={stopLoopPlayback}
-                    onToggleShadowing={handleToggleShadowing}
-                    onToggleRandomMode={toggleRandomMode}
-                    onToggleCardMode={() => setIsCardMode((prev) => !prev)}
-                    onToggleCloze={toggleCloze}
-                    onToggleBlurTarget={() => setBlurTarget((prev) => !prev)}
-                    onToggleBlurNative={() => setBlurNative((prev) => !prev)}
-                    onStartAiInstruction={(instructionId) =>
-                      startAiTranslation(instructionId, false)
-                    }
-                    onCancelAi={cancelAiTranslation}
-                    onRetryMissing={retryMissingTranslations}
-                    onToggleMobileToolbar={() =>
-                      setMobileToolbarOpen((prev) => !prev)
-                    }
-                    onCloseMobileToolbar={() => setMobileToolbarOpen(false)}
-                  />
-                  <div className="space-y-4">
-                    {detailQuery.data.sentences.length === 0 ? (
-                      <Card>
-                        <CardContent className="py-6 text-sm text-muted-foreground">
-                          {t("article.noSentences")}
-                        </CardContent>
-                      </Card>
-                    ) : isCardMode ? (
-                      <CardModeView
-                        t={t}
-                        isRandomMode={isRandomMode}
-                        cardIndex={cardIndex}
-                        cardCount={cardCount}
-                        cardFlipped={cardFlipped}
-                        cardDragX={cardDragX}
-                        cardDragging={cardDragging}
-                        cardFrontText={cardFrontText}
-                        cardBackText={cardBackText}
-                        onFlip={handleCardFlip}
-                        onPrev={handleCardPrev}
-                        onNext={handleCardNext}
-                        onPlay={handleCardPlay}
-                        onPointerDown={handleCardPointerDown}
-                        onPointerMove={handleCardPointerMove}
-                        onPointerUp={handleCardPointerUp}
-                        onPointerCancel={handleCardPointerCancel}
-                      />
-                    ) : (
-                      detailQuery.data.sentences.map((sentence) => {
-                        return (
-                          <SentenceItem
-                            key={sentence.id}
-                            sentence={sentence}
-                            displayOrderSetting={displayOrderSetting}
-                            playingSentenceId={playingSentenceId}
-                            playingRole={playingRole}
-                            playingSpeed={playingSpeed}
-                            selectedSentenceId={selectedSentenceId}
-                            selectedSentenceRole={selectedSentenceRole}
-                            blurNative={blurNative}
-                            blurTarget={blurTarget}
-                            isClozeEnabled={isClozeEnabled}
-                            clozeRevealed={clozeRevealed}
-                            clozeInputs={clozeInputs}
-                            clozeResults={clozeResults}
-                            setClozeInputs={setClozeInputs}
-                            setClozeResults={setClozeResults}
-                            onStopPlayback={stopLoopPlayback}
-                            onSelectSentence={handleSentenceSelect}
-                            onPlaySentence={playSentenceRole}
-                            onPlayError={handlePlayError}
-                            onEdit={handleSentenceEdit}
-                            onDelete={handleSentenceDelete}
-                            onClozeCheck={handleClozeCheck}
-                            t={t}
-                          />
-                        )
-                      })
-                    )}
-                  </div>
-                </div>
-              ) : null}
-
-              {showCreate ? (
-                <CreateArticlePanel
-                  t={t}
-                  inputRef={inputRef}
-                  value={content}
-                  onChange={setContent}
-                  onSubmit={handleCreate}
-                  isSubmitting={createMutation.isLoading}
-                  isError={createMutation.isError}
-                />
-              ) : null}
+          <ArticleContentView
+            t={t}
+            showCreate={showCreate}
+            isLoading={detailQuery.isLoading}
+            detail={detailQuery.data}
+            isCardMode={isCardMode}
+            isRandomMode={isRandomMode}
+            cardIndex={cardIndex}
+            cardCount={cardCount}
+            cardFlipped={cardFlipped}
+            cardDragX={cardDragX}
+            cardDragging={cardDragging}
+            cardFrontText={cardFrontText}
+            cardBackText={cardBackText}
+            onCardFlip={handleCardFlip}
+            onCardPrev={handleCardPrev}
+            onCardNext={handleCardNext}
+            onCardPlay={handleCardPlay}
+            onCardPointerDown={handleCardPointerDown}
+            onCardPointerMove={handleCardPointerMove}
+            onCardPointerUp={handleCardPointerUp}
+            onCardPointerCancel={handleCardPointerCancel}
+            isLoopingAll={isLoopingAll}
+            isLoopingTarget={isLoopingTarget}
+            isLoopingSingle={isLoopingSingle}
+            isLoopingShadowing={isLoopingShadowing}
+            isClozeEnabled={isClozeEnabled}
+            blurTarget={blurTarget}
+            blurNative={blurNative}
+            mobileToolbarOpen={mobileToolbarOpen}
+            aiInstructionGroups={aiInstructionGroups}
+            aiProgress={aiProgress}
+            missingNativeCount={missingNativeCount}
+            resolveInstructionLabel={resolveInstructionLabel}
+            onStartLoopAll={startLoopAll}
+            onStartLoopTarget={startLoopTarget}
+            onStartLoopSingle={startLoopSingle}
+            onStopLoopPlayback={stopLoopPlayback}
+            onToggleShadowing={handleToggleShadowing}
+            onToggleRandomMode={toggleRandomMode}
+            onToggleCardMode={toggleCardMode}
+            onToggleCloze={toggleCloze}
+            onToggleBlurTarget={handleToggleBlurTarget}
+            onToggleBlurNative={handleToggleBlurNative}
+            onStartAiInstruction={(instructionId) =>
+              startAiTranslation(instructionId, false)
+            }
+            onCancelAi={cancelAiTranslation}
+            onRetryMissing={retryMissingTranslations}
+            onToggleMobileToolbar={toggleMobileToolbar}
+            onCloseMobileToolbar={closeMobileToolbar}
+            displayOrderSetting={displayOrderSetting}
+            playingSentenceId={playingSentenceId}
+            playingRole={playingRole}
+            playingSpeed={playingSpeed}
+            selectedSentenceId={selectedSentenceId}
+            selectedSentenceRole={selectedSentenceRole}
+            clozeRevealed={clozeRevealed}
+            clozeInputs={clozeInputs}
+            clozeResults={clozeResults}
+            setClozeInputs={setClozeInputs}
+            setClozeResults={setClozeResults}
+            onSelectSentence={handleSentenceSelect}
+            onPlaySentence={playSentenceRole}
+            onPlayError={handlePlayError}
+            onEditSentence={handleSentenceEdit}
+            onDeleteSentence={handleSentenceDelete}
+            onClozeCheck={handleClozeCheck}
+            inputRef={inputRef}
+            content={content}
+            onChangeContent={setContent}
+            onSubmitContent={handleCreate}
+            isSubmitting={createMutation.isLoading}
+            isError={createMutation.isError}
+          />
         </ArticleMain>
       </div>
 
-      <DialogsContainer
-        t={t}
-        deleteConfirm={{
-          open: confirmOpen,
-          onOpenChange: setConfirmOpen,
-          deleteCount: deleteTargets.length,
-          isLoading: deleteMutation.isLoading,
-          onConfirm: () => {
-            if (deleteTargets.length === 0) return
-            deleteMutation.mutate({ articleIds: deleteTargets })
-            setConfirmOpen(false)
-          },
-        }}
-        aiProviderAdd={{
-          open: aiProviderAddOpen,
-          onOpenChange: setAiProviderAddOpen,
-          useAiUserKey,
-          name: newAiProviderName,
-          onNameChange: setNewAiProviderName,
-          providerType: newAiProviderType,
-          onProviderTypeChange: setNewAiProviderType,
-          apiUrl: newAiProviderApiUrl,
-          onApiUrlChange: setNewAiProviderApiUrl,
-          apiKey: newAiProviderApiKey,
-          onApiKeyChange: setNewAiProviderApiKey,
-          apiKeyVisible: newAiProviderKeyVisible,
-          onToggleApiKeyVisible: () => setNewAiProviderKeyVisible((prev) => !prev),
-          models: newAiProviderModels,
-          onModelsChange: setNewAiProviderModels,
-          enabled: newAiProviderEnabled,
-          onEnabledChange: setNewAiProviderEnabled,
-          onSave: addAiProvider,
-        }}
-        aiProviderEdit={{
-          open: aiProviderEditOpen,
-          onOpenChange: setAiProviderEditOpen,
-          useAiUserKey,
-          provider: aiProviderEditing,
-          apiKeyVisible: aiProviderEditKeyVisible,
-          onToggleApiKeyVisible: () => setAiProviderEditKeyVisible((prev) => !prev),
-          modelsValue: aiProviderEditModels,
-          onModelsChange: setAiProviderEditModels,
-          onChangeProvider: (provider) => setAiProviderEditing(provider),
-          onSave: updateAiProvider,
-        }}
-        aiProviderDelete={{
-          open: Boolean(aiProviderDeleteId),
-          onOpenChange: () => setAiProviderDeleteId(null),
-          onConfirm: removeAiProvider,
-        }}
-        aiProviderReset={{
-          open: aiProviderResetOpen,
-          onOpenChange: setAiProviderResetOpen,
-          onConfirm: resetAiProviders,
-        }}
-        shadowing={{
-          open: shadowingDialogOpen,
-          onOpenChange: setShadowingDialogOpen,
-          shadowingDraftEnabled,
-          setShadowingDraftEnabled,
-          shadowingDraftSpeeds,
-          setShadowingDraftSpeeds,
-          onConfirm: () => {
-            const sanitized = shadowingDraftSpeeds
-              .map((value) => Number(value))
-              .filter((value) => Number.isFinite(value))
-            const nextSpeeds = sanitized.length > 0 ? sanitized : [0.2]
-            setShadowingEnabled(shadowingDraftEnabled)
-            setShadowingSpeeds(nextSpeeds)
-            persistSettings({
-              shadowing: {
-                enabled: shadowingDraftEnabled,
-                speeds: nextSpeeds,
-              },
-            })
-          },
-        }}
-      />
+      <DialogsContainer />
       </div>
     </ArticleProviders>
   )

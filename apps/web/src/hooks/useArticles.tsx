@@ -7,7 +7,7 @@ type UseArticlesParams = {
   deriveTitle: (content: string) => string
 }
 
-export const useArticles = ({ deriveTitle }: UseArticlesParams) => {
+const useArticlesState = ({ deriveTitle }: UseArticlesParams) => {
   const articles = useArticleStore((state) => state.articles)
   const setArticles = useArticleStore((state) => state.setArticles)
   const utils = trpc.useUtils()
@@ -16,6 +16,7 @@ export const useArticles = ({ deriveTitle }: UseArticlesParams) => {
   const [selectedIds, setSelectedIds] = React.useState<string[]>([])
   const [activeArticleId, setActiveArticleId] = React.useState<string | null>(null)
   const [isCreating, setIsCreating] = React.useState(false)
+  const [confirmOpen, setConfirmOpen] = React.useState(false)
 
   const listQuery = trpc.article.list.useQuery()
 
@@ -123,5 +124,31 @@ export const useArticles = ({ deriveTitle }: UseArticlesParams) => {
     toggleSelected,
     createMutation,
     deleteMutation,
+    confirmOpen,
+    setConfirmOpen,
   }
 }
+
+type ArticlesContextValue = ReturnType<typeof useArticlesState>
+
+const ArticlesContext = React.createContext<ArticlesContextValue | null>(null)
+
+export const ArticlesProvider = ({
+  value,
+  children,
+}: {
+  value: ArticlesContextValue
+  children: React.ReactNode
+}) => {
+  return <ArticlesContext.Provider value={value}>{children}</ArticlesContext.Provider>
+}
+
+export const useArticlesContext = () => {
+  const context = React.useContext(ArticlesContext)
+  if (!context) {
+    throw new Error("useArticlesContext must be used within ArticlesProvider.")
+  }
+  return context
+}
+
+export const useArticles = useArticlesState

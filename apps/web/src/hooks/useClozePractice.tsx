@@ -27,7 +27,7 @@ type ClozeDetail = {
 type UseClozePracticeParams = {
   isClozeEnabled: boolean
   blurTarget: boolean
-  setBlurTarget: React.Dispatch<React.SetStateAction<boolean>>
+  setBlurTarget: (value: boolean) => void
   activeArticleId: string | null
   detail: ClozeDetail | undefined
   stopLoopPlayback: () => void

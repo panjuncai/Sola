@@ -23,6 +23,10 @@ const useSettingsDialogsState = ({
     setNativeVoiceId,
     targetVoiceId,
     setTargetVoiceId,
+    shadowingEnabled,
+    setShadowingEnabled,
+    shadowingSpeeds,
+    setShadowingSpeeds,
     persistSettings,
   } = useSettings()
   const ttsInitRef = React.useRef<string>("")
@@ -38,6 +42,11 @@ const useSettingsDialogsState = ({
   const [languageDialogOpen, setLanguageDialogOpen] = React.useState(false)
   const [deleteAccountOpen, setDeleteAccountOpen] = React.useState(false)
   const [clearCacheOpen, setClearCacheOpen] = React.useState(false)
+  const [shadowingDialogOpen, setShadowingDialogOpen] = React.useState(false)
+  const [shadowingDraftEnabled, setShadowingDraftEnabled] = React.useState(false)
+  const [shadowingDraftSpeeds, setShadowingDraftSpeeds] = React.useState<number[]>(
+    []
+  )
 
   React.useEffect(() => {
     if (!ttsOptionsQuery.data) return
@@ -68,6 +77,12 @@ const useSettingsDialogsState = ({
     setNativeVoiceId,
     setTargetVoiceId,
   ])
+
+  React.useEffect(() => {
+    if (!shadowingDialogOpen) return
+    setShadowingDraftEnabled(shadowingEnabled)
+    setShadowingDraftSpeeds(shadowingSpeeds)
+  }, [shadowingDialogOpen, shadowingEnabled, shadowingSpeeds])
 
   const handleNativeLanguageChange = React.useCallback(
     (value: LanguageOption | string) => {
@@ -123,6 +138,27 @@ const useSettingsDialogsState = ({
     setDeleteAccountOpen(false)
   }, [deleteAccountMutation, onDeleteAccountSuccess])
 
+  const confirmShadowingDraft = React.useCallback(() => {
+    const sanitized = shadowingDraftSpeeds
+      .map((value) => Number(value))
+      .filter((value) => Number.isFinite(value))
+    const nextSpeeds = sanitized.length > 0 ? sanitized : [0.2]
+    setShadowingEnabled(shadowingDraftEnabled)
+    setShadowingSpeeds(nextSpeeds)
+    persistSettings({
+      shadowing: {
+        enabled: shadowingDraftEnabled,
+        speeds: nextSpeeds,
+      },
+    })
+  }, [
+    persistSettings,
+    setShadowingEnabled,
+    setShadowingSpeeds,
+    shadowingDraftEnabled,
+    shadowingDraftSpeeds,
+  ])
+
   return {
     ttsOptionsQuery,
     languageDialogOpen,
@@ -131,6 +167,12 @@ const useSettingsDialogsState = ({
     setDeleteAccountOpen,
     clearCacheOpen,
     setClearCacheOpen,
+    shadowingDialogOpen,
+    setShadowingDialogOpen,
+    shadowingDraftEnabled,
+    setShadowingDraftEnabled,
+    shadowingDraftSpeeds,
+    setShadowingDraftSpeeds,
     nativeLanguageSetting,
     targetLanguageSetting,
     nativeVoiceId,
@@ -143,6 +185,7 @@ const useSettingsDialogsState = ({
     handleTargetVoiceChange,
     deleteAccountMutation,
     handleDeleteAccount,
+    confirmShadowingDraft,
   }
 }
 
