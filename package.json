@@ -5,6 +5,8 @@
   "scripts": {
     "dev": "turbo run dev",
     "build": "turbo run build",
+    "lint": "pnpm -r run type-check",
+    "lint:web": "pnpm --filter @sola/web lint",
     "type-check": "turbo run type-check",
     "typecheck": "pnpm -r typecheck",
     "tts:sync:azure": "node scripts/sync-azure-voices.mjs",
