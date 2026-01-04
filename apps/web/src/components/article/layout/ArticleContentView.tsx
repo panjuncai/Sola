@@ -4,76 +4,24 @@ import type { TFunction } from "i18next"
 import { Card, CardContent } from "@sola/ui"
 
 import { ArticleToolbar } from "@/components/article/ArticleToolbar"
-import { SentenceItem } from "@/components/article/SentenceItem"
+import { SentenceItem, SentenceItemProvider } from "@/components/article/SentenceItem"
 import { CardModeView } from "@/components/article/CardModeView"
 import { CreateArticlePanel } from "@/components/article/CreateArticlePanel"
 import type { ClozeResult } from "@/hooks/useClozePractice"
-
-type ArticleSentence = {
-  id: string
-  targetText: string | null
-  nativeText: string | null
-}
-
-type ArticleDetail = {
-  sentences: ArticleSentence[]
-}
+import { useAiManagement } from "@/hooks/useAiManagement"
+import { useSentenceOperations } from "@/hooks/useSentenceOperations"
+import { usePlayback } from "@/hooks/usePlayback"
+import { useArticlesContext } from "@/hooks/useArticles"
+import { useArticleToolbar } from "@/hooks/useArticleToolbar"
+import { useSettingsView } from "@/hooks/useSettingsView"
+import { useCardMode } from "@/hooks/useCardMode"
 
 type ArticleContentViewProps = {
   t: TFunction<"translation">
-  showCreate: boolean
-  isLoading: boolean
-  detail: ArticleDetail | undefined
-  isCardMode: boolean
-  isRandomMode: boolean
-  cardIndex: number
-  cardCount: number
-  cardFlipped: boolean
-  cardDragX: number
-  cardDragging: boolean
-  cardFrontText: string
-  cardBackText: string
-  onCardFlip: () => void
-  onCardPrev: (event: React.MouseEvent<HTMLButtonElement>) => void
-  onCardNext: (event: React.MouseEvent<HTMLButtonElement>) => void
-  onCardPlay: () => void
-  onCardPointerDown: (event: React.PointerEvent<HTMLDivElement>) => void
-  onCardPointerMove: (event: React.PointerEvent<HTMLDivElement>) => void
-  onCardPointerUp: (event: React.PointerEvent<HTMLDivElement>) => void
-  onCardPointerCancel: (event: React.PointerEvent<HTMLDivElement>) => void
-  isLoopingAll: boolean
-  isLoopingTarget: boolean
-  isLoopingSingle: boolean
-  isLoopingShadowing: boolean
-  isClozeEnabled: boolean
-  blurTarget: boolean
-  blurNative: boolean
   mobileToolbarOpen: boolean
-  aiInstructionGroups: [string, { id: string; name: string }[]][]
-  aiProgress: {
-    running: boolean
-    instructionId: string | null
-    completed: number
-    total: number
-  } | null
-  missingNativeCount: number
-  resolveInstructionLabel: (type: "translate" | "explain" | "custom") => string
-  onStartLoopAll: () => void
-  onStartLoopTarget: () => void
-  onStartLoopSingle: () => void
-  onStopLoopPlayback: () => void
-  onToggleShadowing: () => void
-  onToggleRandomMode: () => void
   onToggleCardMode: () => void
-  onToggleCloze: () => void
-  onToggleBlurTarget: () => void
-  onToggleBlurNative: () => void
-  onStartAiInstruction: (instructionId: string) => void
-  onCancelAi: () => void
-  onRetryMissing: () => void
   onToggleMobileToolbar: () => void
   onCloseMobileToolbar: () => void
-  displayOrderSetting: "native_first" | "target_first"
   playingSentenceId: string | null
   playingRole: "native" | "target" | null
   playingSpeed: number | null
@@ -91,69 +39,17 @@ type ArticleContentViewProps = {
     clozeEnabled: boolean,
     isRevealed: boolean
   ) => boolean
-  onPlaySentence: (sentence: ArticleSentence, role: "native" | "target") => Promise<boolean>
   onPlayError: () => void
-  onEditSentence: (sentence: ArticleSentence) => void
-  onDeleteSentence: (sentenceId: string) => void
   onClozeCheck: (sentenceId: string) => void
   inputRef: React.RefObject<HTMLTextAreaElement | null>
-  content: string
-  onChangeContent: (value: string) => void
-  onSubmitContent: () => void
-  isSubmitting: boolean
-  isError: boolean
 }
 
 export const ArticleContentView = ({
   t,
-  showCreate,
-  isLoading,
-  detail,
-  isCardMode,
-  isRandomMode,
-  cardIndex,
-  cardCount,
-  cardFlipped,
-  cardDragX,
-  cardDragging,
-  cardFrontText,
-  cardBackText,
-  onCardFlip,
-  onCardPrev,
-  onCardNext,
-  onCardPlay,
-  onCardPointerDown,
-  onCardPointerMove,
-  onCardPointerUp,
-  onCardPointerCancel,
-  isLoopingAll,
-  isLoopingTarget,
-  isLoopingSingle,
-  isLoopingShadowing,
-  isClozeEnabled,
-  blurTarget,
-  blurNative,
   mobileToolbarOpen,
-  aiInstructionGroups,
-  aiProgress,
-  missingNativeCount,
-  resolveInstructionLabel,
-  onStartLoopAll,
-  onStartLoopTarget,
-  onStartLoopSingle,
-  onStopLoopPlayback,
-  onToggleShadowing,
-  onToggleRandomMode,
   onToggleCardMode,
-  onToggleCloze,
-  onToggleBlurTarget,
-  onToggleBlurNative,
-  onStartAiInstruction,
-  onCancelAi,
-  onRetryMissing,
   onToggleMobileToolbar,
   onCloseMobileToolbar,
-  displayOrderSetting,
   playingSentenceId,
   playingRole,
   playingSpeed,
@@ -165,18 +61,100 @@ export const ArticleContentView = ({
   setClozeInputs,
   setClozeResults,
   onSelectSentence,
-  onPlaySentence,
   onPlayError,
-  onEditSentence,
-  onDeleteSentence,
   onClozeCheck,
   inputRef,
-  content,
-  onChangeContent,
-  onSubmitContent,
-  isSubmitting,
-  isError,
 }: ArticleContentViewProps) => {
+  const { detailQuery, showCreate, content, setContent, handleCreate, createMutation } =
+    useArticlesContext()
+  const {
+    aiInstructionGroups,
+    aiProgress,
+    missingNativeCount,
+    resolveInstructionLabel,
+    startAiTranslation,
+    cancelAiTranslation,
+    retryMissingTranslations,
+  } = useAiManagement()
+  const { handleSentenceEdit, handleSentenceDelete } = useSentenceOperations()
+  const { playSentenceRole } = usePlayback()
+  const {
+    displayOrderSetting,
+    blurTarget,
+    blurNative,
+    handleToggleBlurTarget,
+    handleToggleBlurNative,
+  } = useSettingsView()
+  const { isCardMode } = useCardMode()
+  const {
+    isLoopingAll,
+    isLoopingTarget,
+    isLoopingSingle,
+    isLoopingShadowing,
+    isRandomMode,
+    isClozeEnabled,
+    stopLoopPlayback,
+    startLoopAll,
+    startLoopTarget,
+    startLoopSingle,
+    handleToggleShadowing,
+    toggleRandomMode,
+    toggleCloze,
+  } = useArticleToolbar()
+  const sentenceItemContext = React.useMemo(
+    () => ({
+      displayOrderSetting,
+      playingSentenceId,
+      playingRole,
+      playingSpeed,
+      selectedSentenceId,
+      selectedSentenceRole,
+      blurNative,
+      blurTarget,
+      isClozeEnabled,
+      clozeRevealed,
+      clozeInputs,
+      clozeResults,
+      setClozeInputs,
+      setClozeResults,
+      onStopPlayback: stopLoopPlayback,
+      onSelectSentence,
+      onPlaySentence: playSentenceRole,
+      onPlayError,
+      onEdit: handleSentenceEdit,
+      onDelete: handleSentenceDelete,
+      onClozeCheck,
+    }),
+    [
+      blurNative,
+      blurTarget,
+      clozeInputs,
+      clozeResults,
+      clozeRevealed,
+      displayOrderSetting,
+      handleSentenceDelete,
+      handleSentenceEdit,
+      isClozeEnabled,
+      onClozeCheck,
+      onPlayError,
+      onSelectSentence,
+      playSentenceRole,
+      playingRole,
+      playingSentenceId,
+      playingSpeed,
+      selectedSentenceId,
+      selectedSentenceRole,
+      setClozeInputs,
+      setClozeResults,
+      stopLoopPlayback,
+    ]
+  )
+
+  const isLoading = detailQuery.isLoading
+  const detail = detailQuery.data
+  const isSubmitting = createMutation.isLoading
+  const isError = createMutation.isError
+
   return (
     <>
       {showCreate ? (
@@ -204,19 +182,21 @@ export const ArticleContentView = ({
             aiProgress={aiProgress}
             missingNativeCount={missingNativeCount}
             resolveInstructionLabel={resolveInstructionLabel}
-            onStartLoopAll={onStartLoopAll}
-            onStartLoopTarget={onStartLoopTarget}
-            onStartLoopSingle={onStartLoopSingle}
-            onStopLoopPlayback={onStopLoopPlayback}
-            onToggleShadowing={onToggleShadowing}
-            onToggleRandomMode={onToggleRandomMode}
+            onStartLoopAll={startLoopAll}
+            onStartLoopTarget={startLoopTarget}
+            onStartLoopSingle={startLoopSingle}
+            onStopLoopPlayback={stopLoopPlayback}
+            onToggleShadowing={handleToggleShadowing}
+            onToggleRandomMode={toggleRandomMode}
             onToggleCardMode={onToggleCardMode}
-            onToggleCloze={onToggleCloze}
-            onToggleBlurTarget={onToggleBlurTarget}
-            onToggleBlurNative={onToggleBlurNative}
-            onStartAiInstruction={onStartAiInstruction}
-            onCancelAi={onCancelAi}
-            onRetryMissing={onRetryMissing}
+            onToggleCloze={toggleCloze}
+            onToggleBlurTarget={handleToggleBlurTarget}
+            onToggleBlurNative={handleToggleBlurNative}
+            onStartAiInstruction={(instructionId) =>
+              startAiTranslation(instructionId, false)
+            }
+            onCancelAi={cancelAiTranslation}
+            onRetryMissing={retryMissingTranslations}
             onToggleMobileToolbar={onToggleMobileToolbar}
             onCloseMobileToolbar={onCloseMobileToolbar}
           />
@@ -228,54 +208,13 @@ export const ArticleContentView = ({
                 </CardContent>
               </Card>
             ) : isCardMode ? (
-              <CardModeView
-                t={t}
-                isRandomMode={isRandomMode}
-                cardIndex={cardIndex}
-                cardCount={cardCount}
-                cardFlipped={cardFlipped}
-                cardDragX={cardDragX}
-                cardDragging={cardDragging}
-                cardFrontText={cardFrontText}
-                cardBackText={cardBackText}
-                onFlip={onCardFlip}
-                onPrev={onCardPrev}
-                onNext={onCardNext}
-                onPlay={onCardPlay}
-                onPointerDown={onCardPointerDown}
-                onPointerMove={onCardPointerMove}
-                onPointerUp={onCardPointerUp}
-                onPointerCancel={onCardPointerCancel}
-              />
+              <CardModeView />
             ) : (
-              detail.sentences.map((sentence) => (
-                <SentenceItem
-                  key={sentence.id}
-                  sentence={sentence}
-                  displayOrderSetting={displayOrderSetting}
-                  playingSentenceId={playingSentenceId}
-                  playingRole={playingRole}
-                  playingSpeed={playingSpeed}
-                  selectedSentenceId={selectedSentenceId}
-                  selectedSentenceRole={selectedSentenceRole}
-                  blurNative={blurNative}
-                  blurTarget={blurTarget}
-                  isClozeEnabled={isClozeEnabled}
-                  clozeRevealed={clozeRevealed}
-                  clozeInputs={clozeInputs}
-                  clozeResults={clozeResults}
-                  setClozeInputs={setClozeInputs}
-                  setClozeResults={setClozeResults}
-                  onStopPlayback={onStopLoopPlayback}
-                  onSelectSentence={onSelectSentence}
-                  onPlaySentence={onPlaySentence}
-                  onPlayError={onPlayError}
-                  onEdit={onEditSentence}
-                  onDelete={onDeleteSentence}
-                  onClozeCheck={onClozeCheck}
-                  t={t}
-                />
-              ))
+              <SentenceItemProvider value={sentenceItemContext}>
+                {detail.sentences.map((sentence) => (
+                  <SentenceItem key={sentence.id} sentence={sentence} />
+                ))}
+              </SentenceItemProvider>
             )}
           </div>
         </div>
@@ -286,8 +225,8 @@ export const ArticleContentView = ({
           t={t}
           inputRef={inputRef}
           value={content}
-          onChange={onChangeContent}
-          onSubmit={onSubmitContent}
+          onChange={setContent}
+          onSubmit={handleCreate}
           isSubmitting={isSubmitting}
           isError={isError}
         />

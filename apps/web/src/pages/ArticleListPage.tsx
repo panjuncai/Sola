@@ -39,8 +39,6 @@ export function ArticleListPage() {
   const articlesState = useArticles({ deriveTitle })
   const {
     articles,
-    content,
-    setContent,
     listQuery,
     detailQuery,
     activeArticleId,
@@ -49,9 +47,7 @@ export function ArticleListPage() {
     selectedIds,
     showCreate,
     deleteTargets,
-    handleCreate,
     toggleSelected,
-    createMutation,
     deleteMutation,
     setConfirmOpen,
   } = articlesState
@@ -65,7 +61,6 @@ export function ArticleListPage() {
     targetVoiceId,
     useAiUserKey,
     blurTarget,
-    blurNative,
     shadowingSpeeds,
     darkMode,
     handleUiLanguageChange,
@@ -74,8 +69,6 @@ export function ArticleListPage() {
     handlePlaybackTargetRepeatChange,
     handlePlaybackPauseSecondsChange,
     handleToggleDarkMode,
-    handleToggleBlurTarget,
-    handleToggleBlurNative,
     handleSetBlurTarget,
   } = useSettingsView()
   const [selectedSentenceId, setSelectedSentenceId] = React.useState<string | null>(
@@ -124,13 +117,6 @@ export function ArticleListPage() {
     aiInstructionEditOpen,
     aiInstructionAddOpen,
     aiInstructionDeleteOpen,
-    aiProgress,
-    aiInstructionGroups,
-    missingNativeCount,
-    resolveInstructionLabel,
-    startAiTranslation,
-    cancelAiTranslation,
-    retryMissingTranslations,
   } = aiManagement
 
   const signOutMutation = trpc.auth.signOut.useMutation()
@@ -215,22 +201,7 @@ export function ArticleListPage() {
     [sentenceAudioMutation]
   )
 
-  const {
-    isLoopingAll,
-    isLoopingTarget,
-    isLoopingSingle,
-    isLoopingShadowing,
-    isRandomMode,
-    isClozeEnabled,
-    stopLoopPlayback,
-    startLoopAll,
-    startLoopTarget,
-    startLoopSingle,
-    handleToggleShadowing,
-    toggleRandomMode,
-    toggleCloze,
-    markUserSelected,
-  } = useArticleToolbar({
+  const articleToolbar = useArticleToolbar({
     detail: detailQuery.data,
     activeArticleId,
     displayOrderSetting,
@@ -251,6 +222,12 @@ export function ArticleListPage() {
     onSelectSentenceRequired: () => toast.error(t("tts.selectSentenceFirst")),
     onStopAudio: stopAudioPlayback,
   })
+  const {
+    isRandomMode,
+    isClozeEnabled,
+    stopLoopPlayback,
+    markUserSelected,
+  } = articleToolbar
 
   const { handleCreateClick, handleDeleteClick, handleSelectArticle } =
     useSidebarView({
@@ -263,26 +240,7 @@ export function ArticleListPage() {
       deleteLoading: deleteMutation.isLoading,
     })
 
-  const {
-    isCardMode,
-    setIsCardMode,
-    cardIndex,
-    cardCount,
-    cardFlipped,
-    cardDragX,
-    cardDragging,
-    cardFrontText,
-    cardBackText,
-    handleFlip: handleCardFlip,
-    handlePrev: handleCardPrev,
-    handleNext: handleCardNext,
-    handlePlay: handleCardPlay,
-    handlePointerDown: handleCardPointerDown,
-    handlePointerMove: handleCardPointerMove,
-    handlePointerUp: handleCardPointerUp,
-    handlePointerCancel: handleCardPointerCancel,
-    cancelCardPlayback,
-  } = useCardMode({
+  const cardMode = useCardMode({
     sentences: detailQuery.data?.sentences ?? [],
     displayOrderSetting,
     isRandomMode,
@@ -292,6 +250,7 @@ export function ArticleListPage() {
     playSentenceRole,
     onPlayError: handlePlayError,
   })
+  const { setIsCardMode, cancelCardPlayback } = cardMode
   const { mobileToolbarOpen, toggleCardMode, toggleMobileToolbar, closeMobileToolbar } =
     useToolbarView({ setIsCardMode })
 
@@ -327,7 +286,6 @@ export function ArticleListPage() {
     setClozeResults,
     setClozeRevealed,
   })
-  const { handleSentenceEdit, handleSentenceDelete } = sentenceOperations
 
   React.useEffect(() => {
     const handleVisibility = () => {
@@ -419,6 +377,8 @@ export function ArticleListPage() {
     <ArticleProviders
       aiManagement={aiManagement}
       articles={articlesState}
+      articleToolbar={articleToolbar}
+      cardMode={cardMode}
       playback={playback}
       settingsDialogs={settingsDialogs}
       sentenceOperations={sentenceOperations}
@@ -473,56 +433,10 @@ export function ArticleListPage() {
         <ArticleMain>
           <ArticleContentView
             t={t}
-            showCreate={showCreate}
-            isLoading={detailQuery.isLoading}
-            detail={detailQuery.data}
-            isCardMode={isCardMode}
-            isRandomMode={isRandomMode}
-            cardIndex={cardIndex}
-            cardCount={cardCount}
-            cardFlipped={cardFlipped}
-            cardDragX={cardDragX}
-            cardDragging={cardDragging}
-            cardFrontText={cardFrontText}
-            cardBackText={cardBackText}
-            onCardFlip={handleCardFlip}
-            onCardPrev={handleCardPrev}
-            onCardNext={handleCardNext}
-            onCardPlay={handleCardPlay}
-            onCardPointerDown={handleCardPointerDown}
-            onCardPointerMove={handleCardPointerMove}
-            onCardPointerUp={handleCardPointerUp}
-            onCardPointerCancel={handleCardPointerCancel}
-            isLoopingAll={isLoopingAll}
-            isLoopingTarget={isLoopingTarget}
-            isLoopingSingle={isLoopingSingle}
-            isLoopingShadowing={isLoopingShadowing}
-            isClozeEnabled={isClozeEnabled}
-            blurTarget={blurTarget}
-            blurNative={blurNative}
             mobileToolbarOpen={mobileToolbarOpen}
-            aiInstructionGroups={aiInstructionGroups}
-            aiProgress={aiProgress}
-            missingNativeCount={missingNativeCount}
-            resolveInstructionLabel={resolveInstructionLabel}
-            onStartLoopAll={startLoopAll}
-            onStartLoopTarget={startLoopTarget}
-            onStartLoopSingle={startLoopSingle}
-            onStopLoopPlayback={stopLoopPlayback}
-            onToggleShadowing={handleToggleShadowing}
-            onToggleRandomMode={toggleRandomMode}
             onToggleCardMode={toggleCardMode}
-            onToggleCloze={toggleCloze}
-            onToggleBlurTarget={handleToggleBlurTarget}
-            onToggleBlurNative={handleToggleBlurNative}
-            onStartAiInstruction={(instructionId) =>
-              startAiTranslation(instructionId, false)
-            }
-            onCancelAi={cancelAiTranslation}
-            onRetryMissing={retryMissingTranslations}
             onToggleMobileToolbar={toggleMobileToolbar}
             onCloseMobileToolbar={closeMobileToolbar}
-            displayOrderSetting={displayOrderSetting}
             playingSentenceId={playingSentenceId}
             playingRole={playingRole}
             playingSpeed={playingSpeed}
@@ -534,17 +448,9 @@ export function ArticleListPage() {
             setClozeInputs={setClozeInputs}
             setClozeResults={setClozeResults}
             onSelectSentence={handleSentenceSelect}
-            onPlaySentence={playSentenceRole}
             onPlayError={handlePlayError}
-            onEditSentence={handleSentenceEdit}
-            onDeleteSentence={handleSentenceDelete}
             onClozeCheck={handleClozeCheck}
             inputRef={inputRef}
-            content={content}
-            onChangeContent={setContent}
-            onSubmitContent={handleCreate}
-            isSubmitting={createMutation.isLoading}
-            isError={createMutation.isError}
           />
         </ArticleMain>
       </div>

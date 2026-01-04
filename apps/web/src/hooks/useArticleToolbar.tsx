@@ -40,7 +40,7 @@ type UseArticleToolbarParams = {
   onStopAudio: () => void
 }
 
-export const useArticleToolbar = ({
+const useArticleToolbarState = ({
   detail,
   displayOrderSetting,
   playbackNativeRepeat,
@@ -453,4 +453,33 @@ export const useArticleToolbar = ({
     handleToggleShadowing,
     markUserSelected,
   }
+}
+
+type ArticleToolbarContextValue = ReturnType<typeof useArticleToolbarState>
+
+const ArticleToolbarContext = React.createContext<ArticleToolbarContextValue | null>(
+  null
+)
+
+export const ArticleToolbarProvider = ({
+  value,
+  children,
+}: {
+  value: ArticleToolbarContextValue
+  children: React.ReactNode
+}) => {
+  return (
+    <ArticleToolbarContext.Provider value={value}>
+      {children}
+    </ArticleToolbarContext.Provider>
+  )
+}
+
+export const useArticleToolbar = (params?: UseArticleToolbarParams) => {
+  const context = React.useContext(ArticleToolbarContext)
+  if (context) return context
+  if (!params) {
+    throw new Error("useArticleToolbar requires params when no provider is set.")
+  }
+  return useArticleToolbarState(params)
 }

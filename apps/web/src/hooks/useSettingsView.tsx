@@ -22,7 +22,6 @@ export const useSettingsView = () => {
     setBlurTarget,
     blurNative,
     setBlurNative,
-    darkMode,
     setDarkMode,
     persistSettings,
   } = settings

@@ -1,5 +1,5 @@
 import * as React from "react"
-import type { TFunction } from "i18next"
+import { useTranslation } from "react-i18next"
 
 import { Card, CardContent, cn } from "@sola/ui"
 
@@ -17,14 +17,7 @@ type ClozeResult = {
   }>
 }
 
-type TranslateFn = TFunction<"translation">
-
-type SentenceItemProps = {
-  sentence: {
-    id: string
-    nativeText: string | null
-    targetText: string | null
-  }
+type SentenceItemContextValue = {
   displayOrderSetting: "native_first" | "target_first"
   playingSentenceId: string | null
   playingRole: SentenceRole | null
@@ -55,34 +48,65 @@ type SentenceItemProps = {
   onEdit: (sentence: { id: string; nativeText: string | null; targetText: string | null }) => void
   onDelete: (sentenceId: string) => void
   onClozeCheck: (sentenceId: string) => void
-  t: TranslateFn
 }
 
-export const SentenceItem: React.FC<SentenceItemProps> = ({
-  sentence,
-  displayOrderSetting,
-  playingSentenceId,
-  playingRole,
-  playingSpeed,
-  selectedSentenceId,
-  selectedSentenceRole,
-  blurNative,
-  blurTarget,
-  isClozeEnabled,
-  clozeRevealed,
-  clozeInputs,
-  clozeResults,
-  setClozeInputs,
-  setClozeResults,
-  onStopPlayback,
-  onSelectSentence,
-  onPlaySentence,
-  onPlayError,
-  onEdit,
-  onDelete,
-  onClozeCheck,
-  t,
+const SentenceItemContext = React.createContext<SentenceItemContextValue | null>(null)
+
+export const SentenceItemProvider = ({
+  value,
+  children,
+}: {
+  value: SentenceItemContextValue
+  children: React.ReactNode
 }) => {
+  return (
+    <SentenceItemContext.Provider value={value}>
+      {children}
+    </SentenceItemContext.Provider>
+  )
+}
+
+const useSentenceItemContext = () => {
+  const context = React.useContext(SentenceItemContext)
+  if (!context) {
+    throw new Error("SentenceItem must be used within SentenceItemProvider.")
+  }
+  return context
+}
+
+type SentenceItemProps = {
+  sentence: {
+    id: string
+    nativeText: string | null
+    targetText: string | null
+  }
+}
+
+export const SentenceItem: React.FC<SentenceItemProps> = ({ sentence }) => {
+  const { t } = useTranslation()
+  const {
+    displayOrderSetting,
+    playingSentenceId,
+    playingRole,
+    playingSpeed,
+    selectedSentenceId,
+    selectedSentenceRole,
+    blurNative,
+    blurTarget,
+    isClozeEnabled,
+    clozeRevealed,
+    clozeInputs,
+    clozeResults,
+    setClozeInputs,
+    setClozeResults,
+    onStopPlayback,
+    onSelectSentence,
+    onPlaySentence,
+    onPlayError,
+    onEdit,
+    onDelete,
+    onClozeCheck,
+  } = useSentenceItemContext()
   const nativeFirst = displayOrderSetting === "native_first"
   const items = [
     { role: "native" as const, text: sentence.nativeText ?? "" },

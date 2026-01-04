@@ -1,57 +1,38 @@
-import * as React from "react"
-import type { TFunction } from "i18next"
+import { useTranslation } from "react-i18next"
 
 import { Button, cn } from "@sola/ui"
 
-type TranslateFn = TFunction<"translation">
+import { useCardMode } from "@/hooks/useCardMode"
 
-type CardModeViewProps = {
-  t: TranslateFn
-  isRandomMode: boolean
-  cardIndex: number
-  cardCount: number
-  cardFlipped: boolean
-  cardDragX: number
-  cardDragging: boolean
-  cardFrontText: string
-  cardBackText: string
-  onFlip: () => void
-  onPrev: (event: React.MouseEvent<HTMLButtonElement>) => void
-  onNext: (event: React.MouseEvent<HTMLButtonElement>) => void
-  onPlay: () => void
-  onPointerDown: (event: React.PointerEvent<HTMLDivElement>) => void
-  onPointerMove: (event: React.PointerEvent<HTMLDivElement>) => void
-  onPointerUp: (event: React.PointerEvent<HTMLDivElement>) => void
-  onPointerCancel: (event: React.PointerEvent<HTMLDivElement>) => void
-}
+export const CardModeView = () => {
+  const { t } = useTranslation()
+  const {
+    isRandomMode,
+    cardIndex,
+    cardCount,
+    cardFlipped,
+    cardDragX,
+    cardDragging,
+    cardFrontText,
+    cardBackText,
+    handleFlip,
+    handlePrev,
+    handleNext,
+    handlePlay,
+    handlePointerDown,
+    handlePointerMove,
+    handlePointerUp,
+    handlePointerCancel,
+  } = useCardMode()
 
-export const CardModeView: React.FC<CardModeViewProps> = ({
-  t,
-  isRandomMode,
-  cardIndex,
-  cardCount,
-  cardFlipped,
-  cardDragX,
-  cardDragging,
-  cardFrontText,
-  cardBackText,
-  onFlip,
-  onPrev,
-  onNext,
-  onPlay,
-  onPointerDown,
-  onPointerMove,
-  onPointerUp,
-  onPointerCancel,
-}) => {
   return (
     <div className="flex flex-col items-center gap-3">
       <div
         className="w-full max-w-xl"
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={onPointerCancel}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerCancel}
       >
         <div
           role="button"
@@ -59,10 +40,10 @@ export const CardModeView: React.FC<CardModeViewProps> = ({
           onKeyDown={(event) => {
             if (event.key === "Enter" || event.key === " ") {
               event.preventDefault()
-              onFlip()
+              handleFlip()
             }
           }}
-          onClick={onFlip}
+          onClick={handleFlip}
           className="group relative mx-auto h-56 w-full max-w-xl cursor-pointer select-none"
           style={{ perspective: "1200px" }}
         >
@@ -100,7 +81,7 @@ export const CardModeView: React.FC<CardModeViewProps> = ({
             type="button"
             data-card-nav
             aria-label={t("article.cardPrev")}
-            onClick={onPrev}
+            onClick={handlePrev}
             className="absolute inset-y-0 left-0 flex items-center px-2 text-muted-foreground/60 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
             style={{ opacity: cardDragging ? 1 : undefined }}
           >
@@ -110,7 +91,7 @@ export const CardModeView: React.FC<CardModeViewProps> = ({
             type="button"
             data-card-nav
             aria-label={t("article.cardNext")}
-            onClick={onNext}
+            onClick={handleNext}
             className="absolute inset-y-0 right-0 flex items-center px-2 text-muted-foreground/60 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
             style={{ opacity: cardDragging ? 1 : undefined }}
           >
@@ -122,7 +103,7 @@ export const CardModeView: React.FC<CardModeViewProps> = ({
         type="button"
         className="h-11 w-20 rounded-full text-lg"
         aria-label={t("article.cardPlay")}
-        onClick={onPlay}
+        onClick={handlePlay}
       >
         ▶
       </Button>

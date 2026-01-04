@@ -17,7 +17,7 @@ type UseCardModeParams = {
   onPlayError: () => void
 }
 
-export const useCardMode = ({
+const useCardModeState = ({
   sentences,
   displayOrderSetting,
   isRandomMode,
@@ -242,6 +242,7 @@ export const useCardMode = ({
   return {
     isCardMode,
     setIsCardMode,
+    isRandomMode,
     cardIndex,
     cardCount,
     cardFlipped,
@@ -261,4 +262,27 @@ export const useCardMode = ({
     handlePointerCancel,
     cancelCardPlayback,
   }
+}
+
+type CardModeContextValue = ReturnType<typeof useCardModeState>
+
+const CardModeContext = React.createContext<CardModeContextValue | null>(null)
+
+export const CardModeProvider = ({
+  value,
+  children,
+}: {
+  value: CardModeContextValue
+  children: React.ReactNode
+}) => {
+  return <CardModeContext.Provider value={value}>{children}</CardModeContext.Provider>
+}
+
+export const useCardMode = (params?: UseCardModeParams) => {
+  const context = React.useContext(CardModeContext)
+  if (context) return context
+  if (!params) {
+    throw new Error("useCardMode requires params when no provider is set.")
+  }
+  return useCardModeState(params)
 }
