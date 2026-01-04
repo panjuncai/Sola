@@ -4,6 +4,7 @@ import {
   useArticleToolbarActions,
   useArticleToolbarState,
 } from "@/atoms/articleToolbar"
+import { useCardModeActions } from "@/atoms/cardMode"
 
 type PlaybackSentence = {
   id: string
@@ -82,6 +83,7 @@ const useArticleToolbarLogic = ({
     setIsRandomMode,
     setIsClozeEnabled,
   } = useArticleToolbarActions()
+  const { setIsCardMode } = useCardModeActions()
   const loopTokenRef = React.useRef(0)
   const shadowingLoopRef = React.useRef(false)
   const userSelectedRef = React.useRef(false)
@@ -443,8 +445,12 @@ const useArticleToolbarLogic = ({
   ])
 
   const toggleRandomMode = React.useCallback(() => {
-    setIsRandomMode((prev) => !prev)
-  }, [])
+    setIsRandomMode((prev) => {
+      const next = !prev
+      setIsCardMode(next)
+      return next
+    })
+  }, [setIsCardMode, setIsRandomMode])
 
   const toggleCloze = React.useCallback(() => {
     setIsClozeEnabled((prev) => !prev)
