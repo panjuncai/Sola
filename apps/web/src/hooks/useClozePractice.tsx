@@ -141,9 +141,13 @@ export const useClozePractice = ({
       if (clozeBlurPrevRef.current === null) {
         clozeBlurPrevRef.current = blurTarget
       }
-      setBlurTarget(true)
+      if (!blurTarget) {
+        setBlurTarget(true)
+      }
     } else if (clozeBlurPrevRef.current !== null) {
-      setBlurTarget(clozeBlurPrevRef.current)
+      if (blurTarget !== clozeBlurPrevRef.current) {
+        setBlurTarget(clozeBlurPrevRef.current)
+      }
       clozeBlurPrevRef.current = null
     }
   }, [isClozeEnabled, blurTarget, setBlurTarget])
