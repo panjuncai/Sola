@@ -14,7 +14,7 @@ import { usePlayback } from "@/hooks/usePlayback"
 import { useArticlesContext } from "@/hooks/useArticles"
 import { useArticleToolbar } from "@/hooks/useArticleToolbar"
 import { useSettingsView } from "@/hooks/useSettingsView"
-import { useCardMode } from "@/hooks/useCardMode"
+import { useCardModeState } from "@/atoms/cardMode"
 
 type ArticleContentViewProps = {
   t: TFunction<"translation">
@@ -85,7 +85,7 @@ export const ArticleContentView = ({
     handleToggleBlurTarget,
     handleToggleBlurNative,
   } = useSettingsView()
-  const { isCardMode } = useCardMode()
+  const { isCardMode } = useCardModeState()
   const {
     isLoopingAll,
     isLoopingTarget,

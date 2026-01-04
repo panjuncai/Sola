@@ -11,7 +11,7 @@ import { ArticleSidebar } from "@/components/article/layout/ArticleSidebar"
 import { ArticleMain } from "@/components/article/layout/ArticleMain"
 import { MobileHeader } from "@/components/article/layout/MobileHeader"
 import { useClozePractice } from "@/hooks/useClozePractice"
-import { useCardMode } from "@/hooks/useCardMode"
+import { useCardModeActions } from "@/atoms/cardMode"
 import { useArticleToolbar } from "@/hooks/useArticleToolbar"
 import { useAiManagement } from "@/hooks/useAiManagement"
 import { useSentenceOperations } from "@/hooks/useSentenceOperations"
@@ -222,12 +222,7 @@ export function ArticleListPage() {
     onSelectSentenceRequired: () => toast.error(t("tts.selectSentenceFirst")),
     onStopAudio: stopAudioPlayback,
   })
-  const {
-    isRandomMode,
-    isClozeEnabled,
-    stopLoopPlayback,
-    markUserSelected,
-  } = articleToolbar
+  const { isClozeEnabled, stopLoopPlayback, markUserSelected } = articleToolbar
 
   const { handleCreateClick, handleDeleteClick, handleSelectArticle } =
     useSidebarView({
@@ -240,17 +235,7 @@ export function ArticleListPage() {
       deleteLoading: deleteMutation.isLoading,
     })
 
-  const cardMode = useCardMode({
-    sentences: detailQuery.data?.sentences ?? [],
-    displayOrderSetting,
-    isRandomMode,
-    playbackNativeRepeat,
-    playbackTargetRepeat,
-    playbackPauseSeconds,
-    playSentenceRole,
-    onPlayError: handlePlayError,
-  })
-  const { setIsCardMode, cancelCardPlayback } = cardMode
+  const { setIsCardMode } = useCardModeActions()
   const { mobileToolbarOpen, toggleCardMode, toggleMobileToolbar, closeMobileToolbar } =
     useToolbarView({ setIsCardMode })
 
@@ -291,12 +276,12 @@ export function ArticleListPage() {
     const handleVisibility = () => {
       if (document.visibilityState !== "visible") {
         stopLoopPlayback()
-        cancelCardPlayback()
+        stopAudioPlayback()
       }
     }
     document.addEventListener("visibilitychange", handleVisibility)
     return () => document.removeEventListener("visibilitychange", handleVisibility)
-  }, [cancelCardPlayback, stopLoopPlayback])
+  }, [stopAudioPlayback, stopLoopPlayback])
 
   React.useEffect(() => {
     stopLoopPlayback()
@@ -378,7 +363,6 @@ export function ArticleListPage() {
       aiManagement={aiManagement}
       articles={articlesState}
       articleToolbar={articleToolbar}
-      cardMode={cardMode}
       playback={playback}
       settingsDialogs={settingsDialogs}
       sentenceOperations={sentenceOperations}
