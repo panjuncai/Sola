@@ -1,84 +1,65 @@
 import * as React from "react"
-import type { TFunction } from "i18next"
+import { useTranslation } from "react-i18next"
 
 import { Button, cn } from "@sola/ui"
 
-type InstructionGroup = [string, { id: string; name: string }[]]
-
-type AiProgressState = {
-  running: boolean
-  instructionId: string | null
-  completed: number
-  total: number
-}
-
-type TranslateFn = TFunction<"translation">
+import { useArticleToolbarState } from "@/atoms/articleToolbar"
+import { useCardModeActions, useCardModeState } from "@/atoms/cardMode"
+import { useAiManagement } from "@/hooks/useAiManagement"
+import { useArticleToolbar } from "@/hooks/useArticleToolbar"
+import { useSettingsView } from "@/hooks/useSettingsView"
 
 type ArticleToolbarProps = {
-  t: TranslateFn
-  isLoopingAll: boolean
-  isLoopingTarget: boolean
-  isLoopingSingle: boolean
-  isLoopingShadowing: boolean
-  isRandomMode: boolean
-  isCardMode: boolean
-  isClozeEnabled: boolean
-  blurTarget: boolean
-  blurNative: boolean
   mobileToolbarOpen: boolean
-  aiInstructionGroups: InstructionGroup[]
-  aiProgress: AiProgressState | null
-  missingNativeCount: number
-  resolveInstructionLabel: (type: "translate" | "explain" | "custom") => string
-  onStartLoopAll: () => void
-  onStartLoopTarget: () => void
-  onStartLoopSingle: () => void
-  onStopLoopPlayback: () => void
-  onToggleShadowing: () => void
-  onToggleRandomMode: () => void
-  onToggleCardMode: () => void
-  onToggleCloze: () => void
-  onToggleBlurTarget: () => void
-  onToggleBlurNative: () => void
-  onStartAiInstruction: (instructionId: string) => void
-  onCancelAi: () => void
-  onRetryMissing: () => void
   onToggleMobileToolbar: () => void
   onCloseMobileToolbar: () => void
 }
 
 export const ArticleToolbar: React.FC<ArticleToolbarProps> = ({
-  t,
-  isLoopingAll,
-  isLoopingTarget,
-  isLoopingSingle,
-  isLoopingShadowing,
-  isRandomMode,
-  isCardMode,
-  isClozeEnabled,
-  blurTarget,
-  blurNative,
   mobileToolbarOpen,
-  aiInstructionGroups,
-  aiProgress,
-  missingNativeCount,
-  resolveInstructionLabel,
-  onStartLoopAll,
-  onStartLoopTarget,
-  onStartLoopSingle,
-  onStopLoopPlayback,
-  onToggleShadowing,
-  onToggleRandomMode,
-  onToggleCardMode,
-  onToggleCloze,
-  onToggleBlurTarget,
-  onToggleBlurNative,
-  onStartAiInstruction,
-  onCancelAi,
-  onRetryMissing,
   onToggleMobileToolbar,
   onCloseMobileToolbar,
 }) => {
+  const { t } = useTranslation()
+  const {
+    isLoopingAll,
+    isLoopingTarget,
+    isLoopingSingle,
+    isLoopingShadowing,
+    isRandomMode,
+    isClozeEnabled,
+  } = useArticleToolbarState()
+  const {
+    stopLoopPlayback,
+    startLoopAll,
+    startLoopTarget,
+    startLoopSingle,
+    handleToggleShadowing,
+    toggleRandomMode,
+    toggleCloze,
+  } = useArticleToolbar()
+  const { isCardMode } = useCardModeState()
+  const { setIsCardMode } = useCardModeActions()
+  const {
+    blurTarget,
+    blurNative,
+    handleToggleBlurTarget,
+    handleToggleBlurNative,
+  } = useSettingsView()
+  const {
+    aiInstructionGroups,
+    aiProgress,
+    missingNativeCount,
+    resolveInstructionLabel,
+    startAiTranslation,
+    cancelAiTranslation,
+    retryMissingTranslations,
+  } = useAiManagement()
+
+  const handleToggleCardMode = React.useCallback(() => {
+    setIsCardMode((prev) => !prev)
+  }, [setIsCardMode])
+
   return (
     <>
       <div className="hidden md:block">
@@ -95,8 +76,8 @@ export const ArticleToolbar: React.FC<ArticleToolbarProps> = ({
                     "bg-primary text-primary-foreground shadow-md ring-2 ring-primary/30"
                 )}
                 onClick={() => {
-                  if (isLoopingAll) onStopLoopPlayback()
-                  else onStartLoopAll()
+                  if (isLoopingAll) stopLoopPlayback()
+                  else startLoopAll()
                 }}
               >
                 <svg
@@ -128,8 +109,8 @@ export const ArticleToolbar: React.FC<ArticleToolbarProps> = ({
                     "bg-primary text-primary-foreground shadow-md ring-2 ring-primary/30"
                 )}
                 onClick={() => {
-                  if (isLoopingTarget) onStopLoopPlayback()
-                  else onStartLoopTarget()
+                  if (isLoopingTarget) stopLoopPlayback()
+                  else startLoopTarget()
                 }}
               >
                 <svg
@@ -160,8 +141,8 @@ export const ArticleToolbar: React.FC<ArticleToolbarProps> = ({
                     "bg-primary text-primary-foreground shadow-md ring-2 ring-primary/30"
                 )}
                 onClick={() => {
-                  if (isLoopingSingle) onStopLoopPlayback()
-                  else onStartLoopSingle()
+                  if (isLoopingSingle) stopLoopPlayback()
+                  else startLoopSingle()
                 }}
               >
                 <svg
@@ -192,7 +173,7 @@ export const ArticleToolbar: React.FC<ArticleToolbarProps> = ({
                   isLoopingShadowing &&
                     "bg-primary text-primary-foreground shadow-md ring-2 ring-primary/30"
                 )}
-                onClick={onToggleShadowing}
+                onClick={handleToggleShadowing}
               >
                 <svg
                   aria-hidden="true"
@@ -217,7 +198,7 @@ export const ArticleToolbar: React.FC<ArticleToolbarProps> = ({
                 type="button"
                 className="flex items-center gap-2"
                 aria-label={t("article.randomMode")}
-                onClick={onToggleRandomMode}
+                onClick={toggleRandomMode}
               >
                 <span
                   className={cn(
@@ -238,7 +219,7 @@ export const ArticleToolbar: React.FC<ArticleToolbarProps> = ({
                 type="button"
                 className="flex items-center gap-2"
                 aria-label={t("article.cardMode")}
-                onClick={onToggleCardMode}
+                onClick={handleToggleCardMode}
               >
                 <span
                   className={cn(
@@ -259,7 +240,7 @@ export const ArticleToolbar: React.FC<ArticleToolbarProps> = ({
                 type="button"
                 className="flex items-center gap-2"
                 aria-label={t("article.clozePractice")}
-                onClick={onToggleCloze}
+                onClick={toggleCloze}
               >
                 <span
                   className={cn(
@@ -279,7 +260,7 @@ export const ArticleToolbar: React.FC<ArticleToolbarProps> = ({
               <button
                 type="button"
                 className="flex items-center gap-2"
-                onClick={onToggleBlurTarget}
+                onClick={handleToggleBlurTarget}
                 aria-label={t("article.maskTarget")}
               >
                 <span
@@ -300,7 +281,7 @@ export const ArticleToolbar: React.FC<ArticleToolbarProps> = ({
               <button
                 type="button"
                 className="flex items-center gap-2"
-                onClick={onToggleBlurNative}
+                onClick={handleToggleBlurNative}
                 aria-label={t("article.maskNative")}
               >
                 <span
@@ -345,7 +326,7 @@ export const ArticleToolbar: React.FC<ArticleToolbarProps> = ({
                           : "outline"
                       }
                       className="h-7 px-2 text-xs"
-                      onClick={() => onStartAiInstruction(instruction.id)}
+                      onClick={() => startAiTranslation(instruction.id, false)}
                     >
                       {instruction.name}
                     </Button>
@@ -366,7 +347,7 @@ export const ArticleToolbar: React.FC<ArticleToolbarProps> = ({
                 type="button"
                 variant="outline"
                 className="h-7 px-2 text-xs"
-                onClick={onCancelAi}
+                onClick={cancelAiTranslation}
               >
                 {t("ai.cancel")}
               </Button>
@@ -376,7 +357,7 @@ export const ArticleToolbar: React.FC<ArticleToolbarProps> = ({
                 type="button"
                 variant="outline"
                 className="h-7 px-2 text-xs"
-                onClick={onRetryMissing}
+                onClick={retryMissingTranslations}
               >
                 {t("ai.retryMissing")}
               </Button>
@@ -433,8 +414,8 @@ export const ArticleToolbar: React.FC<ArticleToolbarProps> = ({
                       "bg-primary text-primary-foreground shadow-md ring-2 ring-primary/30"
                   )}
                   onClick={() => {
-                    if (isLoopingAll) onStopLoopPlayback()
-                    else onStartLoopAll()
+                    if (isLoopingAll) stopLoopPlayback()
+                    else startLoopAll()
                   }}
                 >
                   <svg
@@ -463,8 +444,8 @@ export const ArticleToolbar: React.FC<ArticleToolbarProps> = ({
                       "bg-primary text-primary-foreground shadow-md ring-2 ring-primary/30"
                   )}
                   onClick={() => {
-                    if (isLoopingTarget) onStopLoopPlayback()
-                    else onStartLoopTarget()
+                    if (isLoopingTarget) stopLoopPlayback()
+                    else startLoopTarget()
                   }}
                 >
                   <svg
@@ -492,8 +473,8 @@ export const ArticleToolbar: React.FC<ArticleToolbarProps> = ({
                       "bg-primary text-primary-foreground shadow-md ring-2 ring-primary/30"
                   )}
                   onClick={() => {
-                    if (isLoopingSingle) onStopLoopPlayback()
-                    else onStartLoopSingle()
+                    if (isLoopingSingle) stopLoopPlayback()
+                    else startLoopSingle()
                   }}
                 >
                   <svg
@@ -521,7 +502,7 @@ export const ArticleToolbar: React.FC<ArticleToolbarProps> = ({
                     isLoopingShadowing &&
                       "bg-primary text-primary-foreground shadow-md ring-2 ring-primary/30"
                   )}
-                  onClick={onToggleShadowing}
+                  onClick={handleToggleShadowing}
                 >
                   <svg
                     aria-hidden="true"
@@ -542,7 +523,7 @@ export const ArticleToolbar: React.FC<ArticleToolbarProps> = ({
                 <button
                   type="button"
                   className="flex items-center gap-2"
-                  onClick={onToggleRandomMode}
+                  onClick={toggleRandomMode}
                 >
                   <span
                     className={cn(
@@ -562,7 +543,7 @@ export const ArticleToolbar: React.FC<ArticleToolbarProps> = ({
                 <button
                   type="button"
                   className="flex items-center gap-2"
-                  onClick={onToggleCardMode}
+                  onClick={handleToggleCardMode}
                 >
                   <span
                     className={cn(
@@ -582,7 +563,7 @@ export const ArticleToolbar: React.FC<ArticleToolbarProps> = ({
                 <button
                   type="button"
                   className="flex items-center gap-2"
-                  onClick={onToggleCloze}
+                  onClick={toggleCloze}
                 >
                   <span
                     className={cn(
@@ -602,7 +583,7 @@ export const ArticleToolbar: React.FC<ArticleToolbarProps> = ({
                 <button
                   type="button"
                   className="flex items-center gap-2"
-                  onClick={onToggleBlurTarget}
+                  onClick={handleToggleBlurTarget}
                 >
                   <span
                     className={cn(
@@ -622,7 +603,7 @@ export const ArticleToolbar: React.FC<ArticleToolbarProps> = ({
                 <button
                   type="button"
                   className="flex items-center gap-2"
-                  onClick={onToggleBlurNative}
+                  onClick={handleToggleBlurNative}
                 >
                   <span
                     className={cn(
@@ -667,7 +648,7 @@ export const ArticleToolbar: React.FC<ArticleToolbarProps> = ({
                               : "outline"
                           }
                           className="h-7 px-2 text-xs"
-                          onClick={() => onStartAiInstruction(instruction.id)}
+                          onClick={() => startAiTranslation(instruction.id, false)}
                         >
                           {instruction.name}
                         </Button>

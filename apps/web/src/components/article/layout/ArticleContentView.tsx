@@ -8,18 +8,17 @@ import { SentenceItem, SentenceItemProvider } from "@/components/article/Sentenc
 import { CardModeView } from "@/components/article/CardModeView"
 import { CreateArticlePanel } from "@/components/article/CreateArticlePanel"
 import type { ClozeResult } from "@/hooks/useClozePractice"
-import { useAiManagement } from "@/hooks/useAiManagement"
 import { useSentenceOperations } from "@/hooks/useSentenceOperations"
 import { usePlayback } from "@/hooks/usePlayback"
 import { useArticlesContext } from "@/hooks/useArticles"
 import { useArticleToolbar } from "@/hooks/useArticleToolbar"
 import { useSettingsView } from "@/hooks/useSettingsView"
 import { useCardModeState } from "@/atoms/cardMode"
+import { useArticleToolbarState } from "@/atoms/articleToolbar"
 
 type ArticleContentViewProps = {
   t: TFunction<"translation">
   mobileToolbarOpen: boolean
-  onToggleCardMode: () => void
   onToggleMobileToolbar: () => void
   onCloseMobileToolbar: () => void
   playingSentenceId: string | null
@@ -47,7 +46,6 @@ type ArticleContentViewProps = {
 export const ArticleContentView = ({
   t,
   mobileToolbarOpen,
-  onToggleCardMode,
   onToggleMobileToolbar,
   onCloseMobileToolbar,
   playingSentenceId,
@@ -67,40 +65,12 @@ export const ArticleContentView = ({
 }: ArticleContentViewProps) => {
   const { detailQuery, showCreate, content, setContent, handleCreate, createMutation } =
     useArticlesContext()
-  const {
-    aiInstructionGroups,
-    aiProgress,
-    missingNativeCount,
-    resolveInstructionLabel,
-    startAiTranslation,
-    cancelAiTranslation,
-    retryMissingTranslations,
-  } = useAiManagement()
   const { handleSentenceEdit, handleSentenceDelete } = useSentenceOperations()
   const { playSentenceRole } = usePlayback()
-  const {
-    displayOrderSetting,
-    blurTarget,
-    blurNative,
-    handleToggleBlurTarget,
-    handleToggleBlurNative,
-  } = useSettingsView()
+  const { displayOrderSetting, blurTarget, blurNative } = useSettingsView()
   const { isCardMode } = useCardModeState()
-  const {
-    isLoopingAll,
-    isLoopingTarget,
-    isLoopingSingle,
-    isLoopingShadowing,
-    isRandomMode,
-    isClozeEnabled,
-    stopLoopPlayback,
-    startLoopAll,
-    startLoopTarget,
-    startLoopSingle,
-    handleToggleShadowing,
-    toggleRandomMode,
-    toggleCloze,
-  } = useArticleToolbar()
+  const { isClozeEnabled } = useArticleToolbarState()
+  const { stopLoopPlayback } = useArticleToolbar()
   const sentenceItemContext = React.useMemo(
     () => ({
       displayOrderSetting,
@@ -167,36 +137,7 @@ export const ArticleContentView = ({
       ) : detail ? (
         <div className="space-y-4">
           <ArticleToolbar
-            t={t}
-            isLoopingAll={isLoopingAll}
-            isLoopingTarget={isLoopingTarget}
-            isLoopingSingle={isLoopingSingle}
-            isLoopingShadowing={isLoopingShadowing}
-            isRandomMode={isRandomMode}
-            isCardMode={isCardMode}
-            isClozeEnabled={isClozeEnabled}
-            blurTarget={blurTarget}
-            blurNative={blurNative}
             mobileToolbarOpen={mobileToolbarOpen}
-            aiInstructionGroups={aiInstructionGroups}
-            aiProgress={aiProgress}
-            missingNativeCount={missingNativeCount}
-            resolveInstructionLabel={resolveInstructionLabel}
-            onStartLoopAll={startLoopAll}
-            onStartLoopTarget={startLoopTarget}
-            onStartLoopSingle={startLoopSingle}
-            onStopLoopPlayback={stopLoopPlayback}
-            onToggleShadowing={handleToggleShadowing}
-            onToggleRandomMode={toggleRandomMode}
-            onToggleCardMode={onToggleCardMode}
-            onToggleCloze={toggleCloze}
-            onToggleBlurTarget={handleToggleBlurTarget}
-            onToggleBlurNative={handleToggleBlurNative}
-            onStartAiInstruction={(instructionId) =>
-              startAiTranslation(instructionId, false)
-            }
-            onCancelAi={cancelAiTranslation}
-            onRetryMissing={retryMissingTranslations}
             onToggleMobileToolbar={onToggleMobileToolbar}
             onCloseMobileToolbar={onCloseMobileToolbar}
           />

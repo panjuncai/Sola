@@ -11,7 +11,6 @@ import { ArticleSidebar } from "@/components/article/layout/ArticleSidebar"
 import { ArticleMain } from "@/components/article/layout/ArticleMain"
 import { MobileHeader } from "@/components/article/layout/MobileHeader"
 import { useClozePractice } from "@/hooks/useClozePractice"
-import { useCardModeActions } from "@/atoms/cardMode"
 import { useArticleToolbar } from "@/hooks/useArticleToolbar"
 import { useAiManagement } from "@/hooks/useAiManagement"
 import { useSentenceOperations } from "@/hooks/useSentenceOperations"
@@ -235,9 +234,8 @@ export function ArticleListPage() {
       deleteLoading: deleteMutation.isLoading,
     })
 
-  const { setIsCardMode } = useCardModeActions()
-  const { mobileToolbarOpen, toggleCardMode, toggleMobileToolbar, closeMobileToolbar } =
-    useToolbarView({ setIsCardMode })
+  const { mobileToolbarOpen, toggleMobileToolbar, closeMobileToolbar } =
+    useToolbarView()
 
   const {
     clozeInputs,
@@ -418,7 +416,6 @@ export function ArticleListPage() {
           <ArticleContentView
             t={t}
             mobileToolbarOpen={mobileToolbarOpen}
-            onToggleCardMode={toggleCardMode}
             onToggleMobileToolbar={toggleMobileToolbar}
             onCloseMobileToolbar={closeMobileToolbar}
             playingSentenceId={playingSentenceId}

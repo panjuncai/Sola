@@ -6,7 +6,7 @@ import { Button, cn, toast } from "@sola/ui"
 import { useCardModeActions, useCardModeState } from "@/atoms/cardMode"
 import { useArticlesContext } from "@/hooks/useArticles"
 import { useSettingsView } from "@/hooks/useSettingsView"
-import { useArticleToolbar } from "@/hooks/useArticleToolbar"
+import { useArticleToolbarState } from "@/atoms/articleToolbar"
 import { usePlayback } from "@/hooks/usePlayback"
 
 type CardSentence = {
@@ -302,7 +302,7 @@ export const CardModeView = () => {
   const { detailQuery } = useArticlesContext()
   const { displayOrderSetting, playbackNativeRepeat, playbackTargetRepeat, playbackPauseSeconds } =
     useSettingsView()
-  const { isRandomMode } = useArticleToolbar()
+  const { isRandomMode } = useArticleToolbarState()
   const { playSentenceRole } = usePlayback()
   const { isCardMode, cardIndex, cardFlipped, cardDragX, cardDragging } =
     useCardModeState()

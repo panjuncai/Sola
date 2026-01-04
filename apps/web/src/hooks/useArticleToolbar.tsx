@@ -1,5 +1,10 @@
 import * as React from "react"
 
+import {
+  useArticleToolbarActions,
+  useArticleToolbarState,
+} from "@/atoms/articleToolbar"
+
 type PlaybackSentence = {
   id: string
   nativeText: string | null
@@ -40,7 +45,7 @@ type UseArticleToolbarParams = {
   onStopAudio: () => void
 }
 
-const useArticleToolbarState = ({
+const useArticleToolbarLogic = ({
   detail,
   displayOrderSetting,
   playbackNativeRepeat,
@@ -61,12 +66,22 @@ const useArticleToolbarState = ({
   onSelectSentenceRequired,
   onStopAudio,
 }: UseArticleToolbarParams) => {
-  const [isLoopingAll, setIsLoopingAll] = React.useState(false)
-  const [isLoopingTarget, setIsLoopingTarget] = React.useState(false)
-  const [isLoopingSingle, setIsLoopingSingle] = React.useState(false)
-  const [isLoopingShadowing, setIsLoopingShadowing] = React.useState(false)
-  const [isRandomMode, setIsRandomMode] = React.useState(false)
-  const [isClozeEnabled, setIsClozeEnabled] = React.useState(false)
+  const {
+    isLoopingAll,
+    isLoopingTarget,
+    isLoopingSingle,
+    isLoopingShadowing,
+    isRandomMode,
+    isClozeEnabled,
+  } = useArticleToolbarState()
+  const {
+    setIsLoopingAll,
+    setIsLoopingTarget,
+    setIsLoopingSingle,
+    setIsLoopingShadowing,
+    setIsRandomMode,
+    setIsClozeEnabled,
+  } = useArticleToolbarActions()
   const loopTokenRef = React.useRef(0)
   const shadowingLoopRef = React.useRef(false)
   const userSelectedRef = React.useRef(false)
@@ -455,7 +470,7 @@ const useArticleToolbarState = ({
   }
 }
 
-type ArticleToolbarContextValue = ReturnType<typeof useArticleToolbarState>
+type ArticleToolbarContextValue = ReturnType<typeof useArticleToolbarLogic>
 
 const ArticleToolbarContext = React.createContext<ArticleToolbarContextValue | null>(
   null
@@ -481,5 +496,5 @@ export const useArticleToolbar = (params?: UseArticleToolbarParams) => {
   if (!params) {
     throw new Error("useArticleToolbar requires params when no provider is set.")
   }
-  return useArticleToolbarState(params)
+  return useArticleToolbarLogic(params)
 }
