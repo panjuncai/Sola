@@ -1,5 +1,4 @@
-import * as React from "react"
-import type { TFunction } from "i18next"
+import { useTranslation } from "react-i18next"
 
 import {
   Button,
@@ -11,35 +10,29 @@ import {
   DialogTitle,
 } from "@sola/ui"
 
-type TranslateFn = TFunction<"translation">
+import { useSentenceOperations } from "@/hooks/useSentenceOperations"
 
-type SentenceEditDialogProps = {
-  t: TranslateFn
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  nativeText: string
-  targetText: string
-  onChangeNative: (value: string) => void
-  onChangeTarget: (value: string) => void
-  onSave: () => void
-  isSaving: boolean
-  isDisabled: boolean
-}
+export const SentenceEditDialog = () => {
+  const { t } = useTranslation()
+  const {
+    sentenceEditOpen,
+    setSentenceEditOpen,
+    sentenceEditing,
+    setSentenceEditing,
+    isSaving,
+    handleEditSave,
+  } = useSentenceOperations()
 
-export const SentenceEditDialog: React.FC<SentenceEditDialogProps> = ({
-  t,
-  open,
-  onOpenChange,
-  nativeText,
-  targetText,
-  onChangeNative,
-  onChangeTarget,
-  onSave,
-  isSaving,
-  isDisabled,
-}) => {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={sentenceEditOpen}
+      onOpenChange={(open) => {
+        setSentenceEditOpen(open)
+        if (!open) {
+          setSentenceEditing(null)
+        }
+      }}
+    >
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{t("article.editSentenceTitle")}</DialogTitle>
@@ -51,8 +44,12 @@ export const SentenceEditDialog: React.FC<SentenceEditDialogProps> = ({
             </label>
             <textarea
               className="min-h-[80px] w-full rounded-md border bg-background px-2 py-1 text-sm"
-              value={nativeText}
-              onChange={(event) => onChangeNative(event.target.value)}
+              value={sentenceEditing?.nativeText ?? ""}
+              onChange={(event) =>
+                setSentenceEditing((prev) =>
+                  prev ? { ...prev, nativeText: event.target.value } : prev
+                )
+              }
             />
           </div>
           <div className="space-y-1">
@@ -61,8 +58,12 @@ export const SentenceEditDialog: React.FC<SentenceEditDialogProps> = ({
             </label>
             <textarea
               className="min-h-[80px] w-full rounded-md border bg-background px-2 py-1 text-sm"
-              value={targetText}
-              onChange={(event) => onChangeTarget(event.target.value)}
+              value={sentenceEditing?.targetText ?? ""}
+              onChange={(event) =>
+                setSentenceEditing((prev) =>
+                  prev ? { ...prev, targetText: event.target.value } : prev
+                )
+              }
             />
           </div>
         </div>
@@ -70,7 +71,10 @@ export const SentenceEditDialog: React.FC<SentenceEditDialogProps> = ({
           <DialogClose asChild>
             <Button variant="outline">{t("common.cancel")}</Button>
           </DialogClose>
-          <Button disabled={isDisabled || isSaving} onClick={onSave}>
+          <Button
+            disabled={!sentenceEditing || isSaving}
+            onClick={handleEditSave}
+          >
             {t("common.save")}
           </Button>
         </DialogFooter>

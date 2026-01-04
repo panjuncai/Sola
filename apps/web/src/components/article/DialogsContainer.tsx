@@ -28,24 +28,6 @@ type DialogsContainerProps = {
     isLoading: boolean
     onConfirm: () => void
   }
-  sentenceEdit: {
-    open: boolean
-    onOpenChange: (open: boolean) => void
-    nativeText: string
-    targetText: string
-    onChangeNative: (value: string) => void
-    onChangeTarget: (value: string) => void
-    isSaving: boolean
-    isDisabled: boolean
-    onSave: () => void | Promise<any>
-  }
-  sentenceDelete: {
-    open: boolean
-    onOpenChange: (open: boolean) => void
-    isLoading: boolean
-    isDisabled: boolean
-    onConfirm: () => void | Promise<void>
-  }
   accountDelete: {
     open: boolean
     onOpenChange: (open: boolean) => void
@@ -129,8 +111,6 @@ type DialogsContainerProps = {
 export const DialogsContainer: React.FC<DialogsContainerProps> = ({
   t,
   deleteConfirm,
-  sentenceEdit,
-  sentenceDelete,
   accountDelete,
   languageSettings,
   aiProviderAdd,
@@ -151,27 +131,9 @@ export const DialogsContainer: React.FC<DialogsContainerProps> = ({
         onConfirm={deleteConfirm.onConfirm}
       />
 
-      <SentenceEditDialog
-        t={t}
-        open={sentenceEdit.open}
-        onOpenChange={sentenceEdit.onOpenChange}
-        nativeText={sentenceEdit.nativeText}
-        targetText={sentenceEdit.targetText}
-        onChangeNative={sentenceEdit.onChangeNative}
-        onChangeTarget={sentenceEdit.onChangeTarget}
-        isSaving={sentenceEdit.isSaving}
-        isDisabled={sentenceEdit.isDisabled}
-        onSave={sentenceEdit.onSave}
-      />
+      <SentenceEditDialog />
 
-      <SentenceDeleteDialog
-        t={t}
-        open={sentenceDelete.open}
-        onOpenChange={sentenceDelete.onOpenChange}
-        isLoading={sentenceDelete.isLoading}
-        isDisabled={sentenceDelete.isDisabled}
-        onConfirm={sentenceDelete.onConfirm}
-      />
+      <SentenceDeleteDialog />
 
       <DeleteAccountDialog
         t={t}

@@ -1,5 +1,4 @@
-import * as React from "react"
-import type { TFunction } from "i18next"
+import { useTranslation } from "react-i18next"
 
 import {
   Button,
@@ -12,27 +11,29 @@ import {
   DialogTitle,
 } from "@sola/ui"
 
-type TranslateFn = TFunction<"translation">
+import { useSentenceOperations } from "@/hooks/useSentenceOperations"
 
-type SentenceDeleteDialogProps = {
-  t: TranslateFn
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  isLoading: boolean
-  isDisabled: boolean
-  onConfirm: () => void
-}
+export const SentenceDeleteDialog = () => {
+  const { t } = useTranslation()
+  const {
+    sentenceDeleteOpen,
+    setSentenceDeleteOpen,
+    sentenceDeleteId,
+    setSentenceDeleteId,
+    isDeleting,
+    handleDeleteConfirm,
+  } = useSentenceOperations()
 
-export const SentenceDeleteDialog: React.FC<SentenceDeleteDialogProps> = ({
-  t,
-  open,
-  onOpenChange,
-  isLoading,
-  isDisabled,
-  onConfirm,
-}) => {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={sentenceDeleteOpen}
+      onOpenChange={(open) => {
+        setSentenceDeleteOpen(open)
+        if (!open) {
+          setSentenceDeleteId(null)
+        }
+      }}
+    >
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{t("article.deleteSentenceTitle")}</DialogTitle>
@@ -44,8 +45,8 @@ export const SentenceDeleteDialog: React.FC<SentenceDeleteDialogProps> = ({
           </DialogClose>
           <Button
             variant="destructive"
-            disabled={isDisabled || isLoading}
-            onClick={onConfirm}
+            disabled={!sentenceDeleteId || isDeleting}
+            onClick={handleDeleteConfirm}
           >
             {t("article.deleteSentenceConfirm")}
           </Button>

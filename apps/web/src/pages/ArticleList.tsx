@@ -17,7 +17,14 @@ import { CreateArticlePanel } from "@/components/article/CreateArticlePanel"
 import { useClozePractice } from "@/hooks/useClozePractice"
 import { useCardMode } from "@/hooks/useCardMode"
 import { useArticleToolbar } from "@/hooks/useArticleToolbar"
-import { AiManagementProvider, useAiManagement } from "@/hooks/useAiManagement"
+import {
+  AiManagementProvider,
+  useAiManagement,
+} from "@/hooks/useAiManagement"
+import {
+  SentenceOperationsProvider,
+  useSentenceOperations,
+} from "@/hooks/useSentenceOperations"
 import { useArticles } from "@/hooks/useArticles"
 import { useSettings } from "@/hooks/useSettings"
 import { DialogsContainer } from "@/components/article/DialogsContainer"
@@ -29,7 +36,6 @@ function deriveTitle(content: string) {
 
 export function ArticleList() {
   const { t } = useTranslation()
-  const utils = trpc.useUtils()
 
   const languageOptions = ["zh-CN", "en-US", "fr-FR"] as const
   type LanguageOption = (typeof languageOptions)[number]
@@ -117,14 +123,6 @@ export function ArticleList() {
   const mobileSettingsButtonRef = React.useRef<HTMLButtonElement>(null)
   const [shadowingDialogOpen, setShadowingDialogOpen] = React.useState(false)
   const [clearCacheOpen, setClearCacheOpen] = React.useState(false)
-  const [sentenceEditOpen, setSentenceEditOpen] = React.useState(false)
-  const [sentenceDeleteOpen, setSentenceDeleteOpen] = React.useState(false)
-  const [sentenceEditing, setSentenceEditing] = React.useState<{
-    id: string
-    nativeText: string
-    targetText: string
-  } | null>(null)
-  const [sentenceDeleteId, setSentenceDeleteId] = React.useState<string | null>(null)
   const userId = useAuthStore((state) => state.user?.id ?? null)
   const userEmail = useAuthStore((state) => state.user?.email ?? "")
   const ttsInitRef = React.useRef<string>("")
@@ -189,44 +187,9 @@ export function ArticleList() {
     resetAiProviders,
   } = aiManagement
 
-  const updateSentenceMutation = trpc.article.updateSentence.useMutation()
-  const deleteSentenceMutation = trpc.article.deleteSentence.useMutation()
   const deleteAccountMutation = trpc.user.deleteAccount.useMutation()
   const signOutMutation = trpc.auth.signOut.useMutation()
   const sentenceAudioMutation = trpc.tts.getSentenceAudio.useMutation()
-  const updateSentenceLocal = React.useCallback(
-    (sentenceId: string, nativeText: string | null, targetText: string | null) => {
-      const articleId = detailQuery.data?.article.id
-      if (!articleId) return
-      utils.article.get.setData({ articleId }, (current) => {
-        if (!current) return current
-        return {
-          ...current,
-          sentences: current.sentences.map((sentence) =>
-            sentence.id === sentenceId
-              ? { ...sentence, nativeText, targetText: targetText ?? "" }
-              : sentence
-          ),
-        }
-      })
-    },
-    [detailQuery.data?.article.id, utils.article.get]
-  )
-
-  const deleteSentenceLocal = React.useCallback(
-    (sentenceId: string) => {
-      const articleId = detailQuery.data?.article.id
-      if (!articleId) return
-      utils.article.get.setData({ articleId }, (current) => {
-        if (!current) return current
-        return {
-          ...current,
-          sentences: current.sentences.filter((sentence) => sentence.id !== sentenceId),
-        }
-      })
-    },
-    [detailQuery.data?.article.id, utils.article.get]
-  )
 
   React.useEffect(() => {
     if (settingsQuery.data) {
@@ -275,23 +238,6 @@ export function ArticleList() {
       })
     }
   }, [ttsOptionsQuery.data, nativeLanguageSetting, targetLanguageSetting, updateTtsVoices])
-
-  const handleSentenceEdit = React.useCallback(
-    (sentence: { id: string; nativeText: string | null; targetText: string | null }) => {
-      setSentenceEditing({
-        id: sentence.id,
-        nativeText: sentence.nativeText ?? "",
-        targetText: sentence.targetText ?? "",
-      })
-      setSentenceEditOpen(true)
-    },
-    []
-  )
-
-  const handleSentenceDelete = React.useCallback((sentenceId: string) => {
-    setSentenceDeleteId(sentenceId)
-    setSentenceDeleteOpen(true)
-  }, [])
 
   const handlePlayError = React.useCallback(() => {
     toast.error(t("tts.audioPlayFailed"))
@@ -489,6 +435,18 @@ export function ArticleList() {
     onPlayError: handlePlayError,
   })
 
+  const sentenceOperations = useSentenceOperations({
+    t,
+    detail: detailQuery.data,
+    stopLoopPlayback,
+    clearSentenceSelection,
+    clearSentenceCache,
+    setClozeInputs,
+    setClozeResults,
+    setClozeRevealed,
+  })
+  const { handleSentenceEdit, handleSentenceDelete } = sentenceOperations
+
   React.useEffect(() => {
     const handleVisibility = () => {
       if (document.visibilityState !== "visible") {
@@ -678,7 +636,8 @@ export function ArticleList() {
 
   return (
     <AiManagementProvider value={aiManagement}>
-      <div className="w-full">
+      <SentenceOperationsProvider value={sentenceOperations}>
+        <div className="w-full">
       <MobileHeader
         t={t}
         settingsOpen={settingsOpen}
@@ -885,85 +844,6 @@ export function ArticleList() {
             setConfirmOpen(false)
           },
         }}
-        sentenceEdit={{
-          open: sentenceEditOpen,
-          onOpenChange: (open) => {
-            setSentenceEditOpen(open)
-            if (!open) {
-              setSentenceEditing(null)
-            }
-          },
-          nativeText: sentenceEditing?.nativeText ?? "",
-          targetText: sentenceEditing?.targetText ?? "",
-          onChangeNative: (value) =>
-            setSentenceEditing((prev) => (prev ? { ...prev, nativeText: value } : prev)),
-          onChangeTarget: (value) =>
-            setSentenceEditing((prev) => (prev ? { ...prev, targetText: value } : prev)),
-          isSaving: updateSentenceMutation.isLoading,
-          isDisabled: !sentenceEditing,
-          onSave: async () => {
-            if (!sentenceEditing) return
-            try {
-              const result = await updateSentenceMutation.mutateAsync({
-                sentenceId: sentenceEditing.id,
-                nativeText: sentenceEditing.nativeText,
-                targetText: sentenceEditing.targetText,
-              })
-              updateSentenceLocal(result.sentenceId, result.nativeText, result.targetText)
-              await clearSentenceCache(result.sentenceId)
-              toast.success(t("article.sentenceUpdateSuccess"))
-              setSentenceEditOpen(false)
-              setSentenceEditing(null)
-            } catch {
-              toast.error(t("common.updateFailed"))
-            }
-          },
-        }}
-        sentenceDelete={{
-          open: sentenceDeleteOpen,
-          onOpenChange: (open) => {
-            setSentenceDeleteOpen(open)
-            if (!open) {
-              setSentenceDeleteId(null)
-            }
-          },
-          isLoading: deleteSentenceMutation.isLoading,
-          isDisabled: !sentenceDeleteId,
-          onConfirm: async () => {
-            if (!sentenceDeleteId) return
-            const targetId = sentenceDeleteId
-            try {
-              stopLoopPlayback()
-              await deleteSentenceMutation.mutateAsync({ sentenceId: targetId })
-              deleteSentenceLocal(targetId)
-              clearSentenceSelection(targetId)
-              await clearSentenceCache(targetId)
-              setClozeInputs((prev) => {
-                if (!prev[targetId]) return prev
-                const next = { ...prev }
-                delete next[targetId]
-                return next
-              })
-              setClozeResults((prev) => {
-                if (!prev[targetId]) return prev
-                const next = { ...prev }
-                delete next[targetId]
-                return next
-              })
-              setClozeRevealed((prev) => {
-                if (!prev[targetId]) return prev
-                const next = { ...prev }
-                delete next[targetId]
-                return next
-              })
-              toast.success(t("article.sentenceDeleteSuccess"))
-              setSentenceDeleteOpen(false)
-              setSentenceDeleteId(null)
-            } catch {
-              toast.error(t("common.deleteFailed"))
-            }
-          },
-        }}
         accountDelete={{
           open: deleteAccountOpen,
           onOpenChange: setDeleteAccountOpen,
@@ -1095,7 +975,8 @@ export function ArticleList() {
           },
         }}
       />
-      </div>
+        </div>
+      </SentenceOperationsProvider>
     </AiManagementProvider>
   )
 }
