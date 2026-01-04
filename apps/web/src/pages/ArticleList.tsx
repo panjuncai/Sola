@@ -17,7 +17,7 @@ import { CreateArticlePanel } from "@/components/article/CreateArticlePanel"
 import { useClozePractice } from "@/hooks/useClozePractice"
 import { useCardMode } from "@/hooks/useCardMode"
 import { useArticleToolbar } from "@/hooks/useArticleToolbar"
-import { useAiManagement } from "@/hooks/useAiManagement"
+import { AiManagementProvider, useAiManagement } from "@/hooks/useAiManagement"
 import { useArticles } from "@/hooks/useArticles"
 import { useSettings } from "@/hooks/useSettings"
 import { DialogsContainer } from "@/components/article/DialogsContainer"
@@ -135,30 +135,19 @@ export function ArticleList() {
     },
     { enabled: settingsQuery.isSuccess }
   )
+  const aiManagement = useAiManagement({
+    t,
+    detail: detailQuery.data,
+    useAiUserKey,
+  })
   const {
-    aiProvidersQuery,
-    aiInstructionQuery,
     aiDialogOpen,
     setAiDialogOpen,
     aiInstructionDialogOpen,
     setAiInstructionDialogOpen,
     aiInstructionEditOpen,
-    setAiInstructionEditOpen,
     aiInstructionAddOpen,
-    setAiInstructionAddOpen,
     aiInstructionDeleteOpen,
-    setAiInstructionDeleteOpen,
-    aiInstructionAddModel,
-    setAiInstructionAddModel,
-    aiProvidersDraft,
-    setAiProvidersDraft,
-    aiInstructionDrafts,
-    aiInstructionEditing,
-    setAiInstructionEditing,
-    aiInstructionDeleteId,
-    setAiInstructionDeleteId,
-    aiInstructionAddProviderId,
-    setAiInstructionAddProviderId,
     newAiProviderName,
     setNewAiProviderName,
     newAiProviderType,
@@ -188,27 +177,17 @@ export function ArticleList() {
     aiProviderResetOpen,
     setAiProviderResetOpen,
     aiProgress,
-    publicAiInstructions,
     aiInstructionGroups,
     missingNativeCount,
     resolveInstructionLabel,
-    resolveProviderModels,
     startAiTranslation,
     cancelAiTranslation,
     retryMissingTranslations,
-    saveAiProvidersDraft,
     addAiProvider,
     updateAiProvider,
     removeAiProvider,
     resetAiProviders,
-    updateInstruction,
-    createInstructionFromPublic,
-    deleteInstruction,
-  } = useAiManagement({
-    t,
-    detail: detailQuery.data,
-    useAiUserKey,
-  })
+  } = aiManagement
 
   const updateSentenceMutation = trpc.article.updateSentence.useMutation()
   const deleteSentenceMutation = trpc.article.deleteSentence.useMutation()
@@ -698,7 +677,8 @@ export function ArticleList() {
   )
 
   return (
-    <div className="w-full">
+    <AiManagementProvider value={aiManagement}>
+      <div className="w-full">
       <MobileHeader
         t={t}
         settingsOpen={settingsOpen}
@@ -1043,39 +1023,6 @@ export function ArticleList() {
                 ? t("settings.voiceMale")
                 : t("settings.voice"),
         }}
-        aiSettings={{
-          open: aiDialogOpen,
-          onOpenChange: setAiDialogOpen,
-          useAiUserKey,
-          onUsePublic: () => {
-            setUseAiUserKey(false)
-            persistSettings({ useAiUserKey: false })
-          },
-          onUsePrivate: () => {
-            setUseAiUserKey(true)
-            persistSettings({ useAiUserKey: true })
-          },
-          aiProvidersDraft,
-          onSetDefault: (id) => {
-            setAiProvidersDraft((prev) => {
-              const next = prev.map((item) => ({
-                ...item,
-                isDefault: item.id === id,
-              }))
-              return [...next].sort((a, b) => Number(b.isDefault) - Number(a.isDefault))
-            })
-          },
-          onEdit: (provider) => {
-            setAiProviderEditing({ ...provider })
-            setAiProviderEditModels(provider.models.join(", "))
-            setAiProviderEditKeyVisible(false)
-            setAiProviderEditOpen(true)
-          },
-          onDelete: (id) => setAiProviderDeleteId(id),
-          onReset: () => setAiProviderResetOpen(true),
-          onAddCustom: () => setAiProviderAddOpen(true),
-          onSave: saveAiProvidersDraft,
-        }}
         aiProviderAdd={{
           open: aiProviderAddOpen,
           onOpenChange: setAiProviderAddOpen,
@@ -1118,32 +1065,6 @@ export function ArticleList() {
           onOpenChange: setAiProviderResetOpen,
           onConfirm: resetAiProviders,
         }}
-        aiInstructionPanel={{
-          aiInstructionDialogOpen,
-          setAiInstructionDialogOpen,
-          aiInstructionDrafts,
-          setAiInstructionEditOpen,
-          setAiInstructionEditing,
-          setAiInstructionDeleteId,
-          setAiInstructionDeleteOpen,
-          setAiInstructionAddOpen,
-          aiInstructionEditOpen,
-          aiInstructionEditing,
-          updateInstruction,
-          refetchInstructions: aiInstructionQuery.refetch,
-          aiInstructionAddOpen,
-          publicAiInstructions,
-          aiInstructionAddProviderId,
-          setAiInstructionAddProviderId,
-          aiInstructionAddModel,
-          setAiInstructionAddModel,
-          aiProviders: aiProvidersQuery.data ?? [],
-          resolveProviderModels,
-          createFromPublic: createInstructionFromPublic,
-          aiInstructionDeleteOpen,
-          aiInstructionDeleteId,
-          deleteInstruction,
-        }}
         shadowing={{
           open: shadowingDialogOpen,
           onOpenChange: setShadowingDialogOpen,
@@ -1174,6 +1095,7 @@ export function ArticleList() {
           },
         }}
       />
-    </div>
+      </div>
+    </AiManagementProvider>
   )
 }

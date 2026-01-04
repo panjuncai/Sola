@@ -73,7 +73,7 @@ type UseAiManagementParams = {
   useAiUserKey: boolean
 }
 
-export const useAiManagement = ({
+const useAiManagementState = ({
   t,
   detail,
   useAiUserKey,
@@ -611,4 +611,31 @@ export const useAiManagement = ({
     updateInstruction: updateUserAiInstruction.mutateAsync,
     deleteInstruction: deleteUserAiInstruction.mutateAsync,
   }
+}
+
+type AiManagementContextValue = ReturnType<typeof useAiManagementState>
+
+const AiManagementContext = React.createContext<AiManagementContextValue | null>(null)
+
+export const AiManagementProvider = ({
+  value,
+  children,
+}: {
+  value: AiManagementContextValue
+  children: React.ReactNode
+}) => {
+  return (
+    <AiManagementContext.Provider value={value}>
+      {children}
+    </AiManagementContext.Provider>
+  )
+}
+
+export const useAiManagement = (params?: UseAiManagementParams) => {
+  const context = React.useContext(AiManagementContext)
+  if (context) return context
+  if (!params) {
+    throw new Error("useAiManagement requires params when no provider is set.")
+  }
+  return useAiManagementState(params)
 }

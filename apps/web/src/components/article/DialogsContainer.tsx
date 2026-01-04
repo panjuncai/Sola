@@ -6,12 +6,12 @@ import { SentenceEditDialog } from "@/components/article/dialogs/SentenceEditDia
 import { SentenceDeleteDialog } from "@/components/article/dialogs/SentenceDeleteDialog"
 import { DeleteAccountDialog } from "@/components/article/DeleteAccountDialog"
 import { LanguageSettingsDialog } from "@/components/article/LanguageSettingsDialog"
-import { AiSettingsDialog } from "@/components/article/AiSettingsDialog"
+import { AiSettingsDialog } from "@/components/article/dialogs/AiSettingsDialog"
 import { AiProviderAddDialog } from "@/components/article/dialogs/AiProviderAddDialog"
 import { AiProviderEditDialog } from "@/components/article/dialogs/AiProviderEditDialog"
 import { AiProviderDeleteDialog } from "@/components/article/dialogs/AiProviderDeleteDialog"
 import { AiProviderResetDialog } from "@/components/article/dialogs/AiProviderResetDialog"
-import { AiInstructionPanel } from "@/components/article/AiInstructionPanel"
+import { AiInstructionPanelDialog } from "@/components/article/dialogs/AiInstructionPanelDialog"
 import { ShadowingDialog } from "@/components/article/ShadowingDialog"
 import { ClearCacheDialog } from "@/components/article/ClearCacheDialog"
 
@@ -68,20 +68,6 @@ type DialogsContainerProps = {
     onTargetVoiceChange: (value: string | null) => void
     voiceLabel: (voice: VoiceOption) => string
   }
-  aiSettings: {
-    open: boolean
-    onOpenChange: (open: boolean) => void
-    useAiUserKey: boolean
-    onUsePublic: () => void
-    onUsePrivate: () => void
-    aiProvidersDraft: any[]
-    onSetDefault: (id: string) => void
-    onEdit: (provider: any) => void
-    onDelete: (id: string) => void
-    onReset: () => void
-    onAddCustom: () => void
-    onSave: () => void | Promise<any>
-  }
   aiProviderAdd: {
     open: boolean
     onOpenChange: (open: boolean) => void
@@ -124,32 +110,6 @@ type DialogsContainerProps = {
     onOpenChange: (open: boolean) => void
     onConfirm: () => void | Promise<any>
   }
-  aiInstructionPanel: {
-    aiInstructionDialogOpen: boolean
-    setAiInstructionDialogOpen: (open: boolean) => void
-    aiInstructionDrafts: any[]
-    setAiInstructionEditOpen: (open: boolean) => void
-    setAiInstructionEditing: (payload: any) => void
-    setAiInstructionDeleteId: (id: string | null) => void
-    setAiInstructionDeleteOpen: (open: boolean) => void
-    setAiInstructionAddOpen: (open: boolean) => void
-    aiInstructionEditOpen: boolean
-    aiInstructionEditing: any
-    updateInstruction: (payload: any) => Promise<any>
-    refetchInstructions: () => Promise<any>
-    aiInstructionAddOpen: boolean
-    publicAiInstructions: any[]
-    aiInstructionAddProviderId: string | null
-    setAiInstructionAddProviderId: (value: string | null) => void
-    aiInstructionAddModel: string | null
-    setAiInstructionAddModel: (value: string | null) => void
-    aiProviders: any[]
-    resolveProviderModels: (providerId: string | null) => string[]
-    createFromPublic: (payload: any) => Promise<any>
-    aiInstructionDeleteOpen: boolean
-    aiInstructionDeleteId: string | null
-    deleteInstruction: (payload: any) => Promise<any>
-  }
   shadowing: {
     open: boolean
     onOpenChange: (open: boolean) => void
@@ -173,12 +133,10 @@ export const DialogsContainer: React.FC<DialogsContainerProps> = ({
   sentenceDelete,
   accountDelete,
   languageSettings,
-  aiSettings,
   aiProviderAdd,
   aiProviderEdit,
   aiProviderDelete,
   aiProviderReset,
-  aiInstructionPanel,
   shadowing,
   clearCache,
 }) => {
@@ -241,23 +199,7 @@ export const DialogsContainer: React.FC<DialogsContainerProps> = ({
         voiceLabel={languageSettings.voiceLabel}
       />
 
-      <AiSettingsDialog
-        t={t}
-        open={aiSettings.open}
-        onOpenChange={aiSettings.onOpenChange}
-        useAiUserKey={aiSettings.useAiUserKey}
-        onUsePublic={aiSettings.onUsePublic}
-        onUsePrivate={aiSettings.onUsePrivate}
-        aiProvidersDraft={aiSettings.aiProvidersDraft}
-        onSetDefault={aiSettings.onSetDefault}
-        onEdit={aiSettings.onEdit}
-        onDelete={aiSettings.onDelete}
-        onReset={aiSettings.onReset}
-        onAddCustom={aiSettings.onAddCustom}
-        onSave={async () => {
-          await aiSettings.onSave?.()
-        }}
-      />
+      <AiSettingsDialog />
 
       <AiProviderAddDialog
         t={t}
@@ -309,35 +251,7 @@ export const DialogsContainer: React.FC<DialogsContainerProps> = ({
         onConfirm={aiProviderReset.onConfirm}
       />
 
-      <AiInstructionPanel
-        t={t}
-        aiInstructionDialogOpen={aiInstructionPanel.aiInstructionDialogOpen}
-        setAiInstructionDialogOpen={aiInstructionPanel.setAiInstructionDialogOpen}
-        aiInstructionDrafts={aiInstructionPanel.aiInstructionDrafts}
-        setAiInstructionEditOpen={aiInstructionPanel.setAiInstructionEditOpen}
-        setAiInstructionEditing={aiInstructionPanel.setAiInstructionEditing}
-        setAiInstructionDeleteId={aiInstructionPanel.setAiInstructionDeleteId}
-        setAiInstructionDeleteOpen={aiInstructionPanel.setAiInstructionDeleteOpen}
-        setAiInstructionAddOpen={aiInstructionPanel.setAiInstructionAddOpen}
-        aiInstructionEditOpen={aiInstructionPanel.aiInstructionEditOpen}
-        setAiInstructionEditOpenState={aiInstructionPanel.setAiInstructionEditOpen}
-        aiInstructionEditing={aiInstructionPanel.aiInstructionEditing}
-        updateInstruction={aiInstructionPanel.updateInstruction}
-        refetchInstructions={aiInstructionPanel.refetchInstructions}
-        aiInstructionAddOpen={aiInstructionPanel.aiInstructionAddOpen}
-        publicAiInstructions={aiInstructionPanel.publicAiInstructions}
-        aiInstructionAddProviderId={aiInstructionPanel.aiInstructionAddProviderId}
-        setAiInstructionAddProviderId={aiInstructionPanel.setAiInstructionAddProviderId}
-        aiInstructionAddModel={aiInstructionPanel.aiInstructionAddModel}
-        setAiInstructionAddModel={aiInstructionPanel.setAiInstructionAddModel}
-        aiProviders={aiInstructionPanel.aiProviders}
-        resolveProviderModels={aiInstructionPanel.resolveProviderModels}
-        createFromPublic={aiInstructionPanel.createFromPublic}
-        aiInstructionDeleteOpen={aiInstructionPanel.aiInstructionDeleteOpen}
-        setAiInstructionDeleteOpenState={aiInstructionPanel.setAiInstructionDeleteOpen}
-        aiInstructionDeleteId={aiInstructionPanel.aiInstructionDeleteId}
-        deleteInstruction={aiInstructionPanel.deleteInstruction}
-      />
+      <AiInstructionPanelDialog />
 
       <ShadowingDialog
         t={t}
