@@ -13,63 +13,16 @@ import { AiProviderResetDialog } from "@/components/article/dialogs/AiProviderRe
 import { AiInstructionPanelDialog } from "@/components/article/dialogs/AiInstructionPanelDialog"
 import { ShadowingDialog } from "@/components/article/ShadowingDialog"
 import { ClearCacheDialog } from "@/components/article/dialogs/ClearCacheDialog"
-import { useAiManagement } from "@/hooks/useAiManagement"
 import { useArticlesContext } from "@/hooks/useArticles"
-import { useSettings } from "@/hooks/useSettings"
-import { useSettingsDialogs } from "@/hooks/useSettingsDialogs"
 
 export const DialogsContainer: React.FC = () => {
   const { t } = useTranslation()
-  const { useAiUserKey } = useSettings()
   const {
     deleteTargets,
     deleteMutation,
     confirmOpen,
     setConfirmOpen,
   } = useArticlesContext()
-  const {
-    newAiProviderName,
-    setNewAiProviderName,
-    newAiProviderType,
-    setNewAiProviderType,
-    newAiProviderApiUrl,
-    setNewAiProviderApiUrl,
-    newAiProviderModels,
-    setNewAiProviderModels,
-    newAiProviderEnabled,
-    setNewAiProviderEnabled,
-    newAiProviderApiKey,
-    setNewAiProviderApiKey,
-    newAiProviderKeyVisible,
-    setNewAiProviderKeyVisible,
-    aiProviderAddOpen,
-    setAiProviderAddOpen,
-    aiProviderEditOpen,
-    setAiProviderEditOpen,
-    aiProviderEditing,
-    setAiProviderEditing,
-    aiProviderDeleteId,
-    setAiProviderDeleteId,
-    aiProviderEditKeyVisible,
-    setAiProviderEditKeyVisible,
-    aiProviderEditModels,
-    setAiProviderEditModels,
-    aiProviderResetOpen,
-    setAiProviderResetOpen,
-    addAiProvider,
-    updateAiProvider,
-    removeAiProvider,
-    resetAiProviders,
-  } = useAiManagement()
-  const {
-    shadowingDialogOpen,
-    setShadowingDialogOpen,
-    shadowingDraftEnabled,
-    setShadowingDraftEnabled,
-    shadowingDraftSpeeds,
-    setShadowingDraftSpeeds,
-    confirmShadowingDraft,
-  } = useSettingsDialogs()
 
   return (
     <>
@@ -100,68 +53,17 @@ export const DialogsContainer: React.FC = () => {
 
       <AiSettingsDialog />
 
-      <AiProviderAddDialog
-        t={t}
-        open={aiProviderAddOpen}
-        onOpenChange={setAiProviderAddOpen}
-        useAiUserKey={useAiUserKey}
-        name={newAiProviderName}
-        onNameChange={setNewAiProviderName}
-        providerType={newAiProviderType}
-        onProviderTypeChange={setNewAiProviderType}
-        apiUrl={newAiProviderApiUrl}
-        onApiUrlChange={setNewAiProviderApiUrl}
-        apiKey={newAiProviderApiKey}
-        onApiKeyChange={setNewAiProviderApiKey}
-        apiKeyVisible={newAiProviderKeyVisible}
-        onToggleApiKeyVisible={() => setNewAiProviderKeyVisible((prev) => !prev)}
-        models={newAiProviderModels}
-        onModelsChange={setNewAiProviderModels}
-        enabled={newAiProviderEnabled}
-        onEnabledChange={setNewAiProviderEnabled}
-        onSave={addAiProvider}
-      />
+      <AiProviderAddDialog />
 
-      <AiProviderEditDialog
-        t={t}
-        open={aiProviderEditOpen}
-        onOpenChange={setAiProviderEditOpen}
-        useAiUserKey={useAiUserKey}
-        provider={aiProviderEditing}
-        apiKeyVisible={aiProviderEditKeyVisible}
-        onToggleApiKeyVisible={() => setAiProviderEditKeyVisible((prev) => !prev)}
-        modelsValue={aiProviderEditModels}
-        onModelsChange={setAiProviderEditModels}
-        onChangeProvider={(provider) => setAiProviderEditing(provider)}
-        onSave={updateAiProvider}
-      />
+      <AiProviderEditDialog />
 
-      <AiProviderDeleteDialog
-        t={t}
-        open={Boolean(aiProviderDeleteId)}
-        onOpenChange={() => setAiProviderDeleteId(null)}
-        onConfirm={removeAiProvider}
-      />
+      <AiProviderDeleteDialog />
 
-      <AiProviderResetDialog
-        t={t}
-        open={aiProviderResetOpen}
-        onOpenChange={setAiProviderResetOpen}
-        onConfirm={resetAiProviders}
-      />
+      <AiProviderResetDialog />
 
       <AiInstructionPanelDialog />
 
-      <ShadowingDialog
-        t={t}
-        open={shadowingDialogOpen}
-        onOpenChange={setShadowingDialogOpen}
-        shadowingDraftEnabled={shadowingDraftEnabled}
-        setShadowingDraftEnabled={setShadowingDraftEnabled}
-        shadowingDraftSpeeds={shadowingDraftSpeeds}
-        setShadowingDraftSpeeds={setShadowingDraftSpeeds}
-        onConfirm={confirmShadowingDraft}
-      />
+      <ShadowingDialog />
 
       <ClearCacheDialog />
     </>

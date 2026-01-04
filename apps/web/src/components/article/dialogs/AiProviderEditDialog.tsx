@@ -1,5 +1,4 @@
-import * as React from "react"
-import type { TFunction } from "i18next"
+import { useTranslation } from "react-i18next"
 
 import {
   Button,
@@ -12,79 +11,56 @@ import {
   DialogTitle,
 } from "@sola/ui"
 
-type TranslateFn = TFunction<"translation">
+import { useAiManagement } from "@/hooks/useAiManagement"
+import { useSettings } from "@/hooks/useSettings"
 
-type AiProviderDraft = {
-  id: string
-  providerType: string
-  name: string | null
-  apiUrl: string
-  apiKey: string | null
-  models: string[]
-  enabled: boolean
-  isPublic: boolean
-}
-
-type AiProviderEditDialogProps = {
-  t: TranslateFn
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  useAiUserKey: boolean
-  provider: AiProviderDraft | null
-  apiKeyVisible: boolean
-  onToggleApiKeyVisible: () => void
-  modelsValue: string
-  onModelsChange: (value: string) => void
-  onChangeProvider: (provider: AiProviderDraft) => void
-  onSave: () => void
-}
-
-export const AiProviderEditDialog: React.FC<AiProviderEditDialogProps> = ({
-  t,
-  open,
-  onOpenChange,
-  useAiUserKey,
-  provider,
-  apiKeyVisible,
-  onToggleApiKeyVisible,
-  modelsValue,
-  onModelsChange,
-  onChangeProvider,
-  onSave,
-}) => {
+export const AiProviderEditDialog = () => {
+  const { t } = useTranslation()
+  const { useAiUserKey } = useSettings()
+  const {
+    aiProviderEditOpen,
+    setAiProviderEditOpen,
+    aiProviderEditing,
+    setAiProviderEditing,
+    aiProviderEditKeyVisible,
+    setAiProviderEditKeyVisible,
+    aiProviderEditModels,
+    setAiProviderEditModels,
+    updateAiProvider,
+  } = useAiManagement()
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={aiProviderEditOpen} onOpenChange={setAiProviderEditOpen}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{t("ai.editProviderTitle")}</DialogTitle>
           <DialogDescription>{t("ai.editProviderDesc")}</DialogDescription>
         </DialogHeader>
-        {provider ? (
+        {aiProviderEditing ? (
           <div className="grid gap-3 text-sm">
             <input
               className="h-9 rounded-md border bg-background px-2 text-sm"
               placeholder={t("ai.providerNamePlaceholder")}
-              value={provider.name ?? ""}
-              disabled={provider.isPublic}
+              value={aiProviderEditing.name ?? ""}
+              disabled={aiProviderEditing.isPublic}
               onChange={(event) =>
-                onChangeProvider({
-                  ...provider,
+                setAiProviderEditing({
+                  ...aiProviderEditing,
                   name: event.target.value,
                 })
               }
             />
             <input
               className="h-9 rounded-md border bg-background px-2 text-sm"
-              value={provider.providerType}
+              value={aiProviderEditing.providerType}
               disabled
             />
             <input
               className="h-9 rounded-md border bg-background px-2 text-sm"
               placeholder="Base URL"
-              value={provider.apiUrl}
+              value={aiProviderEditing.apiUrl}
               onChange={(event) =>
-                onChangeProvider({
-                  ...provider,
+                setAiProviderEditing({
+                  ...aiProviderEditing,
                   apiUrl: event.target.value,
                 })
               }
@@ -94,11 +70,11 @@ export const AiProviderEditDialog: React.FC<AiProviderEditDialogProps> = ({
                 <input
                   className="h-9 flex-1 rounded-md border bg-background px-2 text-sm"
                   placeholder="API Key"
-                  type={apiKeyVisible ? "text" : "password"}
-                  value={provider.apiKey ?? ""}
+                  type={aiProviderEditKeyVisible ? "text" : "password"}
+                  value={aiProviderEditing.apiKey ?? ""}
                   onChange={(event) =>
-                    onChangeProvider({
-                      ...provider,
+                    setAiProviderEditing({
+                      ...aiProviderEditing,
                       apiKey: event.target.value,
                     })
                   }
@@ -107,25 +83,25 @@ export const AiProviderEditDialog: React.FC<AiProviderEditDialogProps> = ({
                   type="button"
                   variant="outline"
                   className="h-9"
-                  onClick={onToggleApiKeyVisible}
+                  onClick={() => setAiProviderEditKeyVisible((prev) => !prev)}
                 >
-                  {apiKeyVisible ? t("common.hide") : t("common.show")}
+                  {aiProviderEditKeyVisible ? t("common.hide") : t("common.show")}
                 </Button>
               </div>
             ) : null}
             <input
               className="h-9 rounded-md border bg-background px-2 text-sm"
               placeholder={t("ai.modelsPlaceholder")}
-              value={modelsValue}
-              onChange={(event) => onModelsChange(event.target.value)}
+              value={aiProviderEditModels}
+              onChange={(event) => setAiProviderEditModels(event.target.value)}
             />
             <label className="flex items-center gap-2 text-xs text-muted-foreground">
               <input
                 type="checkbox"
-                checked={provider.enabled}
+                checked={aiProviderEditing.enabled}
                 onChange={(event) =>
-                  onChangeProvider({
-                    ...provider,
+                  setAiProviderEditing({
+                    ...aiProviderEditing,
                     enabled: event.target.checked,
                   })
                 }
@@ -140,7 +116,7 @@ export const AiProviderEditDialog: React.FC<AiProviderEditDialogProps> = ({
               {t("common.cancel")}
             </Button>
           </DialogClose>
-          <Button type="button" onClick={onSave}>
+          <Button type="button" onClick={updateAiProvider}>
             {t("common.save")}
           </Button>
         </DialogFooter>

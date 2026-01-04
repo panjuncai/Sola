@@ -1,5 +1,4 @@
-import * as React from "react"
-import type { TFunction } from "i18next"
+import { useTranslation } from "react-i18next"
 
 import {
   Button,
@@ -12,55 +11,35 @@ import {
   DialogTitle,
 } from "@sola/ui"
 
-type TranslateFn = TFunction<"translation">
-
 type AiProviderType = "volcengine" | "qwen" | "openai" | "gemini" | "aihubmix"
 
-type AiProviderAddDialogProps = {
-  t: TranslateFn
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  useAiUserKey: boolean
-  name: string
-  onNameChange: (value: string) => void
-  providerType: AiProviderType
-  onProviderTypeChange: (value: AiProviderType) => void
-  apiUrl: string
-  onApiUrlChange: (value: string) => void
-  apiKey: string
-  onApiKeyChange: (value: string) => void
-  apiKeyVisible: boolean
-  onToggleApiKeyVisible: () => void
-  models: string
-  onModelsChange: (value: string) => void
-  enabled: boolean
-  onEnabledChange: (value: boolean) => void
-  onSave: () => void
-}
+import { useAiManagement } from "@/hooks/useAiManagement"
+import { useSettings } from "@/hooks/useSettings"
 
-export const AiProviderAddDialog: React.FC<AiProviderAddDialogProps> = ({
-  t,
-  open,
-  onOpenChange,
-  useAiUserKey,
-  name,
-  onNameChange,
-  providerType,
-  onProviderTypeChange,
-  apiUrl,
-  onApiUrlChange,
-  apiKey,
-  onApiKeyChange,
-  apiKeyVisible,
-  onToggleApiKeyVisible,
-  models,
-  onModelsChange,
-  enabled,
-  onEnabledChange,
-  onSave,
-}) => {
+export const AiProviderAddDialog = () => {
+  const { t } = useTranslation()
+  const { useAiUserKey } = useSettings()
+  const {
+    aiProviderAddOpen,
+    setAiProviderAddOpen,
+    newAiProviderName,
+    setNewAiProviderName,
+    newAiProviderType,
+    setNewAiProviderType,
+    newAiProviderApiUrl,
+    setNewAiProviderApiUrl,
+    newAiProviderApiKey,
+    setNewAiProviderApiKey,
+    newAiProviderKeyVisible,
+    setNewAiProviderKeyVisible,
+    newAiProviderModels,
+    setNewAiProviderModels,
+    newAiProviderEnabled,
+    setNewAiProviderEnabled,
+    addAiProvider,
+  } = useAiManagement()
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={aiProviderAddOpen} onOpenChange={setAiProviderAddOpen}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{t("ai.addCustomTitle")}</DialogTitle>
@@ -70,13 +49,15 @@ export const AiProviderAddDialog: React.FC<AiProviderAddDialogProps> = ({
           <input
             className="h-9 rounded-md border bg-background px-2 text-sm"
             placeholder={t("ai.providerNamePlaceholder")}
-            value={name}
-            onChange={(event) => onNameChange(event.target.value)}
+            value={newAiProviderName}
+            onChange={(event) => setNewAiProviderName(event.target.value)}
           />
           <select
             className="h-9 rounded-md border bg-background px-2 text-sm"
-            value={providerType}
-            onChange={(event) => onProviderTypeChange(event.target.value as AiProviderType)}
+            value={newAiProviderType}
+            onChange={(event) =>
+              setNewAiProviderType(event.target.value as AiProviderType)
+            }
           >
             {["volcengine", "qwen", "openai", "gemini", "aihubmix"].map((type) => (
               <option key={type} value={type}>
@@ -87,39 +68,39 @@ export const AiProviderAddDialog: React.FC<AiProviderAddDialogProps> = ({
           <input
             className="h-9 rounded-md border bg-background px-2 text-sm"
             placeholder="Base URL"
-            value={apiUrl}
-            onChange={(event) => onApiUrlChange(event.target.value)}
+            value={newAiProviderApiUrl}
+            onChange={(event) => setNewAiProviderApiUrl(event.target.value)}
           />
           {useAiUserKey ? (
             <div className="flex items-center gap-2">
               <input
                 className="h-9 flex-1 rounded-md border bg-background px-2 text-sm"
                 placeholder="API Key"
-                type={apiKeyVisible ? "text" : "password"}
-                value={apiKey}
-                onChange={(event) => onApiKeyChange(event.target.value)}
+                type={newAiProviderKeyVisible ? "text" : "password"}
+                value={newAiProviderApiKey}
+                onChange={(event) => setNewAiProviderApiKey(event.target.value)}
               />
               <Button
                 type="button"
                 variant="outline"
                 className="h-9"
-                onClick={onToggleApiKeyVisible}
+                onClick={() => setNewAiProviderKeyVisible((prev) => !prev)}
               >
-                {apiKeyVisible ? t("common.hide") : t("common.show")}
+                {newAiProviderKeyVisible ? t("common.hide") : t("common.show")}
               </Button>
             </div>
           ) : null}
           <input
             className="h-9 rounded-md border bg-background px-2 text-sm"
             placeholder={t("ai.modelsPlaceholder")}
-            value={models}
-            onChange={(event) => onModelsChange(event.target.value)}
+            value={newAiProviderModels}
+            onChange={(event) => setNewAiProviderModels(event.target.value)}
           />
           <label className="flex items-center gap-2 text-xs text-muted-foreground">
             <input
               type="checkbox"
-              checked={enabled}
-              onChange={(event) => onEnabledChange(event.target.checked)}
+              checked={newAiProviderEnabled}
+              onChange={(event) => setNewAiProviderEnabled(event.target.checked)}
             />
             {t("common.enabled")}
           </label>
@@ -130,7 +111,7 @@ export const AiProviderAddDialog: React.FC<AiProviderAddDialogProps> = ({
               {t("common.cancel")}
             </Button>
           </DialogClose>
-          <Button type="button" onClick={onSave}>
+          <Button type="button" onClick={addAiProvider}>
             {t("common.save")}
           </Button>
         </DialogFooter>

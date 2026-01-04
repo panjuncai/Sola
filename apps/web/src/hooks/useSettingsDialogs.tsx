@@ -2,6 +2,10 @@ import * as React from "react"
 
 import { trpc } from "@/lib/trpc"
 import { useSettings } from "@/hooks/useSettings"
+import {
+  useSettingsDialogsActions,
+  useSettingsDialogsState as useSettingsDialogsAtomState,
+} from "@/atoms/settingsDialogs"
 
 type LanguageOption = "zh-CN" | "en-US" | "fr-FR"
 
@@ -9,7 +13,7 @@ type UseSettingsDialogsStateParams = {
   onDeleteAccountSuccess?: () => void
 }
 
-const useSettingsDialogsState = ({
+const useSettingsDialogsLogic = ({
   onDeleteAccountSuccess,
 }: UseSettingsDialogsStateParams = {}) => {
   const {
@@ -38,11 +42,18 @@ const useSettingsDialogsState = ({
     { enabled: settingsQuery.isSuccess }
   )
   const deleteAccountMutation = trpc.user.deleteAccount.useMutation()
-
-  const [languageDialogOpen, setLanguageDialogOpen] = React.useState(false)
-  const [deleteAccountOpen, setDeleteAccountOpen] = React.useState(false)
-  const [clearCacheOpen, setClearCacheOpen] = React.useState(false)
-  const [shadowingDialogOpen, setShadowingDialogOpen] = React.useState(false)
+  const {
+    languageDialogOpen,
+    deleteAccountOpen,
+    clearCacheOpen,
+    shadowingDialogOpen,
+  } = useSettingsDialogsAtomState()
+  const {
+    setLanguageDialogOpen,
+    setDeleteAccountOpen,
+    setClearCacheOpen,
+    setShadowingDialogOpen,
+  } = useSettingsDialogsActions()
   const [shadowingDraftEnabled, setShadowingDraftEnabled] = React.useState(false)
   const [shadowingDraftSpeeds, setShadowingDraftSpeeds] = React.useState<number[]>(
     []
@@ -189,7 +200,7 @@ const useSettingsDialogsState = ({
   }
 }
 
-type SettingsDialogsContextValue = ReturnType<typeof useSettingsDialogsState>
+type SettingsDialogsContextValue = ReturnType<typeof useSettingsDialogsLogic>
 
 const SettingsDialogsContext = React.createContext<SettingsDialogsContextValue | null>(
   null
@@ -212,5 +223,5 @@ export const SettingsDialogsProvider = ({
 export const useSettingsDialogs = (params?: UseSettingsDialogsStateParams) => {
   const context = React.useContext(SettingsDialogsContext)
   if (context) return context
-  return useSettingsDialogsState(params)
+  return useSettingsDialogsLogic(params)
 }

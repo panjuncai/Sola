@@ -1,5 +1,4 @@
-import * as React from "react"
-import type { TFunction } from "i18next"
+import { useTranslation } from "react-i18next"
 
 import {
   Button,
@@ -12,23 +11,16 @@ import {
   DialogTitle,
 } from "@sola/ui"
 
-type TranslateFn = TFunction<"translation">
+import { useAiManagement } from "@/hooks/useAiManagement"
 
-type AiProviderDeleteDialogProps = {
-  t: TranslateFn
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onConfirm: () => void
-}
+export const AiProviderDeleteDialog = () => {
+  const { t } = useTranslation()
+  const { aiProviderDeleteId, setAiProviderDeleteId, removeAiProvider } =
+    useAiManagement()
 
-export const AiProviderDeleteDialog: React.FC<AiProviderDeleteDialogProps> = ({
-  t,
-  open,
-  onOpenChange,
-  onConfirm,
-}) => {
+  const open = Boolean(aiProviderDeleteId)
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={() => setAiProviderDeleteId(null)}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{t("ai.deleteProviderTitle")}</DialogTitle>
@@ -40,7 +32,7 @@ export const AiProviderDeleteDialog: React.FC<AiProviderDeleteDialogProps> = ({
               {t("common.cancel")}
             </Button>
           </DialogClose>
-          <Button type="button" variant="destructive" onClick={onConfirm}>
+          <Button type="button" variant="destructive" onClick={removeAiProvider}>
             {t("common.delete")}
           </Button>
         </DialogFooter>

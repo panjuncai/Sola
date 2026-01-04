@@ -4,6 +4,7 @@ import type { TFunction } from "i18next"
 import { toast } from "@sola/ui"
 
 import { trpc } from "@/lib/trpc"
+import { useAiDialogsActions, useAiDialogsState } from "@/atoms/aiDialogs"
 
 type AiProviderType = "volcengine" | "qwen" | "openai" | "gemini" | "aihubmix"
 
@@ -92,12 +93,28 @@ const useAiManagementState = ({
   const updateUserAiInstruction = trpc.user.updateUserAiInstruction.useMutation()
   const deleteUserAiInstruction = trpc.user.deleteUserAiInstruction.useMutation()
   const translateSentence = trpc.ai.translateSentence.useMutation()
-
-  const [aiDialogOpen, setAiDialogOpen] = React.useState(false)
-  const [aiInstructionDialogOpen, setAiInstructionDialogOpen] = React.useState(false)
-  const [aiInstructionEditOpen, setAiInstructionEditOpen] = React.useState(false)
-  const [aiInstructionAddOpen, setAiInstructionAddOpen] = React.useState(false)
-  const [aiInstructionDeleteOpen, setAiInstructionDeleteOpen] = React.useState(false)
+  const {
+    aiDialogOpen,
+    aiInstructionDialogOpen,
+    aiInstructionEditOpen,
+    aiInstructionAddOpen,
+    aiInstructionDeleteOpen,
+    aiProviderAddOpen,
+    aiProviderEditOpen,
+    aiProviderDeleteId,
+    aiProviderResetOpen,
+  } = useAiDialogsState()
+  const {
+    setAiDialogOpen,
+    setAiInstructionDialogOpen,
+    setAiInstructionEditOpen,
+    setAiInstructionAddOpen,
+    setAiInstructionDeleteOpen,
+    setAiProviderAddOpen,
+    setAiProviderEditOpen,
+    setAiProviderDeleteId,
+    setAiProviderResetOpen,
+  } = useAiDialogsActions()
   const [aiInstructionAddModel, setAiInstructionAddModel] = React.useState<string | null>(
     null
   )
@@ -122,16 +139,10 @@ const useAiManagementState = ({
   const [newAiProviderEnabled, setNewAiProviderEnabled] = React.useState(true)
   const [newAiProviderApiKey, setNewAiProviderApiKey] = React.useState("")
   const [newAiProviderKeyVisible, setNewAiProviderKeyVisible] = React.useState(false)
-  const [aiProviderAddOpen, setAiProviderAddOpen] = React.useState(false)
-  const [aiProviderEditOpen, setAiProviderEditOpen] = React.useState(false)
   const [aiProviderEditing, setAiProviderEditing] =
     React.useState<AiProviderEditing | null>(null)
-  const [aiProviderDeleteId, setAiProviderDeleteId] = React.useState<string | null>(
-    null
-  )
   const [aiProviderEditKeyVisible, setAiProviderEditKeyVisible] = React.useState(false)
   const [aiProviderEditModels, setAiProviderEditModels] = React.useState("")
-  const [aiProviderResetOpen, setAiProviderResetOpen] = React.useState(false)
   const [aiProgress, setAiProgress] = React.useState<AiProgressState>(null)
   const [aiLastInstructionId, setAiLastInstructionId] = React.useState<string | null>(
     null

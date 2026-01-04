@@ -1,5 +1,4 @@
-import * as React from "react"
-import type { TFunction } from "i18next"
+import { useTranslation } from "react-i18next"
 
 import {
   Button,
@@ -12,23 +11,14 @@ import {
   DialogTitle,
 } from "@sola/ui"
 
-type TranslateFn = TFunction<"translation">
+import { useAiManagement } from "@/hooks/useAiManagement"
 
-type AiProviderResetDialogProps = {
-  t: TranslateFn
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onConfirm: () => void
-}
-
-export const AiProviderResetDialog: React.FC<AiProviderResetDialogProps> = ({
-  t,
-  open,
-  onOpenChange,
-  onConfirm,
-}) => {
+export const AiProviderResetDialog = () => {
+  const { t } = useTranslation()
+  const { aiProviderResetOpen, setAiProviderResetOpen, resetAiProviders } =
+    useAiManagement()
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={aiProviderResetOpen} onOpenChange={setAiProviderResetOpen}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{t("ai.resetTitle")}</DialogTitle>
@@ -40,7 +30,7 @@ export const AiProviderResetDialog: React.FC<AiProviderResetDialogProps> = ({
               {t("common.cancel")}
             </Button>
           </DialogClose>
-          <Button type="button" onClick={onConfirm}>
+          <Button type="button" onClick={resetAiProviders}>
             {t("ai.resetConfirm")}
           </Button>
         </DialogFooter>

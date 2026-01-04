@@ -1,5 +1,4 @@
-import * as React from "react"
-import type { TFunction } from "i18next"
+import { useTranslation } from "react-i18next"
 
 import {
   Button,
@@ -13,31 +12,22 @@ import {
   cn,
 } from "@sola/ui"
 
-type TranslateFn = TFunction<"translation">
+import { useSettingsDialogs } from "@/hooks/useSettingsDialogs"
 
-type ShadowingDialogProps = {
-  t: TranslateFn
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  shadowingDraftEnabled: boolean
-  setShadowingDraftEnabled: React.Dispatch<React.SetStateAction<boolean>>
-  shadowingDraftSpeeds: number[]
-  setShadowingDraftSpeeds: React.Dispatch<React.SetStateAction<number[]>>
-  onConfirm: () => void
-}
+export const ShadowingDialog = () => {
+  const { t } = useTranslation()
+  const {
+    shadowingDialogOpen,
+    setShadowingDialogOpen,
+    shadowingDraftEnabled,
+    setShadowingDraftEnabled,
+    shadowingDraftSpeeds,
+    setShadowingDraftSpeeds,
+    confirmShadowingDraft,
+  } = useSettingsDialogs()
 
-export const ShadowingDialog: React.FC<ShadowingDialogProps> = ({
-  t,
-  open,
-  onOpenChange,
-  shadowingDraftEnabled,
-  setShadowingDraftEnabled,
-  shadowingDraftSpeeds,
-  setShadowingDraftSpeeds,
-  onConfirm,
-}) => {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={shadowingDialogOpen} onOpenChange={setShadowingDialogOpen}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{t("shadowing.title")}</DialogTitle>
@@ -53,7 +43,7 @@ export const ShadowingDialog: React.FC<ShadowingDialogProps> = ({
                 "relative h-5 w-10 rounded-full transition",
                 shadowingDraftEnabled ? "bg-primary" : "bg-muted"
               )}
-              onClick={() => setShadowingDraftEnabled((prev) => !prev)}
+              onClick={() => setShadowingDraftEnabled((prev: boolean) => !prev)}
             >
               <span
                 className={cn(
@@ -68,7 +58,7 @@ export const ShadowingDialog: React.FC<ShadowingDialogProps> = ({
             <div className="text-xs text-muted-foreground">
               {t("shadowing.speedList")}
             </div>
-            {shadowingDraftSpeeds.map((speed, index) => (
+            {shadowingDraftSpeeds.map((speed: number, index: number) => (
               <div key={`${speed}-${index}`} className="flex items-center gap-2">
                 <input
                   type="number"
@@ -79,7 +69,7 @@ export const ShadowingDialog: React.FC<ShadowingDialogProps> = ({
                   value={speed}
                   onChange={(event) => {
                     const value = Number(event.target.value)
-                    setShadowingDraftSpeeds((prev) => {
+                    setShadowingDraftSpeeds((prev: number[]) => {
                       const next = [...prev]
                       next[index] = Number.isFinite(value) ? value : 0
                       return next
@@ -91,8 +81,8 @@ export const ShadowingDialog: React.FC<ShadowingDialogProps> = ({
                   variant="outline"
                   className="h-9 w-9 p-0"
                   onClick={() =>
-                    setShadowingDraftSpeeds((prev) =>
-                      prev.filter((_, itemIndex) => itemIndex !== index)
+                    setShadowingDraftSpeeds((prev: number[]) =>
+                      prev.filter((_: number, itemIndex: number) => itemIndex !== index)
                     )
                   }
                 >
@@ -105,7 +95,7 @@ export const ShadowingDialog: React.FC<ShadowingDialogProps> = ({
               variant="outline"
               className="h-9 w-full justify-center"
               onClick={() => {
-                setShadowingDraftSpeeds((prev) => {
+                setShadowingDraftSpeeds((prev: number[]) => {
                   const base = prev[prev.length - 1] ?? 0.2
                   const next = Math.round((base + 0.2) * 10) / 10
                   return [...prev, next]
@@ -124,7 +114,7 @@ export const ShadowingDialog: React.FC<ShadowingDialogProps> = ({
             </Button>
           </DialogClose>
           <DialogClose asChild>
-            <Button type="button" onClick={onConfirm}>
+            <Button type="button" onClick={confirmShadowingDraft}>
               OK
             </Button>
           </DialogClose>
