@@ -2,7 +2,9 @@ import * as React from "react"
 
 import {
   useArticleToolbarActions,
+  useArticleToolbarApi,
   useArticleToolbarState,
+  useSetArticleToolbarApi,
 } from "@/atoms/articleToolbar"
 import { useCardModeActions } from "@/atoms/cardMode"
 
@@ -476,31 +478,37 @@ const useArticleToolbarLogic = ({
   }
 }
 
-type ArticleToolbarContextValue = ReturnType<typeof useArticleToolbarLogic>
+type ArticleToolbarApi = ReturnType<typeof useArticleToolbarLogic>
 
-const ArticleToolbarContext = React.createContext<ArticleToolbarContextValue | null>(
-  null
-)
-
-export const ArticleToolbarProvider = ({
-  value,
-  children,
-}: {
-  value: ArticleToolbarContextValue
-  children: React.ReactNode
-}) => {
-  return (
-    <ArticleToolbarContext.Provider value={value}>
-      {children}
-    </ArticleToolbarContext.Provider>
-  )
-}
+let latestArticleToolbarApi: ArticleToolbarApi | null = null
 
 export const useArticleToolbar = (params?: UseArticleToolbarParams) => {
-  const context = React.useContext(ArticleToolbarContext)
-  if (context) return context
+  const setApi = useSetArticleToolbarApi()
+  const storedApi = useArticleToolbarApi()
+  const fallbackState = useArticleToolbarState()
+  const noop = React.useCallback(() => {}, [])
+  const noopAsync = React.useCallback(async () => {}, [])
   if (!params) {
-    throw new Error("useArticleToolbar requires params when no provider is set.")
+    if (latestArticleToolbarApi) return latestArticleToolbarApi
+    if (storedApi) return storedApi
+    return {
+      ...fallbackState,
+      setIsRandomMode: noop,
+      setIsClozeEnabled: noop,
+      toggleRandomMode: noop,
+      toggleCloze: noop,
+      stopLoopPlayback: noop,
+      startLoopAll: noopAsync,
+      startLoopTarget: noopAsync,
+      startLoopSingle: noopAsync,
+      handleToggleShadowing: noop,
+      markUserSelected: noop,
+    }
   }
-  return useArticleToolbarLogic(params)
+  const api = useArticleToolbarLogic(params)
+  latestArticleToolbarApi = api
+  React.useEffect(() => {
+    setApi(api)
+  }, [api, setApi])
+  return api
 }

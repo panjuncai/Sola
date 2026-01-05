@@ -5,6 +5,7 @@ import { useSettings } from "@/hooks/useSettings"
 import {
   useSettingsDialogsActions,
   useSettingsDialogsState as useSettingsDialogsAtomState,
+  useShadowingDraftState,
 } from "@/atoms/settingsDialogs"
 
 type LanguageOption = "zh-CN" | "en-US" | "fr-FR"
@@ -54,10 +55,12 @@ const useSettingsDialogsLogic = ({
     setClearCacheOpen,
     setShadowingDialogOpen,
   } = useSettingsDialogsActions()
-  const [shadowingDraftEnabled, setShadowingDraftEnabled] = React.useState(false)
-  const [shadowingDraftSpeeds, setShadowingDraftSpeeds] = React.useState<number[]>(
-    []
-  )
+  const {
+    shadowingDraftEnabled,
+    setShadowingDraftEnabled,
+    shadowingDraftSpeeds,
+    setShadowingDraftSpeeds,
+  } = useShadowingDraftState()
 
   React.useEffect(() => {
     if (!ttsOptionsQuery.data) return
@@ -200,28 +203,17 @@ const useSettingsDialogsLogic = ({
   }
 }
 
-type SettingsDialogsContextValue = ReturnType<typeof useSettingsDialogsLogic>
-
-const SettingsDialogsContext = React.createContext<SettingsDialogsContextValue | null>(
-  null
-)
-
-export const SettingsDialogsProvider = ({
-  value,
-  children,
-}: {
-  value: SettingsDialogsContextValue
-  children: React.ReactNode
-}) => {
-  return (
-    <SettingsDialogsContext.Provider value={value}>
-      {children}
-    </SettingsDialogsContext.Provider>
-  )
+export const useInitSettingsDialogs = (params: UseSettingsDialogsStateParams) => {
+  const api = useSettingsDialogsLogic(params)
+  latestSettingsDialogsApi = api
+  return api
 }
 
-export const useSettingsDialogs = (params?: UseSettingsDialogsStateParams) => {
-  const context = React.useContext(SettingsDialogsContext)
-  if (context) return context
-  return useSettingsDialogsLogic(params)
+export const useSettingsDialogs = () => {
+  if (latestSettingsDialogsApi) return latestSettingsDialogsApi
+  return useSettingsDialogsLogic({})
 }
+
+type SettingsDialogsApi = ReturnType<typeof useSettingsDialogsLogic>
+
+let latestSettingsDialogsApi: SettingsDialogsApi | null = null

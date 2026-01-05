@@ -5,6 +5,11 @@ import { toast } from "@sola/ui"
 
 import { trpc } from "@/lib/trpc"
 import type { ClozeResult } from "@/hooks/useClozePractice"
+import {
+  useSentenceOperationsDeps,
+  useSentenceOperationsState,
+  useSetSentenceOperationsDeps,
+} from "@/atoms/sentenceOperations"
 
 type SentenceDetail = {
   article: { id: string }
@@ -26,7 +31,7 @@ type UseSentenceOperationsParams = {
   setClozeRevealed: React.Dispatch<React.SetStateAction<Record<string, boolean>>>
 }
 
-const useSentenceOperationsState = ({
+const useSentenceOperationsLogic = ({
   t,
   detail,
   stopLoopPlayback,
@@ -39,15 +44,16 @@ const useSentenceOperationsState = ({
   const utils = trpc.useUtils()
   const updateSentenceMutation = trpc.article.updateSentence.useMutation()
   const deleteSentenceMutation = trpc.article.deleteSentence.useMutation()
-
-  const [sentenceEditOpen, setSentenceEditOpen] = React.useState(false)
-  const [sentenceDeleteOpen, setSentenceDeleteOpen] = React.useState(false)
-  const [sentenceEditing, setSentenceEditing] = React.useState<{
-    id: string
-    nativeText: string
-    targetText: string
-  } | null>(null)
-  const [sentenceDeleteId, setSentenceDeleteId] = React.useState<string | null>(null)
+  const {
+    sentenceEditOpen,
+    setSentenceEditOpen,
+    sentenceDeleteOpen,
+    setSentenceDeleteOpen,
+    sentenceEditing,
+    setSentenceEditing,
+    sentenceDeleteId,
+    setSentenceDeleteId,
+  } = useSentenceOperationsState()
 
   const updateSentenceLocal = React.useCallback(
     (sentenceId: string, nativeText: string | null, targetText: string | null) => {
@@ -182,30 +188,37 @@ const useSentenceOperationsState = ({
   }
 }
 
-type SentenceOperationsContextValue = ReturnType<typeof useSentenceOperationsState>
-
-const SentenceOperationsContext =
-  React.createContext<SentenceOperationsContextValue | null>(null)
-
-export const SentenceOperationsProvider = ({
-  value,
-  children,
-}: {
-  value: SentenceOperationsContextValue
-  children: React.ReactNode
-}) => {
-  return (
-    <SentenceOperationsContext.Provider value={value}>
-      {children}
-    </SentenceOperationsContext.Provider>
-  )
+export const useInitSentenceOperations = (params: UseSentenceOperationsParams) => {
+  const api = useSentenceOperationsLogic(params)
+  latestSentenceOperationsApi = api
+  const setDeps = useSetSentenceOperationsDeps()
+  React.useEffect(() => {
+    setDeps(params)
+  }, [params, setDeps])
+  return api
 }
 
 export const useSentenceOperations = (params?: UseSentenceOperationsParams) => {
-  const context = React.useContext(SentenceOperationsContext)
-  if (context) return context
-  if (!params) {
-    throw new Error("useSentenceOperations requires params when no provider is set.")
-  }
-  return useSentenceOperationsState(params)
+  if (latestSentenceOperationsApi) return latestSentenceOperationsApi
+  const deps = useSentenceOperationsDeps()
+  if (params) return useSentenceOperationsLogic(params)
+  if (deps) return useSentenceOperationsLogic(deps)
+  const fallback = React.useMemo<UseSentenceOperationsParams>(
+    () => ({
+      t: (() => "") as unknown as UseSentenceOperationsParams["t"],
+      detail: undefined,
+      stopLoopPlayback: () => {},
+      clearSentenceSelection: () => {},
+      clearSentenceCache: () => {},
+      setClozeInputs: () => {},
+      setClozeResults: () => {},
+      setClozeRevealed: () => {},
+    }),
+    []
+  )
+  return useSentenceOperationsLogic(fallback)
 }
+
+type SentenceOperationsValue = ReturnType<typeof useSentenceOperationsLogic>
+
+let latestSentenceOperationsApi: SentenceOperationsValue | null = null

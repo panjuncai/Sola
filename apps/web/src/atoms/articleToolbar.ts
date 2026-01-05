@@ -7,6 +7,25 @@ export const isLoopingShadowingAtom = atom(false)
 export const isRandomModeAtom = atom(false)
 export const isClozeEnabledAtom = atom(false)
 
+type ArticleToolbarApi = {
+  stopLoopPlayback: () => void
+  startLoopAll: () => void
+  startLoopTarget: () => void
+  startLoopSingle: () => void
+  handleToggleShadowing: () => void
+  toggleRandomMode: () => void
+  toggleCloze: () => void
+  markUserSelected: () => void
+  isLoopingAll: boolean
+  isLoopingTarget: boolean
+  isLoopingSingle: boolean
+  isLoopingShadowing: boolean
+  isRandomMode: boolean
+  isClozeEnabled: boolean
+}
+
+export const articleToolbarApiAtom = atom<ArticleToolbarApi | null>(null)
+
 export const useArticleToolbarState = () => ({
   isLoopingAll: useAtomValue(isLoopingAllAtom),
   isLoopingTarget: useAtomValue(isLoopingTargetAtom),
@@ -24,3 +43,7 @@ export const useArticleToolbarActions = () => ({
   setIsRandomMode: useSetAtom(isRandomModeAtom),
   setIsClozeEnabled: useSetAtom(isClozeEnabledAtom),
 })
+
+export const useArticleToolbarApi = () => useAtomValue(articleToolbarApiAtom)
+
+export const useSetArticleToolbarApi = () => useSetAtom(articleToolbarApiAtom)

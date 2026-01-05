@@ -13,7 +13,7 @@ import { MobileHeader } from "@/components/article/layout/MobileHeader"
 import { useClozePractice } from "@/hooks/useClozePractice"
 import { useArticleToolbar } from "@/hooks/useArticleToolbar"
 import { useAiManagement } from "@/hooks/useAiManagement"
-import { useSentenceOperations } from "@/hooks/useSentenceOperations"
+import { useInitSentenceOperations } from "@/hooks/useSentenceOperations"
 import { useArticles } from "@/hooks/useArticles"
 import { useSettingsView } from "@/hooks/useSettingsView"
 import { useToolbarView } from "@/hooks/useToolbarView"
@@ -21,7 +21,7 @@ import { useSettingsPanelView } from "@/hooks/useSettingsPanelView"
 import { useSidebarView } from "@/hooks/useSidebarView"
 import { DialogsContainer } from "@/components/article/DialogsContainer"
 import { usePlayback } from "@/hooks/usePlayback"
-import { useSettingsDialogs } from "@/hooks/useSettingsDialogs"
+import { useInitSettingsDialogs, useSettingsDialogs } from "@/hooks/useSettingsDialogs"
 import { ArticleProviders } from "@/components/article/ArticleProviders"
 import { useArticleDialogsActions } from "@/atoms/articleDialogs"
 
@@ -85,11 +85,12 @@ export function ArticleListPage() {
     if (import.meta.env.DEV) return "http://localhost:6001"
     return window.location.origin
   }, [])
-  const settingsDialogs = useSettingsDialogs({
+  useInitSettingsDialogs({
     onDeleteAccountSuccess: () => {
       window.location.href = "/auth/login"
     },
   })
+  const settingsDialogs = useSettingsDialogs()
   const {
     languageDialogOpen,
     setLanguageDialogOpen,
@@ -260,7 +261,7 @@ export function ArticleListPage() {
     onPlayError: handlePlayError,
   })
 
-  const sentenceOperations = useSentenceOperations({
+  useInitSentenceOperations({
     t,
     detail: detailQuery.data,
     stopLoopPlayback,
@@ -361,10 +362,7 @@ export function ArticleListPage() {
     <ArticleProviders
       aiManagement={aiManagement}
       articles={articlesState}
-      articleToolbar={articleToolbar}
       playback={playback}
-      settingsDialogs={settingsDialogs}
-      sentenceOperations={sentenceOperations}
     >
       <div className="w-full">
       <MobileHeader
