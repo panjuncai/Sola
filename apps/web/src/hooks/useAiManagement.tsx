@@ -5,57 +5,12 @@ import { toast } from "@sola/ui"
 
 import { trpc } from "@/lib/trpc"
 import { useAiDialogsActions, useAiDialogsState } from "@/atoms/aiDialogs"
-
-type AiProviderType = "volcengine" | "qwen" | "openai" | "gemini" | "aihubmix"
-
-type InstructionType = "translate" | "explain" | "custom"
-
-type AiInstruction = {
-  id: string
-  name: string
-  instructionType: InstructionType
-  systemPrompt: string
-  userPromptTemplate: string
-  model: string | null
-  inputSchemaJson: string | null
-  outputSchemaJson: string | null
-  enabled: boolean
-  isDefault: boolean
-  userAiProviderId: string | null
-}
-
-type PublicAiInstruction = Omit<AiInstruction, "userAiProviderId">
-
-type AiProviderDraft = {
-  id: string
-  providerType: string
-  apiUrl: string
-  name: string | null
-  apiKey: string | null
-  models: string[]
-  availableModels: string[]
-  isDefault: boolean
-  enabled: boolean
-  isPublic: boolean
-}
-
-type AiProviderEditing = {
-  id: string
-  providerType: string
-  name: string | null
-  apiUrl: string
-  apiKey: string | null
-  models: string[]
-  enabled: boolean
-  isPublic: boolean
-}
-
-type AiProgressState = {
-  instructionId: string
-  total: number
-  completed: number
-  running: boolean
-} | null
+import type { InstructionType } from "@/atoms/aiManagement"
+import {
+  useAiManagementApi,
+  useAiManagementState as useAiManagementAtomState,
+  useSetAiManagementApi,
+} from "@/atoms/aiManagement"
 
 type ArticleSentence = {
   id: string
@@ -79,6 +34,46 @@ const useAiManagementState = ({
   detail,
   useAiUserKey,
 }: UseAiManagementParams) => {
+  const {
+    aiInstructionAddModel,
+    setAiInstructionAddModel,
+    aiProvidersDraft,
+    setAiProvidersDraft,
+    aiInstructionDrafts,
+    setAiInstructionDrafts,
+    aiInstructionEditing,
+    setAiInstructionEditing,
+    aiInstructionDeleteId,
+    setAiInstructionDeleteId,
+    aiInstructionAddProviderId,
+    setAiInstructionAddProviderId,
+    newAiProviderName,
+    setNewAiProviderName,
+    newAiProviderType,
+    setNewAiProviderType,
+    newAiProviderApiUrl,
+    setNewAiProviderApiUrl,
+    newAiProviderModels,
+    setNewAiProviderModels,
+    newAiProviderEnabled,
+    setNewAiProviderEnabled,
+    newAiProviderApiKey,
+    setNewAiProviderApiKey,
+    newAiProviderKeyVisible,
+    setNewAiProviderKeyVisible,
+    aiProviderEditing,
+    setAiProviderEditing,
+    aiProviderEditKeyVisible,
+    setAiProviderEditKeyVisible,
+    aiProviderEditModels,
+    setAiProviderEditModels,
+    aiProgress,
+    setAiProgress,
+    aiLastInstructionId,
+    setAiLastInstructionId,
+    publicAiInstructions,
+    setPublicAiInstructions,
+  } = useAiManagementAtomState()
   const utils = trpc.useUtils()
   const aiProvidersQuery = trpc.user.getAiProviders.useQuery()
   const updateAiProviderDefault = trpc.user.updateAiProviderDefault.useMutation()
@@ -115,41 +110,6 @@ const useAiManagementState = ({
     setAiProviderDeleteId,
     setAiProviderResetOpen,
   } = useAiDialogsActions()
-  const [aiInstructionAddModel, setAiInstructionAddModel] = React.useState<string | null>(
-    null
-  )
-  const [aiProvidersDraft, setAiProvidersDraft] = React.useState<AiProviderDraft[]>(
-    []
-  )
-  const [aiInstructionDrafts, setAiInstructionDrafts] = React.useState<AiInstruction[]>(
-    []
-  )
-  const [aiInstructionEditing, setAiInstructionEditing] =
-    React.useState<AiInstruction | null>(null)
-  const [aiInstructionDeleteId, setAiInstructionDeleteId] = React.useState<string | null>(
-    null
-  )
-  const [aiInstructionAddProviderId, setAiInstructionAddProviderId] =
-    React.useState<string | null>(null)
-  const [newAiProviderName, setNewAiProviderName] = React.useState("")
-  const [newAiProviderType, setNewAiProviderType] =
-    React.useState<AiProviderType>("openai")
-  const [newAiProviderApiUrl, setNewAiProviderApiUrl] = React.useState("")
-  const [newAiProviderModels, setNewAiProviderModels] = React.useState("")
-  const [newAiProviderEnabled, setNewAiProviderEnabled] = React.useState(true)
-  const [newAiProviderApiKey, setNewAiProviderApiKey] = React.useState("")
-  const [newAiProviderKeyVisible, setNewAiProviderKeyVisible] = React.useState(false)
-  const [aiProviderEditing, setAiProviderEditing] =
-    React.useState<AiProviderEditing | null>(null)
-  const [aiProviderEditKeyVisible, setAiProviderEditKeyVisible] = React.useState(false)
-  const [aiProviderEditModels, setAiProviderEditModels] = React.useState("")
-  const [aiProgress, setAiProgress] = React.useState<AiProgressState>(null)
-  const [aiLastInstructionId, setAiLastInstructionId] = React.useState<string | null>(
-    null
-  )
-  const [publicAiInstructions, setPublicAiInstructions] = React.useState<
-    PublicAiInstruction[]
-  >([])
   const aiRunIdRef = React.useRef(0)
 
   const aiInstructionList = React.useMemo(() => {
@@ -624,29 +584,22 @@ const useAiManagementState = ({
   }
 }
 
-type AiManagementContextValue = ReturnType<typeof useAiManagementState>
+export type AiManagementApi = ReturnType<typeof useAiManagementState>
 
-const AiManagementContext = React.createContext<AiManagementContextValue | null>(null)
-
-export const AiManagementProvider = ({
-  value,
-  children,
-}: {
-  value: AiManagementContextValue
-  children: React.ReactNode
-}) => {
-  return (
-    <AiManagementContext.Provider value={value}>
-      {children}
-    </AiManagementContext.Provider>
-  )
-}
+let latestAiManagementApi: AiManagementApi | null = null
 
 export const useAiManagement = (params?: UseAiManagementParams) => {
-  const context = React.useContext(AiManagementContext)
-  if (context) return context
+  const setApi = useSetAiManagementApi()
+  const storedApi = useAiManagementApi() as AiManagementApi | null
   if (!params) {
-    throw new Error("useAiManagement requires params when no provider is set.")
+    if (latestAiManagementApi) return latestAiManagementApi
+    if (storedApi) return storedApi
+    throw new Error("useAiManagement requires init params.")
   }
-  return useAiManagementState(params)
+  const api = useAiManagementState(params)
+  latestAiManagementApi = api
+  React.useEffect(() => {
+    setApi(api)
+  }, [api, setApi])
+  return api
 }

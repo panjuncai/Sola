@@ -1,6 +1,11 @@
 import * as React from "react"
 
 import { buildCacheKey } from "@/utils/tts"
+import {
+  usePlaybackActions,
+  usePlaybackApi,
+  useSetPlaybackApi,
+} from "@/atoms/playback"
 
 type PlaybackSentence = {
   id: string
@@ -37,13 +42,10 @@ type UsePlaybackParams = {
       speed?: number
     }) => Promise<{ cacheKey: string; url: string }>
   }
-  setPlayingSentenceId: React.Dispatch<React.SetStateAction<string | null>>
-  setPlayingRole: React.Dispatch<React.SetStateAction<"native" | "target" | null>>
-  setPlayingSpeed: React.Dispatch<React.SetStateAction<number | null>>
   onCacheCleared?: () => void
 }
 
-const usePlaybackState = ({
+const usePlaybackLogic = ({
   userId,
   apiBaseUrl,
   detail,
@@ -51,11 +53,9 @@ const usePlaybackState = ({
   nativeVoiceId,
   targetVoiceId,
   sentenceAudioMutation,
-  setPlayingSentenceId,
-  setPlayingRole,
-  setPlayingSpeed,
   onCacheCleared,
 }: UsePlaybackParams) => {
+  const { setPlayingSentenceId, setPlayingRole, setPlayingSpeed } = usePlaybackActions()
   const audioRef = React.useRef<HTMLAudioElement | null>(null)
   const ttsCacheRef = React.useRef<Record<string, string>>({})
 
@@ -308,25 +308,32 @@ const usePlaybackState = ({
   }
 }
 
-type PlaybackContextValue = ReturnType<typeof usePlaybackState>
-
-const PlaybackContext = React.createContext<PlaybackContextValue | null>(null)
-
-export const PlaybackProvider = ({
-  value,
-  children,
-}: {
-  value: PlaybackContextValue
-  children: React.ReactNode
-}) => {
-  return <PlaybackContext.Provider value={value}>{children}</PlaybackContext.Provider>
-}
-
 export const usePlayback = (params?: UsePlaybackParams) => {
-  const context = React.useContext(PlaybackContext)
-  if (context) return context
+  const setApi = useSetPlaybackApi()
+  const storedApi = usePlaybackApi()
+  const noop = React.useCallback(() => {}, [])
+  const noopAsync = React.useCallback(async () => {}, [])
   if (!params) {
-    throw new Error("usePlayback requires params when no provider is set.")
+    if (latestPlaybackApi) return latestPlaybackApi
+    if (storedApi) return storedApi
+    return {
+      buildLocalCacheKey: () => null,
+      getCachedAudioUrl: () => undefined,
+      setCachedAudioUrl: noop,
+      playSentenceRole: async () => false,
+      stopAudioPlayback: noop,
+      clearTtsCache: noopAsync,
+      clearSentenceCache: noopAsync,
+    }
   }
-  return usePlaybackState(params)
+  const api = usePlaybackLogic(params)
+  latestPlaybackApi = api
+  React.useEffect(() => {
+    setApi(api)
+  }, [api, setApi])
+  return api
 }
+
+type PlaybackApi = ReturnType<typeof usePlaybackLogic>
+
+let latestPlaybackApi: PlaybackApi | null = null

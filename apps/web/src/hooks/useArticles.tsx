@@ -1,21 +1,26 @@
 import * as React from "react"
 
 import { trpc } from "@/lib/trpc"
-import { useArticleStore } from "@/stores/useArticleStore"
+import { useArticlesState } from "@/atoms/articles"
 
 type UseArticlesParams = {
   deriveTitle: (content: string) => string
 }
 
-const useArticlesState = ({ deriveTitle }: UseArticlesParams) => {
-  const articles = useArticleStore((state) => state.articles)
-  const setArticles = useArticleStore((state) => state.setArticles)
+const useArticlesLogic = ({ deriveTitle }: UseArticlesParams) => {
+  const {
+    articles,
+    setArticles,
+    content,
+    setContent,
+    selectedIds,
+    setSelectedIds,
+    activeArticleId,
+    setActiveArticleId,
+    isCreating,
+    setIsCreating,
+  } = useArticlesState()
   const utils = trpc.useUtils()
-
-  const [content, setContent] = React.useState("")
-  const [selectedIds, setSelectedIds] = React.useState<string[]>([])
-  const [activeArticleId, setActiveArticleId] = React.useState<string | null>(null)
-  const [isCreating, setIsCreating] = React.useState(false)
 
   const listQuery = trpc.article.list.useQuery()
 
@@ -126,26 +131,19 @@ const useArticlesState = ({ deriveTitle }: UseArticlesParams) => {
   }
 }
 
-type ArticlesContextValue = ReturnType<typeof useArticlesState>
-
-const ArticlesContext = React.createContext<ArticlesContextValue | null>(null)
-
-export const ArticlesProvider = ({
-  value,
-  children,
-}: {
-  value: ArticlesContextValue
-  children: React.ReactNode
-}) => {
-  return <ArticlesContext.Provider value={value}>{children}</ArticlesContext.Provider>
-}
-
 export const useArticlesContext = () => {
-  const context = React.useContext(ArticlesContext)
-  if (!context) {
-    throw new Error("useArticlesContext must be used within ArticlesProvider.")
+  if (!latestArticlesApi) {
+    throw new Error("useArticlesContext must be initialized by useArticles.")
   }
-  return context
+  return latestArticlesApi
 }
 
-export const useArticles = useArticlesState
+type ArticlesApi = ReturnType<typeof useArticlesLogic>
+
+let latestArticlesApi: ArticlesApi | null = null
+
+export const useArticles = (params: UseArticlesParams) => {
+  const api = useArticlesLogic(params)
+  latestArticlesApi = api
+  return api
+}

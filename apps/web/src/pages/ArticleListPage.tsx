@@ -21,8 +21,8 @@ import { useSettingsPanelView } from "@/hooks/useSettingsPanelView"
 import { useSidebarView } from "@/hooks/useSidebarView"
 import { DialogsContainer } from "@/components/article/DialogsContainer"
 import { usePlayback } from "@/hooks/usePlayback"
+import { usePlaybackActions, usePlaybackState } from "@/atoms/playback"
 import { useInitSettingsDialogs, useSettingsDialogs } from "@/hooks/useSettingsDialogs"
-import { ArticleProviders } from "@/components/article/ArticleProviders"
 import { useArticleDialogsActions } from "@/atoms/articleDialogs"
 
 function deriveTitle(content: string) {
@@ -76,9 +76,8 @@ export function ArticleListPage() {
   const [selectedSentenceRole, setSelectedSentenceRole] = React.useState<
     "native" | "target" | null
   >(null)
-  const [playingSpeed, setPlayingSpeed] = React.useState<number | null>(null)
-  const [playingSentenceId, setPlayingSentenceId] = React.useState<string | null>(null)
-  const [playingRole, setPlayingRole] = React.useState<"native" | "target" | null>(null)
+  const { playingSentenceId, playingRole, playingSpeed } = usePlaybackState()
+  const { setPlayingSentenceId, setPlayingRole, setPlayingSpeed } = usePlaybackActions()
   const apiBaseUrl = React.useMemo(() => {
     const envBase = import.meta.env.VITE_API_URL?.replace(/\/$/, "")
     if (envBase) return envBase
@@ -182,9 +181,6 @@ export function ArticleListPage() {
     nativeVoiceId,
     targetVoiceId,
     sentenceAudioMutation,
-    setPlayingSentenceId,
-    setPlayingRole,
-    setPlayingSpeed,
     onCacheCleared: () => toast.success(t("settings.cacheCleared")),
   })
   const {
@@ -359,12 +355,7 @@ export function ArticleListPage() {
   )
 
   return (
-    <ArticleProviders
-      aiManagement={aiManagement}
-      articles={articlesState}
-      playback={playback}
-    >
-      <div className="w-full">
+    <div className="w-full">
       <MobileHeader
         t={t}
         settingsOpen={settingsOpen}
@@ -436,7 +427,6 @@ export function ArticleListPage() {
       </div>
 
       <DialogsContainer />
-      </div>
-    </ArticleProviders>
+    </div>
   )
 }
