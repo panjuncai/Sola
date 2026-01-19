@@ -1,0 +1,13 @@
+import * as React from "react"
+
+type AuthShellProps = {
+  children: React.ReactNode
+}
+
+export function AuthShell({ children }: AuthShellProps) {
+  return (
+    <div className="min-h-screen bg-zinc-50 flex items-center justify-center p-6">
+      <div className="w-full max-w-sm">{children}</div>
+    </div>
+  )
+}

@@ -17,15 +17,15 @@
 文件：`apps/web/src/pages/ArticleListPage.tsx`
 
 #### 主要 Hooks（业务/状态）
-- `useArticles`
-- `useSettingsView`
+- `useArticles`（已迁移至 `features/articles/hooks/useArticles.tsx`）
+- `useSettingsView`（已迁移至 `features/articles/hooks/useSettingsView.tsx`）
 - `usePlayback` / `usePlaybackState` / `usePlaybackActions`
-- `useArticleToolbar`
+- `useArticleToolbar`（已迁移至 `features/playback/hooks/useArticleToolbar.tsx`）
 - `useClozePractice`
-- `useAiManagement`
+- `useAiManagement`（已迁移至 `features/ai-management/hooks/useAiManagement.tsx`）
 - `useInitSentenceOperations`
 - `useInitSettingsDialogs`
-- `useSettingsDialogs`
+- `useSettingsDialogs`（已迁移至 `features/articles/hooks/useSettingsDialogs.tsx`）
 - `useSettingsPanelView`
 - `useSidebarView`
 - `useToolbarView`
@@ -80,7 +80,7 @@
   - `trpc.article.get`
   - `trpc.article.create`
   - `trpc.article.deleteMany`
-- `useSentenceOperations`
+- `useSentenceOperations`（已迁移至 `features/articles/hooks/useSentenceOperations.tsx`）
   - `trpc.article.updateSentence`
   - `trpc.article.deleteSentence`
 - `useSettings`
@@ -112,7 +112,7 @@
   - `sentenceOperations`（编辑/删除弹窗、当前操作句子）
 - `useSettingsDialogs`
   - `settingsDialogs`（语言/删除账号/清理缓存/影子跟读）
-- `usePlayback`
+- `usePlayback`（已迁移至 `features/playback/hooks/usePlayback.tsx`）
   - `playback`（playingSentenceId/role/speed + api）
 - `useArticleToolbar`
   - `articleToolbar`（循环/影子/随机/挖空 + api）
@@ -158,3 +158,87 @@
 - `useArticlesContext` 仍是“latest api”适配方案：需在阶段 2 完全下沉到 feature atoms。
 - 页面级 `trpc.*` 仍有少量存在：建议阶段 3/4 收敛。
 - `SentenceItemContext` 仍保留：需评估是否用 atom 替代（若高频更新则转 atom）。
+
+---
+
+## 组件级依赖总览（更细）
+
+### 页面
+- `apps/web/src/pages/ArticleListPage.tsx`
+  - 业务 Hooks：`useArticles`, `useSettingsView`, `usePlayback`, `useArticleToolbar`, `useClozePractice`, `useAiManagement`
+  - UI Hooks：`useSettingsPanelView`, `useSidebarView`, `useToolbarView`（已迁移至 `features/articles/hooks/*`）
+  - Dialog 状态：`useSettingsDialogs`, `useInitSettingsDialogs`, `useInitSentenceOperations`
+  - 直接 tRPC：`auth.signOut`, `tts.getSentenceAudio`
+
+### 文章布局组件
+- `apps/web/src/components/article/layout/ArticleContentView.tsx`
+  - `useArticlesContext`, `useSentenceOperations`, `usePlayback`, `useSettingsView`
+  - `useCardModeState`, `useArticleToolbarState`, `useArticleToolbar`
+- `apps/web/src/components/article/CardModeView.tsx`
+  - `useArticlesContext`, `useSettingsView`, `usePlayback`
+  - `useCardModeState` / `useCardModeActions`
+  - `useArticleToolbarState`
+- `apps/web/src/components/article/ArticleToolbar.tsx`
+  - `useArticleToolbarState`, `useCardModeState` / `useCardModeActions`
+  - `useArticleToolbar`, `useSettingsView`, `useAiManagement`
+
+### Dialog 组件
+- AI 相关（`components/article/dialogs/Ai*.tsx`）
+  - 依赖 `useAiManagement`
+  - 额外依赖 `useSettings`（私有额度开关）
+- 句子相关（`SentenceEditDialog`, `SentenceDeleteDialog`）
+  - 依赖 `useSentenceOperations`
+- 设置相关（`LanguageSettingsDialog`, `DeleteAccountDialog`, `ClearCacheDialog`）
+  - 依赖 `useSettingsDialogs`（开关状态）
+  - `ClearCacheDialog` 依赖 `usePlayback`
+
+### Context 组件（保留）
+- `SentenceItemContext`（仅 UI 级别）
+
+---
+
+## 原子（Atoms）清单（按域）
+
+### articles
+`features/articles/atoms/articles.ts`
+  - `articlesAtom`, `articleContentAtom`, `selectedArticleIdsAtom`, `activeArticleIdAtom`, `isCreatingArticleAtom`
+
+### playback
+`features/playback/atoms/playback.ts`
+  - `playingSentenceIdAtom`, `playingRoleAtom`, `playingSpeedAtom`, `playbackApiAtom`
+
+### articleToolbar（已下沉）
+- `features/playback/atoms/articleToolbar.ts`
+  - `isLoopingAllAtom`, `isLoopingTargetAtom`, `isLoopingSingleAtom`, `isLoopingShadowingAtom`
+  - `isRandomModeAtom`, `isClozeEnabledAtom`, `articleToolbarApiAtom`
+
+### cardMode
+- `features/card-mode/atoms/cardMode.ts`
+  - `isCardModeAtom`, `cardIndexAtom`, `cardFlippedAtom`, `cardDragXAtom`, `cardDraggingAtom`
+
+### dialogs（已下沉）
+- `features/articles/atoms/settingsDialogs.ts`
+  - `languageDialogOpenAtom`, `deleteAccountOpenAtom`, `clearCacheOpenAtom`, `shadowingDialogOpenAtom`, `shadowingDraftEnabledAtom`, `shadowingDraftSpeedsAtom`
+- `features/ai-management/atoms/aiDialogs.ts`
+  - `aiDialogOpenAtom`, `aiInstructionDialogOpenAtom`, `aiInstructionEditOpenAtom`, `aiInstructionAddOpenAtom`, `aiInstructionDeleteOpenAtom`, `aiProviderAddOpenAtom`, `aiProviderEditOpenAtom`, `aiProviderDeleteIdAtom`, `aiProviderResetOpenAtom`
+- `features/articles/atoms/articleDialogs.ts`
+  - `bulkDeleteOpenAtom`
+- `features/articles/atoms/sentenceOperations.ts`
+  - `sentenceEditOpenAtom`, `sentenceDeleteOpenAtom`, `sentenceEditingAtom`, `sentenceDeleteIdAtom`
+
+### aiManagement（已下沉）
+- `features/ai-management/atoms/aiManagement.ts`
+  - 草稿/编辑：`aiProvidersDraftAtom`, `aiInstructionDraftsAtom`, `aiInstructionEditingAtom`, `aiInstructionDeleteIdAtom`
+  - 新增/编辑：`newAiProviderNameAtom`, `newAiProviderTypeAtom`, `newAiProviderApiUrlAtom`, `newAiProviderModelsAtom`, `newAiProviderEnabledAtom`, `newAiProviderApiKeyAtom`, `newAiProviderKeyVisibleAtom`
+  - 编辑态：`aiProviderEditingAtom`, `aiProviderEditKeyVisibleAtom`, `aiProviderEditModelsAtom`
+  - 进度态：`aiProgressAtom`, `aiLastInstructionIdAtom`, `publicAiInstructionsAtom`
+  - API：`aiManagementApiAtom`
+
+---
+
+## 纯函数 / 无副作用工具（已迁移）
+- `apps/web/src/features/articles/utils/text.ts`
+  - `normalizeTextForCompare(value, language)`
+  - `splitSentenceForCloze(value, language)`
+- `apps/web/src/features/playback/utils/tts.ts`
+  - `buildCacheKey`（映射 `packages/shared` 的 `buildTtsCacheKey`）

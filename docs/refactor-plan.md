@@ -60,6 +60,7 @@ apps/web/src/
 
 ## 迁移策略（分阶段）
 ### 阶段 0：梳理依赖
+**进度：✅ 完成**
 - 产出依赖图：hooks/components/provider 依赖关系与调用链。
 - 盘点状态：
   - 高频状态（播放进度、选中句子、翻转状态）
@@ -68,12 +69,14 @@ apps/web/src/
 - 验收：依赖图 + 状态清单 + 风险点列表。
 
 ### 阶段 1：目录落地
+**进度：✅ 完成**
 - 建立 `features/*` 目录与 `index.ts` 出口（空壳即可）。
 - 配置路径规则：禁止跨模块深层引用。
 - 迁移“无副作用”工具（纯函数）到对应模块或 shared。
 - 验收：新增目录可编译，路径规则生效。
 
 ### 阶段 2：原子下沉
+**进度：✅ 完成**
 - 将现有 `atoms/*` 分拣：
   - 全局 atoms 留在 `apps/web/src/atoms`
   - 模块 atoms 移入 `features/*/atoms`
@@ -82,6 +85,7 @@ apps/web/src/
 - 验收：对应 UI 读写已切 atom，旧 Context 仍可共存。
 
 ### 阶段 3：Hook 拆分
+**进度：✅ 完成**
 - 每个模块建立核心 Hook（如 `useArticles`/`usePlayback`/`useAiManagement`）。
 - Hook 负责：
   - 读写 Jotai atoms
@@ -91,6 +95,7 @@ apps/web/src/
 - 验收：Hook 可独立运行，组件调用不感知内部变化。
 
 ### 阶段 4：组件收敛
+**进度：✅ 完成（有少量清理工作并入阶段 5）**
 - UI 组件：
   - 仅接收必要 props，或直接调用 Hook/atom
   - 移除 Context props drilling
@@ -98,12 +103,33 @@ apps/web/src/
 - 验收：页面文件仅包含布局与 Hook 初始化。
 
 ### 阶段 5：清理与一致性
-- 移除旧 Provider/Context 与废弃文件。
+**进度：⏳ 进行中**
+#### 5.1 旧物清理与目录收口
+- 删除旧 Provider/Context 与废弃文件。
+- 清空残留的 `components/article`、`hooks/*` 旧入口。
+- 验收：无未引用文件，页面可运行。
+
+#### 5.2 出口与依赖边界
 - 整理 `features/*/index.ts` 出口，只导出稳定 API。
-- 统一 i18n、schema 引用路径（prefer shared）。
-- 验收：
-  - `pnpm --filter @sola/web type-check` 通过
-  - 关键交互无回归（播放、卡片、AI、挖空）
+- 清理 deep import，统一改为模块入口引用。
+- 补充边界校验（禁止跨模块深层引用）。
+- 验收：无跨模块深层引用（检索结果为空）。
+
+#### 5.3 类型/Schema 归并
+- 统一 i18n 与 types/schema 到 `packages/shared`。
+- 替换前端自定义类型为共享类型。
+- 验收：shared 引用路径一致，类型不重复声明。
+
+#### 5.4 行为回归验证
+- 核心交互：播放/影子跟读/卡片/随机/挖空/AI 指令。
+- 清理缓存、删除/编辑句子、批量删除。
+- 验收：`pnpm --filter @sola/web type-check` 通过；关键交互无回归。
+
+## 当前迁移进度快照
+- 已迁移到 feature：ArticleContentView / ArticleToolbar / CardModeView / ClearCacheDialog / AiSettingsDialog / AiInstructionPanel / 文章相关 Dialogs。
+- `components/article` 目录已清空并移除，布局组件已落在 `features/articles/components/layout/*`。
+- `ArticleListPage` 已收敛为“布局 + Hook 初始化 + DialogsContainer”，大部分 UI 自取状态。
+- 仍在收尾：删除残余旧引用、统一 `index.ts` 出口、边界校验（禁止深层引用）、`packages/shared` 类型归并。
 
 ## 过渡期隔离（新旧共存）
 - 新模块若需要旧 Context 数据，在对应 Hook 中加“适配层”。

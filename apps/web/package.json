@@ -8,6 +8,7 @@
     "build": "pnpm --filter @sola/shared build && tsc -b && vite build",
     "lint": "eslint .",
     "type-check": "tsc -b",
+    "check": "pnpm run lint && pnpm run type-check",
     "typecheck": "pnpm run type-check",
     "preview": "vite preview"
   },

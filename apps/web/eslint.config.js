@@ -19,5 +19,23 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: [
+                '@/features/*/*',
+                '@/features/*/*/*',
+                '@/features/*/*/*/*',
+                '@/features/*/*/*/*/*',
+              ],
+              message: 'Use the feature public entry (e.g. "@/features/articles") instead of deep imports.',
+            },
+          ],
+        },
+      ],
+    },
   },
 ])

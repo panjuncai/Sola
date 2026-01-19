@@ -7,6 +7,8 @@
     "build": "turbo run build",
     "lint": "pnpm -r run type-check",
     "lint:web": "pnpm --filter @sola/web lint",
+    "check:web": "pnpm --filter @sola/web check && pnpm check:boundary",
+    "check:boundary": "node scripts/check-trpc-jotai-boundary.mjs && node scripts/check-feature-boundary.mjs && node scripts/check-atom-privacy.mjs",
     "type-check": "turbo run type-check",
     "typecheck": "pnpm -r typecheck",
     "tts:sync:azure": "node scripts/sync-azure-voices.mjs",

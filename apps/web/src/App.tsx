@@ -1,10 +1,7 @@
 import { Navigate, Outlet, Route, Routes } from "react-router-dom"
 
-import { ArticleList } from "./pages/ArticleList"
-import { AuthLayout } from "./pages/auth/AuthLayout"
-import { LoginPage } from "./pages/auth/LoginPage"
-import { SignUpPage } from "./pages/auth/SignUpPage"
-import { AuthGuard } from "./components/auth/AuthGuard"
+import { ArticleListPage } from "./pages/ArticleListPage"
+import { AuthGuard, AuthLayout, LoginPage, SignUpPage } from "./features/auth"
 
 function AppFrame() {
   return (
@@ -32,7 +29,7 @@ export default function App() {
       </Route>
 
       <Route element={<AuthGuard><AppFrame /></AuthGuard>}>
-        <Route path="/articles" element={<ArticleList />} />
+        <Route path="/articles" element={<ArticleListPage />} />
       </Route>
     </Routes>
   )

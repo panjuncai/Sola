@@ -1,2 +1,5 @@
 export * from "./tts.js"
 export * from "./ai.js"
+export * from "./language.js"
+export * from "./article.js"
+export * from "./settings.js"
