@@ -15,7 +15,15 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "lint": "eslint .",
     "type-check": "tsc -p tsconfig.json",
     "typecheck": "pnpm run type-check"
+  }
+  ,
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "eslint": "^9.39.1",
+    "eslint-plugin-boundaries": "^5.0.0",
+    "typescript-eslint": "^8.46.4"
   }
 }
