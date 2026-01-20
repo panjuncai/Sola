@@ -30,6 +30,7 @@ export default function App() {
 
       <Route element={<AuthGuard><AppFrame /></AuthGuard>}>
         <Route path="/articles" element={<ArticleListPage />} />
+        <Route path="/articles/:articleId" element={<ArticleListPage />} />
       </Route>
     </Routes>
   )

@@ -5,9 +5,10 @@ import { useArticlesState } from "../../atoms/articles"
 
 type UseArticlesParams = {
   deriveTitle: (content: string) => string
+  routeArticleId?: string | null
 }
 
-const useArticlesLogic = ({ deriveTitle }: UseArticlesParams) => {
+const useArticlesLogic = ({ deriveTitle, routeArticleId }: UseArticlesParams) => {
   const {
     content,
     setContent,
@@ -34,12 +35,14 @@ const useArticlesLogic = ({ deriveTitle }: UseArticlesParams) => {
   const detailQuery = trpc.article.get.useQuery(
     { articleId: activeArticleId ?? "" },
     {
+      keepPreviousData: true,
       enabled:
         Boolean(activeArticleId) &&
         !showCreate &&
         (activeArticleExists || listQuery.isFetching),
       retry: false,
       onError: () => {
+        if (routeArticleId) return
         setActiveArticleId(null)
         setIsCreating(true)
       },
@@ -75,12 +78,14 @@ const useArticlesLogic = ({ deriveTitle }: UseArticlesParams) => {
     selectedIds.length > 0 ? selectedIds : activeArticleId ? [activeArticleId] : []
 
   React.useEffect(() => {
+    if (routeArticleId) return
     if (!activeArticleId && !showCreate && list.length > 0) {
       setActiveArticleId(list[0]!.id)
     }
-  }, [activeArticleId, list, setActiveArticleId, showCreate])
+  }, [activeArticleId, list, routeArticleId, setActiveArticleId, showCreate])
 
   React.useEffect(() => {
+    if (routeArticleId) return
     if (!activeArticleId || showCreate) return
     if (listQuery.isFetching) return
     if (!list.some((article) => article.id === activeArticleId)) {
@@ -92,6 +97,7 @@ const useArticlesLogic = ({ deriveTitle }: UseArticlesParams) => {
     activeArticleId,
     listQuery.isFetching,
     list,
+    routeArticleId,
     setActiveArticleId,
     setIsCreating,
     showCreate,

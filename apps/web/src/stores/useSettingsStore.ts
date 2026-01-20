@@ -67,21 +67,48 @@ export const useSettingsStore = create<SettingsState & SettingsActions>()(
       ...defaultState,
       updateSetting: (patch) => set((state) => ({ ...state, ...patch })),
       syncFromServer: (data) =>
-        set((state) => ({
-          ...state,
-          uiLanguage: data.uiLanguage,
-          nativeLanguage: data.nativeLanguage,
-          targetLanguage: data.targetLanguage,
-          displayOrder: data.displayOrder,
-          playbackNativeRepeat: data.playbackNativeRepeat,
-          playbackTargetRepeat: data.playbackTargetRepeat,
-          playbackPauseSeconds: (data.playbackPauseMs || 0) / 1000,
-          useAiUserKey: data.useAiUserKey,
-          shadowingEnabled: data.shadowing.enabled,
-          shadowingSpeeds: data.shadowing.speeds,
-          shadowingDraftEnabled: data.shadowing.enabled,
-          shadowingDraftSpeeds: data.shadowing.speeds,
-        })),
+        set((state) => {
+          const nextPauseSeconds = (data.playbackPauseMs || 0) / 1000
+          const sameSpeeds =
+            state.shadowingSpeeds.length === data.shadowing.speeds.length &&
+            state.shadowingSpeeds.every(
+              (value, index) => value === data.shadowing.speeds[index]
+            )
+          const sameDraftSpeeds =
+            state.shadowingDraftSpeeds.length === data.shadowing.speeds.length &&
+            state.shadowingDraftSpeeds.every(
+              (value, index) => value === data.shadowing.speeds[index]
+            )
+          const unchanged =
+            state.uiLanguage === data.uiLanguage &&
+            state.nativeLanguage === data.nativeLanguage &&
+            state.targetLanguage === data.targetLanguage &&
+            state.displayOrder === data.displayOrder &&
+            state.playbackNativeRepeat === data.playbackNativeRepeat &&
+            state.playbackTargetRepeat === data.playbackTargetRepeat &&
+            state.playbackPauseSeconds === nextPauseSeconds &&
+            state.useAiUserKey === data.useAiUserKey &&
+            state.shadowingEnabled === data.shadowing.enabled &&
+            sameSpeeds &&
+            state.shadowingDraftEnabled === data.shadowing.enabled &&
+            sameDraftSpeeds
+          if (unchanged) return state
+          return {
+            ...state,
+            uiLanguage: data.uiLanguage,
+            nativeLanguage: data.nativeLanguage,
+            targetLanguage: data.targetLanguage,
+            displayOrder: data.displayOrder,
+            playbackNativeRepeat: data.playbackNativeRepeat,
+            playbackTargetRepeat: data.playbackTargetRepeat,
+            playbackPauseSeconds: nextPauseSeconds,
+            useAiUserKey: data.useAiUserKey,
+            shadowingEnabled: data.shadowing.enabled,
+            shadowingSpeeds: data.shadowing.speeds,
+            shadowingDraftEnabled: data.shadowing.enabled,
+            shadowingDraftSpeeds: data.shadowing.speeds,
+          }
+        }),
     }),
     {
       name: "sola-settings",

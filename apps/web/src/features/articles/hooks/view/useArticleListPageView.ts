@@ -1,4 +1,5 @@
 import * as React from "react"
+import { useNavigate, useParams } from "react-router-dom"
 import { useTranslation } from "react-i18next"
 
 import { toast } from "@sola/ui"
@@ -27,12 +28,23 @@ function deriveTitle(content: string) {
 
 export const useArticleListPageView = () => {
   const { t } = useTranslation()
+  const navigate = useNavigate()
+  const { articleId: routeArticleId } = useParams<{ articleId?: string }>()
+  const lastRouteAppliedRef = React.useRef<string | null>(null)
+  const lastNavigatedRef = React.useRef<string | null>(null)
 
-  const articlesState = useInitArticles({ deriveTitle })
+  const articlesState = useInitArticles({
+    deriveTitle,
+    routeArticleId: routeArticleId ?? null,
+  })
   const {
+    list,
+    listQuery,
     detailQuery,
     activeArticleId,
     showCreate,
+    setActiveArticleId,
+    setIsCreating,
   } = articlesState
   const {
     displayOrderSetting,
@@ -185,6 +197,64 @@ export const useArticleListPageView = () => {
   React.useEffect(() => {
     stopLoopPlayback()
   }, [activeArticleId, showCreate, stopLoopPlayback])
+
+  React.useEffect(() => {
+    if (!routeArticleId) return
+    if (routeArticleId === activeArticleId) return
+    if (lastRouteAppliedRef.current === routeArticleId) return
+    if (
+      !listQuery.isFetching &&
+      !listQuery.isLoading &&
+      list.length > 0 &&
+      !list.some((article) => article.id === routeArticleId)
+    ) {
+      return
+    }
+    lastRouteAppliedRef.current = routeArticleId
+    setIsCreating(false)
+    setActiveArticleId(routeArticleId)
+  }, [
+    activeArticleId,
+    list,
+    listQuery.isFetching,
+    listQuery.isLoading,
+    routeArticleId,
+    setActiveArticleId,
+    setIsCreating,
+  ])
+
+  React.useEffect(() => {
+    if (showCreate) {
+      if (routeArticleId) {
+        navigate("/articles", { replace: true })
+      }
+      return
+    }
+    if (routeArticleId) return
+    if (!activeArticleId) return
+    if (routeArticleId === activeArticleId) return
+    if (lastNavigatedRef.current === activeArticleId) return
+    lastNavigatedRef.current = activeArticleId
+    navigate(`/articles/${activeArticleId}`, { replace: true })
+  }, [activeArticleId, navigate, routeArticleId, showCreate])
+
+  React.useEffect(() => {
+    if (!routeArticleId) return
+    if (listQuery.isLoading || listQuery.isFetching) return
+    if (list.length === 0) return
+    if (list.some((article) => article.id === routeArticleId)) return
+    setActiveArticleId(null)
+    setIsCreating(true)
+    navigate("/articles", { replace: true })
+  }, [
+    list,
+    listQuery.isFetching,
+    listQuery.isLoading,
+    navigate,
+    routeArticleId,
+    setActiveArticleId,
+    setIsCreating,
+  ])
 
   return {}
 }

@@ -13,7 +13,7 @@ type ArticleContentBodyProps = {
 }
 
 export const ArticleContentBody = ({ children }: ArticleContentBodyProps) => {
-  const { detailQuery, showCreate } = useArticlesContext()
+  const { detailQuery, showCreate, activeArticleId } = useArticlesContext()
   const { isCardMode } = useCardModeState()
 
   if (showCreate) {
@@ -23,7 +23,8 @@ export const ArticleContentBody = ({ children }: ArticleContentBodyProps) => {
     return <ArticleContentToolbar />
   }
 
-  if (detailQuery.isLoading) {
+  const detailId = detailQuery.data?.article.id ?? null
+  if (detailQuery.isLoading || (activeArticleId && detailId !== activeArticleId)) {
     return <ArticleContentLoadingState />
   }
 
