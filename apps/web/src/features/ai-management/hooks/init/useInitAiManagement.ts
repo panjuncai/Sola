@@ -1,9 +1,12 @@
 import * as React from "react"
 import type { TFunction } from "i18next"
+import { useAtomValue } from "jotai"
 
 import { toast } from "@sola/ui"
 
 import { trpc } from "@/lib/trpc"
+import { trpcAtom } from "@/lib/trpcAtom"
+import { trpcClient } from "@/lib/trpcClient"
 import type { ArticleDetail, ArticleSentence } from "@sola/shared"
 import { useAiDialogsActions, useAiDialogsState } from "../../atoms/aiDialogs"
 import type { InstructionType } from "../../types"
@@ -19,6 +22,22 @@ type UseAiManagementParams = {
   detail: ArticleDetailResponse | undefined
   useAiUserKey: boolean
 }
+
+const aiProvidersAtom = trpcAtom(
+  "user.getAiProviders",
+  trpcClient.user.getAiProviders,
+  undefined
+)
+const aiInstructionAtom = trpcAtom(
+  "user.getUserAiInstructions",
+  trpcClient.user.getUserAiInstructions,
+  undefined
+)
+const publicAiInstructionAtom = trpcAtom(
+  "user.getPublicAiInstructions",
+  trpcClient.user.getPublicAiInstructions,
+  undefined
+)
 
 const useAiManagementState = ({
   t,
@@ -60,14 +79,14 @@ const useAiManagementState = ({
     setAiLastInstructionId,
   } = useAiManagementAtomState()
   const utils = trpc.useUtils()
-  const aiProvidersQuery = trpc.user.getAiProviders.useQuery()
+  const aiProvidersQuery = useAtomValue(aiProvidersAtom)
   const updateAiProviderDefault = trpc.user.updateAiProviderDefault.useMutation()
   const updateAiProviderConfig = trpc.user.updateAiProviderConfig.useMutation()
   const createUserAiProvider = trpc.user.createUserAiProvider.useMutation()
   const deleteAiProvider = trpc.user.deleteAiProvider.useMutation()
   const resetAiProvidersToPublic = trpc.user.resetAiProvidersToPublic.useMutation()
-  const aiInstructionQuery = trpc.user.getUserAiInstructions.useQuery()
-  const publicAiInstructionQuery = trpc.user.getPublicAiInstructions.useQuery()
+  const aiInstructionQuery = useAtomValue(aiInstructionAtom)
+  const publicAiInstructionQuery = useAtomValue(publicAiInstructionAtom)
   const createUserAiInstructionFromPublic =
     trpc.user.createUserAiInstructionFromPublic.useMutation()
   const updateUserAiInstruction = trpc.user.updateUserAiInstruction.useMutation()

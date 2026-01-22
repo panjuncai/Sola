@@ -35,7 +35,15 @@ export const useSettingsPanelView = ({
     }
     document.addEventListener("mousedown", handleOutside)
     return () => document.removeEventListener("mousedown", handleOutside)
-  }, [settingsOpen, anySettingsDialogOpen])
+  }, [
+    settingsOpen,
+    anySettingsDialogOpen,
+    setSettingsOpen,
+    settingsPanelRef,
+    settingsButtonRef,
+    mobileSettingsPanelRef,
+    mobileSettingsButtonRef,
+  ])
 
   const languages = useLanguageOptions()
 

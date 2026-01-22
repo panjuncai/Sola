@@ -1,6 +1,9 @@
 import * as React from "react"
+import { useAtomValue } from "jotai"
 
 import { trpc } from "@/lib/trpc"
+import { trpcAtom } from "@/lib/trpcAtom"
+import { trpcClient } from "@/lib/trpcClient"
 import { useArticlesState } from "../../atoms/articles"
 
 type UseArticlesParams = {
@@ -21,7 +24,12 @@ const useArticlesLogic = ({ deriveTitle, routeArticleId }: UseArticlesParams) =>
   } = useArticlesState()
   const utils = trpc.useUtils()
 
-  const listQuery = trpc.article.list.useQuery()
+  const listQuery = useAtomValue(
+    React.useMemo(
+      () => trpcAtom("article.list", trpcClient.article.list, undefined),
+      []
+    )
+  )
   const list = React.useMemo(() => listQuery.data ?? [], [listQuery.data])
   const isLoading = listQuery.isLoading
   const isError = listQuery.isError
@@ -32,21 +40,37 @@ const useArticlesLogic = ({ deriveTitle, routeArticleId }: UseArticlesParams) =>
     return list.some((article) => article.id === activeArticleId)
   }, [activeArticleId, list])
 
-  const detailQuery = trpc.article.get.useQuery(
-    { articleId: activeArticleId ?? "" },
-    {
-      keepPreviousData: true,
-      enabled:
-        Boolean(activeArticleId) &&
-        !showCreate &&
-        (activeArticleExists || listQuery.isFetching),
-      retry: false,
-      onError: () => {
-        if (routeArticleId) return
-        setActiveArticleId(null)
-        setIsCreating(true)
-      },
-    }
+  const detailQuery = useAtomValue(
+    React.useMemo(
+      () =>
+        trpcAtom(
+          "article.get",
+          trpcClient.article.get,
+          { articleId: activeArticleId ?? "" },
+          {
+            enabled:
+              Boolean(activeArticleId) &&
+              !showCreate &&
+              (activeArticleExists || listQuery.isFetching),
+            retry: false,
+            keepPreviousData: true,
+            onError: () => {
+              if (routeArticleId) return
+              setActiveArticleId(null)
+              setIsCreating(true)
+            },
+          }
+        ),
+      [
+        activeArticleExists,
+        activeArticleId,
+        listQuery.isFetching,
+        routeArticleId,
+        setActiveArticleId,
+        setIsCreating,
+        showCreate,
+      ]
+    )
   )
 
   const createMutation = trpc.article.create.useMutation({

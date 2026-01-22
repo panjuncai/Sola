@@ -1,6 +1,9 @@
 import * as React from "react"
+import { useAtomValue } from "jotai"
 
 import { trpc } from "@/lib/trpc"
+import { trpcAtom } from "@/lib/trpcAtom"
+import { trpcClient } from "@/lib/trpcClient"
 import { useSettings } from "@/stores/useSettings"
 import type { LanguageOption } from "@sola/shared"
 import {
@@ -34,13 +37,22 @@ const useSettingsDialogsLogic = ({
     persistSettings,
   } = useSettings()
   const ttsInitRef = React.useRef<string>("")
-  const ttsOptionsQuery = trpc.user.getTtsOptions.useQuery(
-    {
-      nativeLanguage: nativeLanguageSetting as LanguageOption,
-      targetLanguage: targetLanguageSetting as LanguageOption,
-    },
-    { enabled: settingsQuery.isSuccess }
+  const ttsOptionsAtom = React.useMemo(
+    () =>
+      trpcAtom(
+        "user.getTtsOptions",
+        trpcClient.user.getTtsOptions,
+        {
+          nativeLanguage: nativeLanguageSetting as LanguageOption,
+          targetLanguage: targetLanguageSetting as LanguageOption,
+        },
+        { enabled: settingsQuery.isSuccess }
+      ),
+    [nativeLanguageSetting, settingsQuery.isSuccess, targetLanguageSetting]
   )
+  const ttsOptionsResult = useAtomValue(ttsOptionsAtom)
+  const ttsOptionsQuery = ttsOptionsResult
+  const ttsOptions = ttsOptionsResult.data ?? null
   const deleteAccountMutation = trpc.user.deleteAccount.useMutation()
   const {
     languageDialogOpen,
@@ -62,13 +74,13 @@ const useSettingsDialogsLogic = ({
   } = useShadowingDraftState()
 
   React.useEffect(() => {
-    if (!ttsOptionsQuery.data) return
+    if (!ttsOptions) return
     const langKey = `${nativeLanguageSetting}|${targetLanguageSetting}`
     if (ttsInitRef.current === langKey) return
     ttsInitRef.current = langKey
 
     const { nativeOptions, targetOptions, nativeVoiceId, targetVoiceId } =
-      ttsOptionsQuery.data
+      ttsOptions
 
     const nextNative = nativeVoiceId ?? nativeOptions[0]?.id ?? null
     const nextTarget = targetVoiceId ?? targetOptions[0]?.id ?? null
@@ -85,7 +97,7 @@ const useSettingsDialogsLogic = ({
   }, [
     nativeLanguageSetting,
     targetLanguageSetting,
-    ttsOptionsQuery.data,
+    ttsOptions,
     updateTtsVoices,
     setNativeVoiceId,
     setTargetVoiceId,

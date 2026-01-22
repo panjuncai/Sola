@@ -1,3 +1,5 @@
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import js from '@eslint/js'
 import globals from 'globals'
 import reactHooks from 'eslint-plugin-react-hooks'
@@ -5,6 +7,9 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import boundaries from 'eslint-plugin-boundaries'
 import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
+
+const rootDir = path.dirname(fileURLToPath(import.meta.url))
+const repoRoot = path.resolve(rootDir, '..', '..')
 
 export default defineConfig([
   globalIgnores(['dist']),
@@ -24,26 +29,88 @@ export default defineConfig([
       globals: globals.browser,
     },
     settings: {
+      'boundaries/root-path': repoRoot,
+      'boundaries/include': [
+        'apps/web/src/**',
+        'packages/shared/src/**',
+        'packages/ui/src/**',
+        'packages/logic/src/**',
+        'packages/db/src/**',
+      ],
+      'boundaries/ignore': ['**/node_modules/**', '**/dist/**'],
       'boundaries/elements': [
         {
-          type: 'featurePublic',
-          pattern: 'src/features/*/index.{ts,tsx}',
+          type: 'featurePrivate',
+          pattern: 'apps/web/src/features/*/**',
           capture: ['feature'],
         },
         {
-          type: 'featurePrivate',
-          pattern: 'src/features/*/**',
+          type: 'featurePublic',
+          pattern: 'apps/web/src/features/*/index.ts',
+          capture: ['feature'],
+        },
+        {
+          type: 'featurePublic',
+          pattern: 'apps/web/src/features/*/index.tsx',
           capture: ['feature'],
         },
         {
           type: 'shared',
-          pattern: 'src/shared/**',
+          pattern: 'apps/web/src/shared/**',
         },
         {
           type: 'app',
-          pattern: 'src/**',
+          pattern: 'apps/web/src/App.tsx',
+        },
+        {
+          type: 'app',
+          pattern: 'apps/web/src/main.tsx',
+        },
+        {
+          type: 'app',
+          pattern: 'apps/web/src/pages/**',
+        },
+        {
+          type: 'app',
+          pattern: 'apps/web/src/layout/**',
+        },
+        {
+          type: 'app',
+          pattern: 'apps/web/src/lib/**',
+        },
+        {
+          type: 'app',
+          pattern: 'apps/web/src/i18n/**',
+        },
+        {
+          type: 'app',
+          pattern: 'apps/web/src/stores/**',
+        },
+        {
+          type: 'sharedPkg',
+          pattern: 'packages/shared/src/**',
+        },
+        {
+          type: 'uiPkg',
+          pattern: 'packages/ui/src/**',
+        },
+        {
+          type: 'logicPkg',
+          pattern: 'packages/logic/src/**',
+        },
+        {
+          type: 'dbPkg',
+          pattern: 'packages/db/src/**',
         },
       ],
+      'import/resolver': {
+        typescript: {
+          project: path.join(rootDir, 'tsconfig.json'),
+        },
+        node: {
+          extensions: ['.js', '.jsx', '.ts', '.tsx'],
+        },
+      },
     },
     rules: {
       'no-restricted-imports': [
@@ -62,6 +129,15 @@ export default defineConfig([
           ],
         },
       ],
+      'no-restricted-syntax': [
+        'warn',
+        {
+          selector:
+            "CallExpression[callee.name='useEffect'] CallExpression[callee.name=/^set[A-Z].*/]",
+          message:
+            'Avoid syncing query data into atoms inside useEffect. Prefer atomWithQuery/jotai-tanstack-query.',
+        },
+      ],
       'boundaries/no-unknown': 'error',
       'boundaries/element-types': [
         'error',
@@ -70,20 +146,43 @@ export default defineConfig([
           rules: [
             {
               from: ['app', 'shared'],
-              allow: ['shared', 'featurePublic'],
+              allow: [
+                'app',
+                'shared',
+                'featurePublic',
+                'featurePrivate',
+                'sharedPkg',
+                'uiPkg',
+                'logicPkg',
+              ],
             },
             {
               from: ['featurePublic'],
-              allow: ['shared', 'featurePublic', { type: 'featurePrivate', same: true }],
+              allow: [
+                'app',
+                'shared',
+                'featurePublic',
+                'featurePrivate',
+                'sharedPkg',
+                'uiPkg',
+                'logicPkg',
+              ],
             },
             {
               from: ['featurePrivate'],
               allow: [
+                'app',
                 'shared',
                 'featurePublic',
-                { type: 'featurePrivate', same: true },
-                { type: 'featurePublic', same: true },
+                'featurePrivate',
+                'sharedPkg',
+                'uiPkg',
+                'logicPkg',
               ],
+            },
+            {
+              from: ['sharedPkg', 'uiPkg', 'logicPkg', 'dbPkg'],
+              allow: ['sharedPkg', 'logicPkg'],
             },
           ],
         },
