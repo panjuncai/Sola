@@ -1,15 +1,17 @@
-import { useArticleToolbarView } from "../../../hooks/view/useArticleToolbarView"
+import { useTranslation } from "react-i18next"
+
+import { useCardModeState } from "@/features/card-mode"
+import { useSettingsView } from "@/features/articles"
+import { useArticleToolbarRequired } from "../../../hooks/init/useInitArticleToolbar"
 import { ToolbarToggleButton } from "./ToolbarToggleButton"
 
 export const ToolbarModeGroup = () => {
-  const { t, toolbar, isCardMode, settings } = useArticleToolbarView()
-  const {
-    isRandomMode,
-    isClozeEnabled,
-    toggleRandomMode,
-    toggleCloze,
-    handleToggleCardMode,
-  } = toolbar
+  const { t } = useTranslation()
+  const toolbar = useArticleToolbarRequired()
+  const { isCardMode } = useCardModeState()
+  const settings = useSettingsView()
+  const { toggleRandomMode, toggleCloze, handleToggleCardMode } = toolbar
+  const { isRandomMode, isClozeEnabled } = toolbar
   const { blurTarget, blurNative, handleToggleBlurTarget, handleToggleBlurNative } =
     settings
 

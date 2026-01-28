@@ -16,12 +16,13 @@ import {
   DialogCancelButton,
   DialogDeleteButton,
 } from "@sola/ui"
-import { AiNoProvidersState, useAiManagementRequired } from "@/features/ai-management"
-import { useSettings } from "@/stores/useSettings"
+import { AiNoProvidersState } from "./AiStates"
+import { useAiManagementRequired } from "../hooks/init/useInitAiManagement"
+import { useGlobalSettings } from "@/features/settings"
 
 export const AiSettingsDialog = () => {
   const { t } = useTranslation()
-  const { useAiUserKey, setUseAiUserKey, persistSettings } = useSettings()
+  const { useAiUserKey, persistSettings } = useGlobalSettings()
   const {
     aiDialogOpen,
     setAiDialogOpen,
@@ -58,7 +59,6 @@ export const AiSettingsDialog = () => {
                   type="radio"
                   checked={!useAiUserKey}
                   onChange={() => {
-                    setUseAiUserKey(false)
                     persistSettings({ useAiUserKey: false })
                   }}
                 />
@@ -69,7 +69,6 @@ export const AiSettingsDialog = () => {
                   type="radio"
                   checked={useAiUserKey}
                   onChange={() => {
-                    setUseAiUserKey(true)
                     persistSettings({ useAiUserKey: true })
                   }}
                 />

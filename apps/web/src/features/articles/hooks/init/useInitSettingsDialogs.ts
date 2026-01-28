@@ -1,10 +1,13 @@
 import * as React from "react"
 import { useAtomValue } from "jotai"
 
+import { useQueryClient } from "@tanstack/react-query"
+
 import { trpc } from "@/lib/trpc"
 import { trpcAtom } from "@/lib/trpcAtom"
 import { trpcClient } from "@/lib/trpcClient"
-import { useSettings } from "@/stores/useSettings"
+import { refreshTtsOptions } from "@/lib/queryRefresh"
+import { useGlobalSettings } from "@/features/settings"
 import type { LanguageOption } from "@sola/shared"
 import {
   useSettingsDialogsActions,
@@ -23,19 +26,11 @@ const useSettingsDialogsLogic = ({
     settingsQuery,
     updateTtsVoices,
     nativeLanguageSetting,
-    setNativeLanguageSetting,
     targetLanguageSetting,
-    setTargetLanguageSetting,
-    nativeVoiceId,
-    setNativeVoiceId,
-    targetVoiceId,
-    setTargetVoiceId,
     shadowingEnabled,
-    setShadowingEnabled,
     shadowingSpeeds,
-    setShadowingSpeeds,
     persistSettings,
-  } = useSettings()
+  } = useGlobalSettings()
   const ttsInitRef = React.useRef<string>("")
   const ttsOptionsAtom = React.useMemo(
     () =>
@@ -53,6 +48,9 @@ const useSettingsDialogsLogic = ({
   const ttsOptionsResult = useAtomValue(ttsOptionsAtom)
   const ttsOptionsQuery = ttsOptionsResult
   const ttsOptions = ttsOptionsResult.data ?? null
+  const nativeVoiceId = ttsOptions?.nativeVoiceId ?? null
+  const targetVoiceId = ttsOptions?.targetVoiceId ?? null
+  const queryClient = useQueryClient()
   const deleteAccountMutation = trpc.user.deleteAccount.useMutation()
   const {
     languageDialogOpen,
@@ -85,9 +83,6 @@ const useSettingsDialogsLogic = ({
     const nextNative = nativeVoiceId ?? nativeOptions[0]?.id ?? null
     const nextTarget = targetVoiceId ?? targetOptions[0]?.id ?? null
 
-    setNativeVoiceId(nextNative)
-    setTargetVoiceId(nextTarget)
-
     if (!nativeVoiceId && !targetVoiceId && nextNative && nextTarget) {
       updateTtsVoices.mutate({
         nativeVoiceId: nextNative,
@@ -99,8 +94,8 @@ const useSettingsDialogsLogic = ({
     targetLanguageSetting,
     ttsOptions,
     updateTtsVoices,
-    setNativeVoiceId,
-    setTargetVoiceId,
+    nativeVoiceId,
+    targetVoiceId,
   ])
 
   React.useEffect(() => {
@@ -118,45 +113,61 @@ const useSettingsDialogsLogic = ({
   const handleNativeLanguageChange = React.useCallback(
     (value: LanguageOption | string) => {
       const next = value as LanguageOption
-      setNativeLanguageSetting(next)
       persistSettings({ nativeLanguage: next })
     },
-    [persistSettings, setNativeLanguageSetting]
+    [persistSettings]
   )
 
   const handleTargetLanguageChange = React.useCallback(
     (value: LanguageOption | string) => {
       const next = value as LanguageOption
-      setTargetLanguageSetting(next)
       persistSettings({ targetLanguage: next })
     },
-    [persistSettings, setTargetLanguageSetting]
+    [persistSettings]
   )
 
   const handleNativeVoiceChange = React.useCallback(
-    (value: string | null) => {
-      setNativeVoiceId(value)
+    async (value: string | null) => {
       if (value && targetVoiceId) {
-        updateTtsVoices.mutate({
+        await updateTtsVoices.mutateAsync({
           nativeVoiceId: value,
           targetVoiceId,
         })
-      }
-    },
-    [setNativeVoiceId, targetVoiceId, updateTtsVoices]
-  )
-
-  const handleTargetVoiceChange = React.useCallback(
-    (value: string | null) => {
-      setTargetVoiceId(value)
-      if (nativeVoiceId && value) {
-        updateTtsVoices.mutate({
-          nativeVoiceId,
-          targetVoiceId: value,
+        await refreshTtsOptions(queryClient, {
+          nativeLanguage: nativeLanguageSetting as LanguageOption,
+          targetLanguage: targetLanguageSetting as LanguageOption,
         })
       }
     },
-    [nativeVoiceId, setTargetVoiceId, updateTtsVoices]
+    [
+      nativeLanguageSetting,
+      targetLanguageSetting,
+      queryClient,
+      targetVoiceId,
+      updateTtsVoices,
+    ]
+  )
+
+  const handleTargetVoiceChange = React.useCallback(
+    async (value: string | null) => {
+      if (nativeVoiceId && value) {
+        await updateTtsVoices.mutateAsync({
+          nativeVoiceId,
+          targetVoiceId: value,
+        })
+        await refreshTtsOptions(queryClient, {
+          nativeLanguage: nativeLanguageSetting as LanguageOption,
+          targetLanguage: targetLanguageSetting as LanguageOption,
+        })
+      }
+    },
+    [
+      nativeLanguageSetting,
+      targetLanguageSetting,
+      nativeVoiceId,
+      queryClient,
+      updateTtsVoices,
+    ]
   )
 
   const handleDeleteAccount = React.useCallback(() => {
@@ -174,8 +185,6 @@ const useSettingsDialogsLogic = ({
       .map((value) => Number(value))
       .filter((value) => Number.isFinite(value))
     const nextSpeeds = sanitized.length > 0 ? sanitized : [0.2]
-    setShadowingEnabled(shadowingDraftEnabled)
-    setShadowingSpeeds(nextSpeeds)
     persistSettings({
       shadowing: {
         enabled: shadowingDraftEnabled,
@@ -184,8 +193,6 @@ const useSettingsDialogsLogic = ({
     })
   }, [
     persistSettings,
-    setShadowingEnabled,
-    setShadowingSpeeds,
     shadowingDraftEnabled,
     shadowingDraftSpeeds,
   ])

@@ -1,11 +1,18 @@
+import * as React from "react"
 import { useTranslation } from "react-i18next"
 
 import { trpc } from "@/lib/trpc"
-import { useAuthStore } from "@/stores/useAuthStore"
+import { useGlobalAuthState } from "@/features/auth"
 import { useAiDialogsActions, useAiDialogsState } from "@/features/ai-management"
-import { useSettingsDialogs } from "@/features/articles"
-import { useSettingsPanelView } from "@/features/articles"
-import { useSettingsView } from "@/features/articles"
+import { useSettingsDialogs } from "../init/useInitSettingsDialogs"
+import { useSettingsPanelActions, useSettingsPanelState } from "../../atoms/settingsPanel"
+import { useLanguageOptions } from "./useLanguageOptions"
+import { useSettingsView } from "./useSettingsView"
+
+const sharedSettingsPanelRef = React.createRef<HTMLDivElement>()
+const sharedSettingsButtonRef = React.createRef<HTMLButtonElement>()
+const sharedMobileSettingsPanelRef = React.createRef<HTMLDivElement>()
+const sharedMobileSettingsButtonRef = React.createRef<HTMLButtonElement>()
 
 export const useSidebarPanelView = () => {
   const { t } = useTranslation()
@@ -51,14 +58,43 @@ export const useSidebarPanelView = () => {
     shadowingDialogOpen ||
     deleteAccountOpen ||
     clearCacheOpen
-  const {
+  const { settingsOpen } = useSettingsPanelState()
+  const { setSettingsOpen } = useSettingsPanelActions()
+  const settingsPanelRef = sharedSettingsPanelRef
+  const settingsButtonRef = sharedSettingsButtonRef
+  const mobileSettingsPanelRef = sharedMobileSettingsPanelRef
+  const mobileSettingsButtonRef = sharedMobileSettingsButtonRef
+
+  React.useEffect(() => {
+    if (!settingsOpen) return
+    if (anySettingsDialogOpen) return
+    const handleOutside = (event: MouseEvent) => {
+      const target = event.target as Node
+      if (settingsPanelRef.current?.contains(target)) return
+      if (settingsButtonRef.current?.contains(target)) return
+      if (mobileSettingsPanelRef.current?.contains(target)) return
+      if (mobileSettingsButtonRef.current?.contains(target)) return
+      setSettingsOpen(false)
+    }
+    document.addEventListener("mousedown", handleOutside)
+    return () => document.removeEventListener("mousedown", handleOutside)
+  }, [
     settingsOpen,
-    toggleSettings,
+    anySettingsDialogOpen,
+    setSettingsOpen,
     settingsPanelRef,
     settingsButtonRef,
-    languages,
-  } = useSettingsPanelView({ anySettingsDialogOpen })
-  const userEmail = useAuthStore((state) => state.user?.email ?? "")
+    mobileSettingsPanelRef,
+    mobileSettingsButtonRef,
+  ])
+
+  const languages = useLanguageOptions()
+
+  const toggleSettings = React.useCallback(() => {
+    setSettingsOpen((prev) => !prev)
+  }, [setSettingsOpen])
+  const { user } = useGlobalAuthState()
+  const userEmail = user?.email ?? ""
   const settingsTriggerLabel = userEmail || t("common.settings")
   const signOutMutation = trpc.auth.signOut.useMutation()
 

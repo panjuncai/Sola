@@ -1,7 +1,8 @@
 import { cn } from "@sola/ui"
 
 import { ArticleSidebarPanel } from "../shared/ArticleSidebarPanel"
-import { useMobileMenu, useSidebarView } from "@/features/articles"
+import { useMobileMenu } from "../../hooks/view/useMobileMenu"
+import { useSidebarView } from "../../hooks/view/useSidebarView"
 
 export const ArticleSidebarMobile = () => {
   const { mobileMenuOpen, closeMobileMenu } = useMobileMenu()

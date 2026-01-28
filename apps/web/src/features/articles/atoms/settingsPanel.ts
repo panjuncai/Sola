@@ -1,11 +1,11 @@
 import { atom, useAtomValue, useSetAtom } from "jotai"
 
-const settingsPanelOpenAtom = atom(false)
+const uiSettingsPanelOpenAtom = atom(false)
 
 export const useSettingsPanelState = () => ({
-  settingsOpen: useAtomValue(settingsPanelOpenAtom),
+  settingsOpen: useAtomValue(uiSettingsPanelOpenAtom),
 })
 
 export const useSettingsPanelActions = () => ({
-  setSettingsOpen: useSetAtom(settingsPanelOpenAtom),
+  setSettingsOpen: useSetAtom(uiSettingsPanelOpenAtom),
 })

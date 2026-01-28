@@ -11,12 +11,12 @@ import {
 } from "@sola/ui"
 
 import { DialogCancelButton } from "@sola/ui"
+import { SentenceDeleteConfirmButton } from "../ArticleDialogActions"
 import {
-  SentenceDeleteConfirmButton,
   SentenceDeleteDialogDescription,
   SentenceDeleteDialogTitle,
-  useSentenceOperations,
-} from "@/features/articles"
+} from "../ArticleDialogStates"
+import { useSentenceOperations } from "../../hooks/init/useInitSentenceOperations"
 
 export const SentenceDeleteDialog = () => {
   const { t } = useTranslation()

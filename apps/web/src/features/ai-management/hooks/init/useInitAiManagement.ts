@@ -1,16 +1,25 @@
 import * as React from "react"
 import type { TFunction } from "i18next"
 import { useAtomValue } from "jotai"
+import { useQueryClient } from "@tanstack/react-query"
 
 import { toast } from "@sola/ui"
 
 import { trpc } from "@/lib/trpc"
 import { trpcAtom } from "@/lib/trpcAtom"
 import { trpcClient } from "@/lib/trpcClient"
+import {
+  refreshAiInstructions as refreshAiInstructionsQuery,
+  refreshAiProviders as refreshAiProvidersQuery,
+  refreshArticleDetail as refreshArticleDetailQuery,
+} from "@/lib/queryRefresh"
 import type { ArticleDetail, ArticleSentence } from "@sola/shared"
 import { useAiDialogsActions, useAiDialogsState } from "../../atoms/aiDialogs"
 import type { InstructionType } from "../../types"
-import { useAiManagementState as useAiManagementAtomState } from "../../atoms/aiManagement"
+import {
+  type AiInstruction,
+  useAiManagementState as useAiManagementAtomState,
+} from "../../atoms/aiManagement"
 
 type ArticleDetailResponse = {
   article: ArticleDetail
@@ -39,7 +48,7 @@ const publicAiInstructionAtom = trpcAtom(
   undefined
 )
 
-const useAiManagementState = ({
+const useAiManagementLogic = ({
   t,
   detail,
   useAiUserKey,
@@ -78,7 +87,8 @@ const useAiManagementState = ({
     aiLastInstructionId,
     setAiLastInstructionId,
   } = useAiManagementAtomState()
-  const utils = trpc.useUtils()
+  type AiProgress = typeof aiProgress
+  const queryClient = useQueryClient()
   const aiProvidersQuery = useAtomValue(aiProvidersAtom)
   const updateAiProviderDefault = trpc.user.updateAiProviderDefault.useMutation()
   const updateAiProviderConfig = trpc.user.updateAiProviderConfig.useMutation()
@@ -118,6 +128,20 @@ const useAiManagementState = ({
   const aiDialogOpenRef = React.useRef(false)
   const aiInstructionDialogOpenRef = React.useRef(false)
 
+  const refreshArticleDetail = React.useCallback(async () => {
+    const articleId = detail?.article.id
+    if (!articleId) return
+    await refreshArticleDetailQuery(queryClient, articleId)
+  }, [detail?.article.id, queryClient])
+
+  const refreshAiProviders = React.useCallback(async () => {
+    await refreshAiProvidersQuery(queryClient)
+  }, [queryClient])
+
+  const refreshAiInstructions = React.useCallback(async () => {
+    await refreshAiInstructionsQuery(queryClient)
+  }, [queryClient])
+
   const aiInstructionList = React.useMemo(() => {
     const list = aiInstructionQuery.data ?? []
     return list
@@ -131,7 +155,7 @@ const useAiManagementState = ({
   }, [aiInstructionQuery.data])
 
   const aiInstructionGroups = React.useMemo(() => {
-    const groups = new Map<string, typeof aiInstructionList>()
+    const groups = new Map<string, AiInstruction[]>()
     for (const instruction of aiInstructionList) {
       const list = groups.get(instruction.instructionType) ?? []
       list.push(instruction)
@@ -140,9 +164,10 @@ const useAiManagementState = ({
     return Array.from(groups.entries())
   }, [aiInstructionList])
 
-  const defaultInstructionId = React.useMemo(() => {
-    return aiInstructionList.find((instruction) => instruction.isDefault)?.id ?? null
-  }, [aiInstructionList])
+  const defaultInstructionId = React.useMemo(
+    () => aiInstructionList.find((instruction) => instruction.isDefault)?.id ?? null,
+    [aiInstructionList]
+  )
 
   const resolveInstructionLabel = React.useCallback(
     (type: InstructionType) => {
@@ -180,25 +205,6 @@ const useAiManagementState = ({
         Boolean(sentence.targetText?.trim()) && !sentence.nativeText?.trim()
     ).length
   }, [detail])
-
-  const updateSentenceTranslation = React.useCallback(
-    (sentenceId: string, translation: string) => {
-      const articleId = detail?.article.id
-      if (!articleId) return
-      utils.article.get.setData({ articleId }, (current) => {
-        if (!current) return current
-        return {
-          ...current,
-          sentences: current.sentences.map((sentence) =>
-            sentence.id === sentenceId
-              ? { ...sentence, nativeText: translation }
-              : sentence
-          ),
-        }
-      })
-    },
-    [detail?.article.id, utils.article.get]
-  )
 
   const getTranslationTargets = React.useCallback(
     (missingOnly: boolean) => {
@@ -251,18 +257,16 @@ const useAiManagementState = ({
           if (!sentence) return
           if (aiRunIdRef.current !== runId) return
           try {
-            const result = await translateSentence.mutateAsync({
+            await translateSentence.mutateAsync({
               sentenceId: sentence.id,
               instructionId,
             })
-            if (aiRunIdRef.current !== runId) return
-            updateSentenceTranslation(result.sentenceId, result.translation)
           } catch {
             failed += 1
           }
           if (aiRunIdRef.current !== runId) return
           completed += 1
-          setAiProgress((prev) =>
+          setAiProgress((prev: AiProgress) =>
             prev && prev.instructionId === instructionId
               ? { ...prev, completed }
               : prev
@@ -273,7 +277,10 @@ const useAiManagementState = ({
       await Promise.all(Array.from({ length: concurrency }, () => worker()))
 
       if (aiRunIdRef.current !== runId) return
-      setAiProgress((prev) => (prev ? { ...prev, running: false } : prev))
+      await refreshArticleDetail()
+      setAiProgress((prev: AiProgress) =>
+        prev ? { ...prev, running: false } : prev
+      )
       if (failed > 0) {
         toast.error(t("ai.translationFailed", { count: failed }))
       } else {
@@ -288,14 +295,16 @@ const useAiManagementState = ({
       setAiProgress,
       t,
       translateSentence,
-      updateSentenceTranslation,
+      refreshArticleDetail,
     ]
   )
 
   const cancelAiTranslation = React.useCallback(() => {
     if (!aiProgress?.running) return
     aiRunIdRef.current += 1
-    setAiProgress((prev) => (prev ? { ...prev, running: false } : prev))
+    setAiProgress((prev: AiProgress) =>
+      prev ? { ...prev, running: false } : prev
+    )
     toast.success(t("ai.translationCanceled"))
   }, [aiProgress?.running, setAiProgress, t])
 
@@ -351,7 +360,12 @@ const useAiManagementState = ({
     if (nextProviderId !== aiInstructionAddProviderId) {
       setAiInstructionAddProviderId(nextProviderId)
     }
-  }, [aiInstructionDialogOpen, aiInstructionAddProviderId, aiProvidersQuery.data, setAiInstructionAddProviderId])
+  }, [
+    aiInstructionDialogOpen,
+    aiInstructionAddProviderId,
+    aiProvidersQuery.data,
+    setAiInstructionAddProviderId,
+  ])
 
   React.useEffect(() => {
     if (!aiInstructionAddOpen) return
@@ -379,9 +393,9 @@ const useAiManagementState = ({
   const setDefaultProvider = React.useCallback(
     async (providerId: string) => {
       await updateAiProviderDefault.mutateAsync({ id: providerId })
-      await aiProvidersQuery.refetch()
+      await refreshAiProviders()
     },
-    [aiProvidersQuery, updateAiProviderDefault]
+    [refreshAiProviders, updateAiProviderDefault]
   )
 
   const addAiProvider = React.useCallback(async () => {
@@ -389,7 +403,7 @@ const useAiManagementState = ({
     const apiUrl = newAiProviderApiUrl.trim()
     const models = newAiProviderModels
       .split(",")
-      .map((item) => item.trim())
+      .map((item: string) => item.trim())
       .filter(Boolean)
     if (!name || !apiUrl || models.length === 0) {
       toast.error(t("ai.addCustomError"))
@@ -404,7 +418,7 @@ const useAiManagementState = ({
         enabled: newAiProviderEnabled,
         apiKey: useAiUserKey ? newAiProviderApiKey.trim() || null : null,
       })
-      await aiProvidersQuery.refetch()
+      await refreshAiProviders()
       setNewAiProviderName("")
       setNewAiProviderType("openai")
       setNewAiProviderApiUrl("")
@@ -414,12 +428,10 @@ const useAiManagementState = ({
       setNewAiProviderKeyVisible(false)
       setAiProviderAddOpen(false)
       toast.success(t("ai.addCustomSuccess"))
-    } catch (error) {
-      const message = error instanceof Error ? error.message : t("ai.addCustomFailed")
-      toast.error(message)
+    } catch {
+      // Error toast handled by global tRPC error handler.
     }
   }, [
-    aiProvidersQuery,
     createUserAiProvider,
     newAiProviderApiKey,
     newAiProviderApiUrl,
@@ -437,13 +449,14 @@ const useAiManagementState = ({
     setNewAiProviderType,
     t,
     useAiUserKey,
+    refreshAiProviders,
   ])
 
   const updateAiProvider = React.useCallback(async () => {
     if (!aiProviderEditing) return
     const models = aiProviderEditModels
       .split(",")
-      .map((item) => item.trim())
+      .map((item: string) => item.trim())
       .filter(Boolean)
     if (!aiProviderEditing.apiUrl.trim()) {
       toast.error(t("ai.baseUrlRequired"))
@@ -458,55 +471,79 @@ const useAiManagementState = ({
         enabled: aiProviderEditing.enabled,
         apiKey: useAiUserKey ? aiProviderEditing.apiKey ?? "" : null,
       })
-      await aiProvidersQuery.refetch()
+      await refreshAiProviders()
       setAiProviderEditOpen(false)
       setAiProviderEditing(null)
       toast.success(t("ai.editProviderSuccess"))
-    } catch (error) {
-      const message = error instanceof Error ? error.message : t("common.updateFailed")
-      toast.error(message)
+    } catch {
+      // Error toast handled by global tRPC error handler.
     }
   }, [
     aiProviderEditModels,
     aiProviderEditing,
-    aiProvidersQuery,
     setAiProviderEditOpen,
     setAiProviderEditing,
     t,
     updateAiProviderConfig,
     useAiUserKey,
+    refreshAiProviders,
   ])
 
   const removeAiProvider = React.useCallback(async () => {
     if (!aiProviderDeleteId) return
     try {
       await deleteAiProvider.mutateAsync({ id: aiProviderDeleteId })
-      await aiProvidersQuery.refetch()
+      await refreshAiProviders()
       setAiProviderDeleteId(null)
       toast.success(t("ai.deleteProviderSuccess"))
-    } catch (error) {
-      const message = error instanceof Error ? error.message : t("common.deleteFailed")
-      toast.error(message)
+    } catch {
+      // Error toast handled by global tRPC error handler.
     }
   }, [
     aiProviderDeleteId,
-    aiProvidersQuery,
     deleteAiProvider,
     setAiProviderDeleteId,
     t,
+    refreshAiProviders,
   ])
 
   const resetAiProviders = React.useCallback(async () => {
     try {
       await resetAiProvidersToPublic.mutateAsync({ confirm: true })
-      await aiProvidersQuery.refetch()
+      await refreshAiProviders()
       setAiProviderResetOpen(false)
       toast.success(t("ai.resetSuccess"))
-    } catch (error) {
-      const message = error instanceof Error ? error.message : t("ai.resetFailed")
-      toast.error(message)
+    } catch {
+      // Error toast handled by global tRPC error handler.
     }
-  }, [aiProvidersQuery, resetAiProvidersToPublic, setAiProviderResetOpen, t])
+  }, [refreshAiProviders, resetAiProvidersToPublic, setAiProviderResetOpen, t])
+
+  const createInstructionFromPublic = React.useCallback(
+    async (...args: Parameters<typeof createUserAiInstructionFromPublic.mutateAsync>) => {
+      const result = await createUserAiInstructionFromPublic.mutateAsync(...args)
+      await refreshAiInstructions()
+      return result
+    },
+    [createUserAiInstructionFromPublic, refreshAiInstructions]
+  )
+
+  const updateInstruction = React.useCallback(
+    async (...args: Parameters<typeof updateUserAiInstruction.mutateAsync>) => {
+      const result = await updateUserAiInstruction.mutateAsync(...args)
+      await refreshAiInstructions()
+      return result
+    },
+    [refreshAiInstructions, updateUserAiInstruction]
+  )
+
+  const deleteInstruction = React.useCallback(
+    async (...args: Parameters<typeof deleteUserAiInstruction.mutateAsync>) => {
+      const result = await deleteUserAiInstruction.mutateAsync(...args)
+      await refreshAiInstructions()
+      return result
+    },
+    [deleteUserAiInstruction, refreshAiInstructions]
+  )
 
   return React.useMemo(
     () => ({
@@ -573,9 +610,9 @@ const useAiManagementState = ({
       updateAiProvider,
       removeAiProvider,
       resetAiProviders,
-      createInstructionFromPublic: createUserAiInstructionFromPublic.mutateAsync,
-      updateInstruction: updateUserAiInstruction.mutateAsync,
-      deleteInstruction: deleteUserAiInstruction.mutateAsync,
+      createInstructionFromPublic,
+      updateInstruction,
+      deleteInstruction,
     }),
     [
       addAiProvider,
@@ -600,8 +637,8 @@ const useAiManagementState = ({
       aiProviderResetOpen,
       aiProvidersQuery,
       cancelAiTranslation,
-      createUserAiInstructionFromPublic.mutateAsync,
-      deleteUserAiInstruction.mutateAsync,
+      createInstructionFromPublic,
+      deleteInstruction,
       missingNativeCount,
       newAiProviderApiKey,
       newAiProviderApiUrl,
@@ -643,25 +680,23 @@ const useAiManagementState = ({
       setNewAiProviderType,
       startAiTranslation,
       updateAiProvider,
-      updateUserAiInstruction.mutateAsync,
+      updateInstruction,
     ]
   )
 }
 
-export type AiManagementApi = ReturnType<typeof useAiManagementState>
-
-let latestAiManagementApi: AiManagementApi | null = null
+type AiManagementApi = ReturnType<typeof useAiManagementLogic>
 
 export const useInitAiManagement = (params: UseAiManagementParams) => {
-  const api = useAiManagementState(params)
+  const api = useAiManagementLogic(params)
   // eslint-disable-next-line react-hooks/globals
   latestAiManagementApi = api
   return api
 }
 
-export const useAiManagement = useInitAiManagement
-
 export const useAiManagementRequired = () => {
   if (latestAiManagementApi) return latestAiManagementApi
   throw new Error("AiManagement API is not initialized.")
 }
+
+let latestAiManagementApi: AiManagementApi | null = null

@@ -18,13 +18,13 @@ import {
 import {
   AiProviderEditDialogDescription,
   AiProviderEditDialogTitle,
-  useAiManagementRequired,
-} from "@/features/ai-management"
-import { useSettings } from "@/stores/useSettings"
+} from "../AiDialogStates"
+import { useAiManagementRequired } from "../../hooks/init/useInitAiManagement"
+import { useGlobalSettings } from "@/features/settings"
 
 export const AiProviderEditDialog = () => {
   const { t } = useTranslation()
-  const { useAiUserKey } = useSettings()
+  const { useAiUserKey } = useGlobalSettings()
   const {
     aiProviderEditOpen,
     setAiProviderEditOpen,
@@ -95,7 +95,7 @@ export const AiProviderEditDialog = () => {
                   type="button"
                   variant="outline"
                   className="h-9"
-                  onClick={() => setAiProviderEditKeyVisible((prev) => !prev)}
+                  onClick={() => setAiProviderEditKeyVisible((prev: boolean) => !prev)}
                 >
                   {aiProviderEditKeyVisible ? t("common.hide") : t("common.show")}
                 </Button>

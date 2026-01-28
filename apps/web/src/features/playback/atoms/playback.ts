@@ -1,17 +1,17 @@
 import { atom, useAtomValue, useSetAtom } from "jotai"
 
-const playingSentenceIdAtom = atom<string | null>(null)
-const playingRoleAtom = atom<"native" | "target" | null>(null)
-const playingSpeedAtom = atom<number | null>(null)
+const uiPlayingSentenceIdAtom = atom<string | null>(null)
+const uiPlayingRoleAtom = atom<"native" | "target" | null>(null)
+const uiPlayingSpeedAtom = atom<number | null>(null)
 
 export const usePlaybackState = () => ({
-  playingSentenceId: useAtomValue(playingSentenceIdAtom),
-  playingRole: useAtomValue(playingRoleAtom),
-  playingSpeed: useAtomValue(playingSpeedAtom),
+  playingSentenceId: useAtomValue(uiPlayingSentenceIdAtom),
+  playingRole: useAtomValue(uiPlayingRoleAtom),
+  playingSpeed: useAtomValue(uiPlayingSpeedAtom),
 })
 
 export const usePlaybackActions = () => ({
-  setPlayingSentenceId: useSetAtom(playingSentenceIdAtom),
-  setPlayingRole: useSetAtom(playingRoleAtom),
-  setPlayingSpeed: useSetAtom(playingSpeedAtom),
+  setPlayingSentenceId: useSetAtom(uiPlayingSentenceIdAtom),
+  setPlayingRole: useSetAtom(uiPlayingRoleAtom),
+  setPlayingSpeed: useSetAtom(uiPlayingSpeedAtom),
 })

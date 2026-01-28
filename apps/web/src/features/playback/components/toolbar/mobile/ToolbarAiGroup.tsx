@@ -1,9 +1,13 @@
-import { useArticleToolbarView } from "../../../hooks/view/useArticleToolbarView"
-import { type InstructionType } from "@/features/ai-management"
+import { useTranslation } from "react-i18next"
+
+import { type InstructionType, useAiManagementRequired } from "@/features/ai-management"
+import { useToolbarView } from "@/features/articles"
 import { InstructionGroup } from "./InstructionGroup"
 
 export const ToolbarAiGroup = () => {
-  const { t, ai, mobile } = useArticleToolbarView()
+  const { t } = useTranslation()
+  const ai = useAiManagementRequired()
+  const mobile = useToolbarView()
   const { closeMobileToolbar } = mobile
   const { aiInstructionGroups, resolveInstructionLabel, startAiTranslation } = ai
 

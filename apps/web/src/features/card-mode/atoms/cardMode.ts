@@ -1,23 +1,23 @@
 import { atom, useAtomValue, useSetAtom } from "jotai"
 
-const isCardModeAtom = atom(false)
-const cardIndexAtom = atom(0)
-const cardFlippedAtom = atom(false)
-const cardDragXAtom = atom(0)
-const cardDraggingAtom = atom(false)
+const uiIsCardModeAtom = atom(false)
+const uiCardIndexAtom = atom(0)
+const uiCardFlippedAtom = atom(false)
+const uiCardDragXAtom = atom(0)
+const uiCardDraggingAtom = atom(false)
 
 export const useCardModeState = () => ({
-  isCardMode: useAtomValue(isCardModeAtom),
-  cardIndex: useAtomValue(cardIndexAtom),
-  cardFlipped: useAtomValue(cardFlippedAtom),
-  cardDragX: useAtomValue(cardDragXAtom),
-  cardDragging: useAtomValue(cardDraggingAtom),
+  isCardMode: useAtomValue(uiIsCardModeAtom),
+  cardIndex: useAtomValue(uiCardIndexAtom),
+  cardFlipped: useAtomValue(uiCardFlippedAtom),
+  cardDragX: useAtomValue(uiCardDragXAtom),
+  cardDragging: useAtomValue(uiCardDraggingAtom),
 })
 
 export const useCardModeActions = () => ({
-  setIsCardMode: useSetAtom(isCardModeAtom),
-  setCardIndex: useSetAtom(cardIndexAtom),
-  setCardFlipped: useSetAtom(cardFlippedAtom),
-  setCardDragX: useSetAtom(cardDragXAtom),
-  setCardDragging: useSetAtom(cardDraggingAtom),
+  setIsCardMode: useSetAtom(uiIsCardModeAtom),
+  setCardIndex: useSetAtom(uiCardIndexAtom),
+  setCardFlipped: useSetAtom(uiCardFlippedAtom),
+  setCardDragX: useSetAtom(uiCardDragXAtom),
+  setCardDragging: useSetAtom(uiCardDraggingAtom),
 })

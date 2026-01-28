@@ -1,4 +1,4 @@
-import { useMobileMenu } from "@/features/articles"
+import { useMobileMenu } from "../../hooks/view/useMobileMenu"
 
 export const MobileHeaderMenuButton = () => {
   const { openMobileMenu } = useMobileMenu()

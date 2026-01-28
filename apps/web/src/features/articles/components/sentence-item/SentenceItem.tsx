@@ -1,7 +1,8 @@
 import { Card, CardContent } from "@sola/ui"
 
 import { cn } from "@/lib/utils"
-import { useSettingsView, useSentenceSelectionState } from "@/features/articles"
+import { useSettingsView } from "../../hooks/view/useSettingsView"
+import { useSentenceSelectionState } from "../../hooks/state/useSentenceSelectionState"
 import { useArticleToolbarState, usePlaybackState } from "@/features/playback"
 
 import { SentenceActionButtons } from "./SentenceActionButtons"

@@ -4,7 +4,7 @@ import type {
   AiProviderType as SharedAiProviderType,
 } from "@sola/shared"
 
-export type AiProviderType = SharedAiProviderType
+type AiProviderType = SharedAiProviderType
 export type InstructionType = AiInstructionType
 
 export type AiInstruction = {
@@ -21,7 +21,7 @@ export type AiInstruction = {
   userAiProviderId: string | null
 }
 
-export type AiProviderEditing = {
+type AiProviderEditing = {
   id: string
   providerType: AiProviderType
   name: string | null
@@ -32,70 +32,74 @@ export type AiProviderEditing = {
   isPublic: boolean
 }
 
-export type AiProgressState = {
+type AiProgressState = {
   instructionId: string
   total: number
   completed: number
   running: boolean
 } | null
 
-const aiInstructionAddModelAtom = atom<string | null>(null)
-const aiInstructionEditingAtom = atom<AiInstruction | null>(null)
-const aiInstructionDeleteIdAtom = atom<string | null>(null)
-const aiInstructionAddProviderIdAtom = atom<string | null>(null)
-const newAiProviderNameAtom = atom("")
-const newAiProviderTypeAtom = atom<AiProviderType>("openai")
-const newAiProviderApiUrlAtom = atom("")
-const newAiProviderModelsAtom = atom("")
-const newAiProviderEnabledAtom = atom(true)
-const newAiProviderApiKeyAtom = atom("")
-const newAiProviderKeyVisibleAtom = atom(false)
-const aiProviderEditingAtom = atom<AiProviderEditing | null>(null)
-const aiProviderEditKeyVisibleAtom = atom(false)
-const aiProviderEditModelsAtom = atom("")
-const aiProgressAtom = atom<AiProgressState>(null)
-const aiLastInstructionIdAtom = atom<string | null>(null)
+const uiAiInstructionAddModelAtom = atom<string | null>(null)
+const uiAiInstructionEditingAtom = atom<AiInstruction | null>(null)
+const uiAiInstructionDeleteIdAtom = atom<string | null>(null)
+const uiAiInstructionAddProviderIdAtom = atom<string | null>(null)
+const uiNewAiProviderNameAtom = atom("")
+const uiNewAiProviderTypeAtom = atom<AiProviderType>("openai")
+const uiNewAiProviderApiUrlAtom = atom("")
+const uiNewAiProviderModelsAtom = atom("")
+const uiNewAiProviderEnabledAtom = atom(true)
+const uiNewAiProviderApiKeyAtom = atom("")
+const uiNewAiProviderKeyVisibleAtom = atom(false)
+const uiAiProviderEditingAtom = atom<AiProviderEditing | null>(null)
+const uiAiProviderEditKeyVisibleAtom = atom(false)
+const uiAiProviderEditModelsAtom = atom("")
+const uiAiProgressAtom = atom<AiProgressState>(null)
+const uiAiLastInstructionIdAtom = atom<string | null>(null)
 
 export const useAiManagementState = () => {
   const [aiInstructionAddModel, setAiInstructionAddModel] = useAtom(
-    aiInstructionAddModelAtom
+    uiAiInstructionAddModelAtom
   )
   const [aiInstructionEditing, setAiInstructionEditing] = useAtom(
-    aiInstructionEditingAtom
+    uiAiInstructionEditingAtom
   )
   const [aiInstructionDeleteId, setAiInstructionDeleteId] = useAtom(
-    aiInstructionDeleteIdAtom
+    uiAiInstructionDeleteIdAtom
   )
   const [aiInstructionAddProviderId, setAiInstructionAddProviderId] = useAtom(
-    aiInstructionAddProviderIdAtom
+    uiAiInstructionAddProviderIdAtom
   )
-  const [newAiProviderName, setNewAiProviderName] = useAtom(newAiProviderNameAtom)
-  const [newAiProviderType, setNewAiProviderType] = useAtom(newAiProviderTypeAtom)
+  const [newAiProviderName, setNewAiProviderName] = useAtom(
+    uiNewAiProviderNameAtom
+  )
+  const [newAiProviderType, setNewAiProviderType] = useAtom(
+    uiNewAiProviderTypeAtom
+  )
   const [newAiProviderApiUrl, setNewAiProviderApiUrl] = useAtom(
-    newAiProviderApiUrlAtom
+    uiNewAiProviderApiUrlAtom
   )
   const [newAiProviderModels, setNewAiProviderModels] = useAtom(
-    newAiProviderModelsAtom
+    uiNewAiProviderModelsAtom
   )
   const [newAiProviderEnabled, setNewAiProviderEnabled] = useAtom(
-    newAiProviderEnabledAtom
+    uiNewAiProviderEnabledAtom
   )
   const [newAiProviderApiKey, setNewAiProviderApiKey] = useAtom(
-    newAiProviderApiKeyAtom
+    uiNewAiProviderApiKeyAtom
   )
   const [newAiProviderKeyVisible, setNewAiProviderKeyVisible] = useAtom(
-    newAiProviderKeyVisibleAtom
+    uiNewAiProviderKeyVisibleAtom
   )
-  const [aiProviderEditing, setAiProviderEditing] = useAtom(aiProviderEditingAtom)
+  const [aiProviderEditing, setAiProviderEditing] = useAtom(uiAiProviderEditingAtom)
   const [aiProviderEditKeyVisible, setAiProviderEditKeyVisible] = useAtom(
-    aiProviderEditKeyVisibleAtom
+    uiAiProviderEditKeyVisibleAtom
   )
   const [aiProviderEditModels, setAiProviderEditModels] = useAtom(
-    aiProviderEditModelsAtom
+    uiAiProviderEditModelsAtom
   )
-  const [aiProgress, setAiProgress] = useAtom(aiProgressAtom)
+  const [aiProgress, setAiProgress] = useAtom(uiAiProgressAtom)
   const [aiLastInstructionId, setAiLastInstructionId] = useAtom(
-    aiLastInstructionIdAtom
+    uiAiLastInstructionIdAtom
   )
 
   return {

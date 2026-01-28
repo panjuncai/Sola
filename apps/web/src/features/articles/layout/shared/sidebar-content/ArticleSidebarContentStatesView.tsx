@@ -2,7 +2,7 @@ import {
   ArticleListEmptyState,
   ArticleListErrorState,
   ArticleListLoadingState,
-} from "@/features/articles"
+} from "../../../components/ArticleListStates"
 
 type ArticleSidebarContentStatesViewProps = {
   variant: "loading" | "error" | "empty" | null

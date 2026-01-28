@@ -1,4 +1,5 @@
-import { CreateArticlePanel, useArticlesContext } from "@/features/articles"
+import { CreateArticlePanel } from "../CreateArticlePanel"
+import { useArticlesContext } from "../../hooks/init/useInitArticles"
 
 export const ArticleContentCreate = () => {
   const { showCreate } = useArticlesContext()

@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next"
+import { useQueryClient } from "@tanstack/react-query"
 import { AI_INSTRUCTION_TYPES, type AiInstructionType } from "@sola/shared"
 
 import {
@@ -27,13 +28,18 @@ import {
   AiInstructionEditDialogTitle,
   AiInstructionsDialogDescription,
   AiInstructionsDialogTitle,
-  AiNoInstructionsState,
-  AiNoPublicInstructionsState,
-  useAiManagementRequired,
-} from "@/features/ai-management"
+} from "./AiDialogStates"
+import { AiNoInstructionsState, AiNoPublicInstructionsState } from "./AiStates"
+import { useAiManagementRequired } from "../hooks/init/useInitAiManagement"
+import { refreshAiInstructions } from "@/lib/queryRefresh"
+
+type AiInstructionDraft = ReturnType<
+  typeof useAiManagementRequired
+>["aiInstructionEditing"]
 
 export const AiInstructionPanel = () => {
   const { t } = useTranslation()
+  const queryClient = useQueryClient()
   const {
     aiInstructionDialogOpen,
     setAiInstructionDialogOpen,
@@ -155,7 +161,7 @@ export const AiInstructionPanel = () => {
                   className="h-9 w-full rounded-md border bg-background px-2 text-sm"
                   value={aiInstructionEditing.name}
                   onChange={(event) =>
-                    setAiInstructionEditing((prev) =>
+                    setAiInstructionEditing((prev: AiInstructionDraft) =>
                       prev ? { ...prev, name: event.target.value } : prev
                     )
                   }
@@ -169,7 +175,7 @@ export const AiInstructionPanel = () => {
                   className="h-9 w-full rounded-md border bg-background px-2 text-sm"
                   value={aiInstructionEditing.instructionType}
                   onChange={(event) =>
-                    setAiInstructionEditing((prev) =>
+                    setAiInstructionEditing((prev: AiInstructionDraft) =>
                       prev
                         ? {
                             ...prev,
@@ -198,7 +204,7 @@ export const AiInstructionPanel = () => {
                     ""
                   }
                   onChange={(event) =>
-                    setAiInstructionEditing((prev) =>
+                    setAiInstructionEditing((prev: AiInstructionDraft) =>
                       prev
                         ? {
                             ...prev,
@@ -223,7 +229,7 @@ export const AiInstructionPanel = () => {
                   className="h-9 w-full rounded-md border bg-background px-2 text-sm"
                   value={aiInstructionEditing.model ?? ""}
                   onChange={(event) =>
-                    setAiInstructionEditing((prev) =>
+                    setAiInstructionEditing((prev: AiInstructionDraft) =>
                       prev
                         ? {
                             ...prev,
@@ -254,7 +260,7 @@ export const AiInstructionPanel = () => {
                   className="w-full rounded-md border bg-background px-2 py-1 text-xs"
                   value={aiInstructionEditing.systemPrompt}
                   onChange={(event) =>
-                    setAiInstructionEditing((prev) =>
+                    setAiInstructionEditing((prev: AiInstructionDraft) =>
                       prev ? { ...prev, systemPrompt: event.target.value } : prev
                     )
                   }
@@ -269,7 +275,7 @@ export const AiInstructionPanel = () => {
                   className="w-full rounded-md border bg-background px-2 py-1 text-xs"
                   value={aiInstructionEditing.userPromptTemplate}
                   onChange={(event) =>
-                    setAiInstructionEditing((prev) =>
+                    setAiInstructionEditing((prev: AiInstructionDraft) =>
                       prev ? { ...prev, userPromptTemplate: event.target.value } : prev
                     )
                   }
@@ -285,7 +291,7 @@ export const AiInstructionPanel = () => {
                     className="w-full rounded-md border bg-background px-2 py-1 text-xs"
                     value={aiInstructionEditing.inputSchemaJson ?? ""}
                     onChange={(event) =>
-                      setAiInstructionEditing((prev) =>
+                      setAiInstructionEditing((prev: AiInstructionDraft) =>
                         prev ? { ...prev, inputSchemaJson: event.target.value } : prev
                       )
                     }
@@ -300,7 +306,7 @@ export const AiInstructionPanel = () => {
                     className="w-full rounded-md border bg-background px-2 py-1 text-xs"
                     value={aiInstructionEditing.outputSchemaJson ?? ""}
                     onChange={(event) =>
-                      setAiInstructionEditing((prev) =>
+                      setAiInstructionEditing((prev: AiInstructionDraft) =>
                         prev ? { ...prev, outputSchemaJson: event.target.value } : prev
                       )
                     }
@@ -313,7 +319,7 @@ export const AiInstructionPanel = () => {
                     type="checkbox"
                     checked={aiInstructionEditing.isDefault}
                     onChange={(event) =>
-                      setAiInstructionEditing((prev) =>
+                      setAiInstructionEditing((prev: AiInstructionDraft) =>
                         prev ? { ...prev, isDefault: event.target.checked } : prev
                       )
                     }
@@ -325,7 +331,7 @@ export const AiInstructionPanel = () => {
                     type="checkbox"
                     checked={aiInstructionEditing.enabled}
                     onChange={(event) =>
-                      setAiInstructionEditing((prev) =>
+                      setAiInstructionEditing((prev: AiInstructionDraft) =>
                         prev ? { ...prev, enabled: event.target.checked } : prev
                       )
                     }
@@ -350,7 +356,7 @@ export const AiInstructionPanel = () => {
                     inputSchemaJson: aiInstructionEditing.inputSchemaJson || null,
                     outputSchemaJson: aiInstructionEditing.outputSchemaJson || null,
                   })
-                  await aiInstructionQuery.refetch()
+                  await refreshAiInstructions(queryClient)
                 }}
               />
             </DialogClose>
@@ -440,7 +446,7 @@ export const AiInstructionPanel = () => {
                               userAiProviderId: aiInstructionAddProviderId ?? null,
                               model: aiInstructionAddModel ?? null,
                             })
-                            await aiInstructionQuery.refetch()
+                            await refreshAiInstructions(queryClient)
                             setAiInstructionAddOpen(false)
                           }}
                         />
@@ -480,7 +486,7 @@ export const AiInstructionPanel = () => {
                   if (!aiInstructionDeleteId) return
                   await deleteInstruction({ id: aiInstructionDeleteId })
                   setAiInstructionDeleteId(null)
-                  await aiInstructionQuery.refetch()
+                  await refreshAiInstructions(queryClient)
                 }}
               />
             </DialogClose>

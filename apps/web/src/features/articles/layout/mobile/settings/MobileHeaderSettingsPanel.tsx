@@ -1,4 +1,5 @@
-import { SettingsPanel, useSidebarPanelView } from "@/features/articles"
+import { SettingsPanel } from "../../../components/SettingsPanel"
+import { useSidebarPanelView } from "../../../hooks/view/useSidebarPanelView"
 
 export const MobileHeaderSettingsPanel = () => {
   const { settingsOpen } = useSidebarPanelView()

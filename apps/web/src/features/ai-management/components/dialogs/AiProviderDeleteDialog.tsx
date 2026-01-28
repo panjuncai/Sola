@@ -17,8 +17,8 @@ import {
 import {
   AiProviderDeleteDialogDescription,
   AiProviderDeleteDialogTitle,
-  useAiManagementRequired,
-} from "@/features/ai-management"
+} from "../AiDialogStates"
+import { useAiManagementRequired } from "../../hooks/init/useInitAiManagement"
 
 export const AiProviderDeleteDialog = () => {
   const { t } = useTranslation()

@@ -1,8 +1,9 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { HashRouter } from "react-router-dom"
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { TRPCClientError, httpBatchLink } from '@trpc/client'
+import { QueryClient } from '@tanstack/react-query'
+import { QueryClientAtomProvider } from "jotai-tanstack-query/react"
+import { TRPCClientError, httpLink } from '@trpc/client'
 import './index.css'
 import "./i18n"
 import App from './App.tsx'
@@ -47,7 +48,7 @@ const queryClient = new QueryClient({
 })
 const trpcClient = trpc.createClient({
   links: [
-    httpBatchLink({
+    httpLink({
       url: trpcUrl,
       fetch(url, options) {
         return fetch(url, {
@@ -63,10 +64,10 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <HashRouter>
       <trpc.Provider client={trpcClient} queryClient={queryClient}>
-        <QueryClientProvider client={queryClient}>
+        <QueryClientAtomProvider client={queryClient}>
           <App />
           <Toaster />
-        </QueryClientProvider>
+        </QueryClientAtomProvider>
       </trpc.Provider>
     </HashRouter>
   </StrictMode>,

@@ -1,11 +1,11 @@
 import { atom, useAtomValue, useSetAtom } from "jotai"
 
-const bulkDeleteOpenAtom = atom(false)
+const uiBulkDeleteOpenAtom = atom(false)
 
 export const useArticleDialogsState = () => ({
-  bulkDeleteOpen: useAtomValue(bulkDeleteOpenAtom),
+  bulkDeleteOpen: useAtomValue(uiBulkDeleteOpenAtom),
 })
 
 export const useArticleDialogsActions = () => ({
-  setBulkDeleteOpen: useSetAtom(bulkDeleteOpenAtom),
+  setBulkDeleteOpen: useSetAtom(uiBulkDeleteOpenAtom),
 })

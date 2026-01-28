@@ -8,18 +8,19 @@ import { toast } from "@sola/ui"
 
 import { loginSchema } from "@/lib/schemas"
 import { trpc } from "@/lib/trpc"
-import { useAuthStore } from "@/stores/useAuthStore"
+import { useGlobalAuthActions } from "../../hooks/state/useGlobalAuthState"
 
 export const useLoginFormView = () => {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const location = useLocation()
   const utils = trpc.useUtils()
+  const { setUser } = useGlobalAuthActions()
 
   const signIn = trpc.auth.signIn.useMutation({
     onSuccess: async () => {
       const session = await utils.auth.getSession.fetch().catch(() => null)
-      useAuthStore.getState().setUser(session?.user ?? null)
+      setUser(session?.user ?? null)
       utils.auth.getSession.invalidate()
       toast.success(t("auth.signInSuccess"))
       const from = (location.state as { from?: string } | null)?.from

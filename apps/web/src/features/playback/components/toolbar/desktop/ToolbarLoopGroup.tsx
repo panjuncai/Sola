@@ -1,19 +1,20 @@
-import { useArticleToolbarView } from "../../../hooks/view/useArticleToolbarView"
+import { useTranslation } from "react-i18next"
+
+import { useArticleToolbarRequired } from "../../../hooks/init/useInitArticleToolbar"
 import { ToolbarIconButton } from "./ToolbarIconButton"
 
 export const ToolbarLoopGroup = () => {
-  const { t, toolbar } = useArticleToolbarView()
+  const { t } = useTranslation()
+  const toolbar = useArticleToolbarRequired()
   const {
-    isLoopingAll,
-    isLoopingTarget,
-    isLoopingSingle,
-    isLoopingShadowing,
     stopLoopPlayback,
     startLoopAll,
     startLoopTarget,
     startLoopSingle,
     handleToggleShadowing,
   } = toolbar
+  const { isLoopingAll, isLoopingTarget, isLoopingSingle, isLoopingShadowing } =
+    toolbar
 
   return (
     <div className="flex items-center justify-center gap-2 rounded-full bg-muted/40 px-3 py-2 shadow-sm">

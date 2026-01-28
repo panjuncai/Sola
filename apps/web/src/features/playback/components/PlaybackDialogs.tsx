@@ -1,4 +1,4 @@
-import { ClearCacheDialog } from "@/features/playback"
+import { ClearCacheDialog } from "./ClearCacheDialog"
 
 export const PlaybackDialogs = () => {
   return <ClearCacheDialog />

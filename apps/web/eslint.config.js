@@ -40,51 +40,75 @@ export default defineConfig([
       'boundaries/ignore': ['**/node_modules/**', '**/dist/**'],
       'boundaries/elements': [
         {
-          type: 'featurePrivate',
-          pattern: 'apps/web/src/features/*/**',
-          capture: ['feature'],
-        },
-        {
           type: 'featurePublic',
           pattern: 'apps/web/src/features/*/index.ts',
+          mode: 'file',
           capture: ['feature'],
         },
         {
           type: 'featurePublic',
           pattern: 'apps/web/src/features/*/index.tsx',
+          mode: 'file',
+          capture: ['feature'],
+        },
+        {
+          type: 'featurePrivate',
+          pattern: [
+            'apps/web/src/features/*/atoms/**',
+            'apps/web/src/features/*/components/**',
+            'apps/web/src/features/*/hooks/**',
+            'apps/web/src/features/*/layout/**',
+            'apps/web/src/features/*/pages/**',
+            'apps/web/src/features/*/utils/**',
+            'apps/web/src/features/*/types/**',
+          ],
+          mode: 'full',
           capture: ['feature'],
         },
         {
           type: 'shared',
           pattern: 'apps/web/src/shared/**',
+          mode: 'full',
         },
         {
           type: 'app',
           pattern: 'apps/web/src/App.tsx',
+          mode: 'file',
         },
         {
           type: 'app',
           pattern: 'apps/web/src/main.tsx',
+          mode: 'file',
         },
         {
           type: 'app',
           pattern: 'apps/web/src/pages/**',
+          mode: 'full',
         },
         {
           type: 'app',
           pattern: 'apps/web/src/layout/**',
+          mode: 'full',
         },
         {
           type: 'app',
           pattern: 'apps/web/src/lib/**',
+          mode: 'full',
         },
         {
           type: 'app',
           pattern: 'apps/web/src/i18n/**',
+          mode: 'full',
         },
         {
           type: 'app',
           pattern: 'apps/web/src/stores/**',
+          mode: 'full',
+        },
+        {
+          type: 'appInternal',
+          pattern: 'apps/web/src/**',
+          mode: 'full',
         },
         {
           type: 'sharedPkg',
@@ -138,16 +162,43 @@ export default defineConfig([
             'Avoid syncing query data into atoms inside useEffect. Prefer atomWithQuery/jotai-tanstack-query.',
         },
       ],
-      'boundaries/no-unknown': 'error',
+      'boundaries/no-unknown': 'off',
+      'boundaries/entry-point': [
+        'error',
+        {
+          rules: [
+            {
+              target: [
+                'app',
+                'appInternal',
+                'shared',
+                'featurePublic',
+                'sharedPkg',
+                'uiPkg',
+                'logicPkg',
+                'dbPkg',
+              ],
+              allow: ['**/*'],
+            },
+            {
+              target: ['featurePrivate'],
+              disallow: ['**/*'],
+              message:
+                'Do not import feature internals. Use the feature index.ts public entry.',
+            },
+          ],
+        },
+      ],
       'boundaries/element-types': [
         'error',
         {
           default: 'disallow',
           rules: [
             {
-              from: ['app', 'shared'],
+              from: ['app', 'appInternal', 'shared'],
               allow: [
                 'app',
+                'appInternal',
                 'shared',
                 'featurePublic',
                 'featurePrivate',
@@ -160,6 +211,7 @@ export default defineConfig([
               from: ['featurePublic'],
               allow: [
                 'app',
+                'appInternal',
                 'shared',
                 'featurePublic',
                 'featurePrivate',
@@ -172,6 +224,7 @@ export default defineConfig([
               from: ['featurePrivate'],
               allow: [
                 'app',
+                'appInternal',
                 'shared',
                 'featurePublic',
                 'featurePrivate',
@@ -187,6 +240,12 @@ export default defineConfig([
           ],
         },
       ],
+    },
+  },
+  {
+    files: ['src/features/**/*.{ts,tsx}'],
+    rules: {
+      'boundaries/entry-point': 'off',
     },
   },
   {

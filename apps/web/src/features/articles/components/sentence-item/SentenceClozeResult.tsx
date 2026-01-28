@@ -1,5 +1,5 @@
-import { useClozePractice } from "@/features/articles"
-import type { ClozeResult } from "@/features/articles"
+import { useClozePractice } from "../../hooks/init/useInitClozePractice"
+import type { ClozeResult } from "../../hooks/init/useInitClozePractice"
 
 type SentenceClozeResultProps = {
   sentenceId: string

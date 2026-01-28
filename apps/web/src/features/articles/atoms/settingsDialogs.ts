@@ -1,29 +1,29 @@
 import { atom, useAtomValue, useSetAtom } from "jotai"
 
-const languageDialogOpenAtom = atom(false)
-const deleteAccountOpenAtom = atom(false)
-const clearCacheOpenAtom = atom(false)
-const shadowingDialogOpenAtom = atom(false)
-const shadowingDraftEnabledAtom = atom(false)
-const shadowingDraftSpeedsAtom = atom<number[]>([])
+const uiLanguageDialogOpenAtom = atom(false)
+const uiDeleteAccountOpenAtom = atom(false)
+const uiClearCacheOpenAtom = atom(false)
+const uiShadowingDialogOpenAtom = atom(false)
+const uiShadowingDraftEnabledAtom = atom(false)
+const uiShadowingDraftSpeedsAtom = atom<number[]>([])
 
 export const useSettingsDialogsState = () => ({
-  languageDialogOpen: useAtomValue(languageDialogOpenAtom),
-  deleteAccountOpen: useAtomValue(deleteAccountOpenAtom),
-  clearCacheOpen: useAtomValue(clearCacheOpenAtom),
-  shadowingDialogOpen: useAtomValue(shadowingDialogOpenAtom),
+  languageDialogOpen: useAtomValue(uiLanguageDialogOpenAtom),
+  deleteAccountOpen: useAtomValue(uiDeleteAccountOpenAtom),
+  clearCacheOpen: useAtomValue(uiClearCacheOpenAtom),
+  shadowingDialogOpen: useAtomValue(uiShadowingDialogOpenAtom),
 })
 
 export const useSettingsDialogsActions = () => ({
-  setLanguageDialogOpen: useSetAtom(languageDialogOpenAtom),
-  setDeleteAccountOpen: useSetAtom(deleteAccountOpenAtom),
-  setClearCacheOpen: useSetAtom(clearCacheOpenAtom),
-  setShadowingDialogOpen: useSetAtom(shadowingDialogOpenAtom),
+  setLanguageDialogOpen: useSetAtom(uiLanguageDialogOpenAtom),
+  setDeleteAccountOpen: useSetAtom(uiDeleteAccountOpenAtom),
+  setClearCacheOpen: useSetAtom(uiClearCacheOpenAtom),
+  setShadowingDialogOpen: useSetAtom(uiShadowingDialogOpenAtom),
 })
 
 export const useShadowingDraftState = () => ({
-  shadowingDraftEnabled: useAtomValue(shadowingDraftEnabledAtom),
-  setShadowingDraftEnabled: useSetAtom(shadowingDraftEnabledAtom),
-  shadowingDraftSpeeds: useAtomValue(shadowingDraftSpeedsAtom),
-  setShadowingDraftSpeeds: useSetAtom(shadowingDraftSpeedsAtom),
+  shadowingDraftEnabled: useAtomValue(uiShadowingDraftEnabledAtom),
+  setShadowingDraftEnabled: useSetAtom(uiShadowingDraftEnabledAtom),
+  shadowingDraftSpeeds: useAtomValue(uiShadowingDraftSpeedsAtom),
+  setShadowingDraftSpeeds: useSetAtom(uiShadowingDraftSpeedsAtom),
 })

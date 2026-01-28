@@ -1,5 +1,5 @@
 import type { TFunction } from "i18next"
-import { atom, useAtom, useAtomValue, useSetAtom } from "jotai"
+import { atom, useAtom, useSetAtom } from "jotai"
 
 type SentenceOperationsDeps = {
   t: TFunction<"translation">
@@ -24,22 +24,21 @@ type SentenceEditing = {
   targetText: string
 }
 
-const sentenceOperationsDepsAtom = atom<SentenceOperationsDeps | null>(null)
-const sentenceEditOpenAtom = atom(false)
-const sentenceDeleteOpenAtom = atom(false)
-const sentenceEditingAtom = atom<SentenceEditing | null>(null)
-const sentenceDeleteIdAtom = atom<string | null>(null)
+const uiSentenceOperationsDepsAtom = atom<SentenceOperationsDeps | null>(null)
+const uiSentenceEditOpenAtom = atom(false)
+const uiSentenceDeleteOpenAtom = atom(false)
+const uiSentenceEditingAtom = atom<SentenceEditing | null>(null)
+const uiSentenceDeleteIdAtom = atom<string | null>(null)
 
-export const useSentenceOperationsDeps = () => useAtomValue(sentenceOperationsDepsAtom)
-export const useSetSentenceOperationsDeps = () => useSetAtom(sentenceOperationsDepsAtom)
+export const useSetSentenceOperationsDeps = () => useSetAtom(uiSentenceOperationsDepsAtom)
 
 export const useSentenceOperationsState = () => {
-  const [sentenceEditOpen, setSentenceEditOpen] = useAtom(sentenceEditOpenAtom)
+  const [sentenceEditOpen, setSentenceEditOpen] = useAtom(uiSentenceEditOpenAtom)
   const [sentenceDeleteOpen, setSentenceDeleteOpen] = useAtom(
-    sentenceDeleteOpenAtom
+    uiSentenceDeleteOpenAtom
   )
-  const [sentenceEditing, setSentenceEditing] = useAtom(sentenceEditingAtom)
-  const [sentenceDeleteId, setSentenceDeleteId] = useAtom(sentenceDeleteIdAtom)
+  const [sentenceEditing, setSentenceEditing] = useAtom(uiSentenceEditingAtom)
+  const [sentenceDeleteId, setSentenceDeleteId] = useAtom(uiSentenceDeleteIdAtom)
   return {
     sentenceEditOpen,
     setSentenceEditOpen,

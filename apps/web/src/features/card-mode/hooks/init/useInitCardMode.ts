@@ -1,9 +1,9 @@
 import * as React from "react"
-
-import { useCardModeActions, useCardModeState } from "../../atoms/cardMode"
 import type { DisplayOrder } from "@sola/shared"
 
-export type CardSentence = {
+import { useCardModeActions, useCardModeState } from "../../atoms/cardMode"
+
+type CardSentence = {
   id: string
   nativeText: string | null
   targetText: string | null
@@ -42,16 +42,19 @@ const useCardModeLogic = ({
   const cardDragMovedRef = React.useRef(false)
   const cardPlayTokenRef = React.useRef(0)
 
-  const cardSentences = React.useMemo(() => {
-    return sentences.filter(
-      (sentence) =>
-        Boolean(sentence.targetText?.trim()) || Boolean(sentence.nativeText?.trim())
-    )
-  }, [sentences])
+  const cardSentences = React.useMemo(
+    () =>
+      sentences.filter(
+        (sentence) =>
+          Boolean(sentence.targetText?.trim()) || Boolean(sentence.nativeText?.trim())
+      ),
+    [sentences]
+  )
 
-  const cardFrontRole =
+  const cardFrontRole: "native" | "target" =
     displayOrderSetting === "native_first" ? "native" : "target"
-  const cardBackRole = cardFrontRole === "native" ? "target" : "native"
+  const cardBackRole: "native" | "target" =
+    cardFrontRole === "native" ? "target" : "native"
 
   React.useEffect(() => {
     if (isRandomMode && !isCardMode) {
@@ -203,69 +206,21 @@ const useCardModeLogic = ({
       setCardFlipped(!cardFlipped)
       return
     }
-    if (Math.abs(deltaX) < 50) {
-      cardDragMovedRef.current = false
+    if (deltaX > 40) {
+      goCard(cardIndex - 1)
       return
     }
-    cardDragMovedRef.current = true
-    if (deltaX > 0) {
-      goCard(cardIndex - 1)
-    } else {
+    if (deltaX < -40) {
       goCard(cardIndex + 1)
     }
-  }
-
-  const handlePointerCancel = () => {
-    cardPointerRef.current = { id: null, x: 0 }
-    setCardDragging(false)
-    setCardDragX(0)
-    cardDragMovedRef.current = false
   }
 
   const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
-    const target = event.target as HTMLElement
-    if (target.closest("[data-card-nav]")) return
     if (cardPointerRef.current.id !== event.pointerId) return
     const deltaX = event.clientX - cardPointerRef.current.x
-    if (Math.abs(deltaX) > 5) {
-      cardDragMovedRef.current = true
-    }
-    setCardDragX(Math.max(-120, Math.min(120, deltaX)))
+    cardDragMovedRef.current = Math.abs(deltaX) > 6
+    setCardDragX(deltaX)
   }
-
-  const handleFlip = React.useCallback(() => {
-    setCardFlipped(!cardFlipped)
-  }, [cardFlipped, setCardFlipped])
-
-  const handlePrev = React.useCallback(
-    (event: React.MouseEvent<HTMLButtonElement>) => {
-      event.stopPropagation()
-      goCard(cardIndex - 1)
-    },
-    [cardIndex, goCard]
-  )
-
-  const handleNext = React.useCallback(
-    (event: React.MouseEvent<HTMLButtonElement>) => {
-      event.stopPropagation()
-      goCard(cardIndex + 1)
-    },
-    [cardIndex, goCard]
-  )
-
-  const handlePlay = React.useCallback(() => {
-    const sentence = activeCardSentence
-    if (!sentence) return
-    const role = cardFlipped ? cardBackRole : cardFrontRole
-    playCardAudio(sentence.id, role)
-  }, [activeCardSentence, cardBackRole, cardFlipped, cardFrontRole, playCardAudio])
-
-  const cardFrontText =
-    activeCardSentence?.[cardFrontRole === "native" ? "nativeText" : "targetText"] ??
-    ""
-  const cardBackText =
-    activeCardSentence?.[cardBackRole === "native" ? "nativeText" : "targetText"] ??
-    ""
 
   return {
     isCardMode,
@@ -273,23 +228,22 @@ const useCardModeLogic = ({
     cardFlipped,
     cardDragX,
     cardDragging,
+    cardFrontRole,
+    cardBackRole,
+    cardSentences,
     cardCount,
-    cardFrontText,
-    cardBackText,
-    handleFlip,
-    handlePrev,
-    handleNext,
-    handlePlay,
+    activeCardSentence,
+    setCardFlipped,
+    setCardDragging,
+    setCardDragX,
+    goCard,
+    cancelCardPlayback,
+    playCardAudio,
     handlePointerDown,
-    handlePointerMove,
     handlePointerUp,
-    handlePointerCancel,
+    handlePointerMove,
   }
 }
-
-type CardModeApi = ReturnType<typeof useCardModeLogic>
-
-let latestCardModeApi: CardModeApi | null = null
 
 export const useInitCardMode = (params: UseCardModeParams) => {
   const api = useCardModeLogic(params)
@@ -298,7 +252,11 @@ export const useInitCardMode = (params: UseCardModeParams) => {
   return api
 }
 
-export const useCardMode = () => {
+export const useCardModeRequired = () => {
   if (latestCardModeApi) return latestCardModeApi
   throw new Error("CardMode API is not initialized.")
 }
+
+type CardModeApi = ReturnType<typeof useCardModeLogic>
+
+let latestCardModeApi: CardModeApi | null = null

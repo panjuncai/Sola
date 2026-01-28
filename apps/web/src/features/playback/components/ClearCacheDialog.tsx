@@ -19,7 +19,7 @@ import {
   ClearCacheDialogTitle,
   useSettingsDialogs,
 } from "@/features/articles"
-import { usePlaybackRequired } from "@/features/playback"
+import { usePlaybackRequired } from "../hooks/init/useInitPlayback"
 
 export const ClearCacheDialog = () => {
   const { t } = useTranslation()

@@ -1,6 +1,6 @@
 import { Button } from "@sola/ui"
 
-import { useSidebarView } from "@/features/articles"
+import { useSidebarView } from "../../hooks/view/useSidebarView"
 
 export const ArticleSidebarCreateButton = () => {
   const { handleCreateClick, addLabel } = useSidebarView()

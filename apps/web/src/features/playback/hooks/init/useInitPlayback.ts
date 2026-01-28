@@ -261,63 +261,60 @@ const usePlaybackLogic = ({
         audio.onplay = () => {
           started = true
         }
-        audio.play().catch(fail)
+        audio
+          .play()
+          .catch(() => {
+            fail()
+          })
       }
-
       play(objectUrl ?? url)
     })
   }, [])
 
   const playSentenceRole = React.useCallback(
     async (sentence: PlaybackSentence, role: "native" | "target", speed?: number) => {
+      if (!sentence || !detail) return false
       const text = role === "native" ? sentence.nativeText ?? "" : sentence.targetText ?? ""
-      if (!text) return false
-      const localKey = buildLocalCacheKey(sentence.id, role, speed)
-      if (localKey) {
-        const cached = getCachedAudioUrl(localKey)
-        if (cached) {
-          setPlayingSentenceId(sentence.id)
-          setPlayingRole(role)
-          setPlayingSpeed(speed ?? 1)
-          return playAudioUrl(cached)
-        }
+      if (!text.trim()) return false
+      const cacheKey = buildLocalCacheKey(sentence.id, role, speed)
+      if (!cacheKey) return false
+      const cachedUrl = getCachedAudioUrl(cacheKey)
+      if (cachedUrl) {
+        const ok = await playAudioUrl(cachedUrl)
+        return ok
       }
-      const result = await sentenceAudioMutation.mutateAsync(
-        speed != null
-          ? { sentenceId: sentence.id, role, speed }
-          : { sentenceId: sentence.id, role }
-      )
-      let url = getCachedAudioUrl(result.cacheKey)
-      if (!url) {
-        url = result.url
-        setCachedAudioUrl(result.cacheKey, url)
+      const payload =
+        speed === undefined
+          ? { sentenceId: sentence.id, role }
+          : { sentenceId: sentence.id, role, speed }
+      const result = await sentenceAudioMutation.mutateAsync(payload)
+      if (result?.cacheKey && result?.url) {
+        setCachedAudioUrl(result.cacheKey, result.url)
+        const ok = await playAudioUrl(result.url)
+        return ok
       }
-      setPlayingSentenceId(sentence.id)
-      setPlayingRole(role)
-      setPlayingSpeed(speed ?? 1)
-      return playAudioUrl(url)
+      return false
     },
     [
       buildLocalCacheKey,
+      detail,
       getCachedAudioUrl,
       playAudioUrl,
       sentenceAudioMutation,
       setCachedAudioUrl,
-      setPlayingRole,
-      setPlayingSentenceId,
-      setPlayingSpeed,
     ]
   )
 
   return {
-    buildLocalCacheKey,
-    getCachedAudioUrl,
-    setCachedAudioUrl,
-    playSentenceRole,
+    playingSentenceId,
     stopPlayback,
     clearTtsCache,
     clearSentenceCache,
     clearPlaybackForSentence,
+    playSentenceRole,
+    getCachedAudioUrl,
+    setCachedAudioUrl,
+    buildLocalCacheKey,
   }
 }
 
@@ -327,8 +324,6 @@ export const useInitPlayback = (params: UsePlaybackParams) => {
   latestPlaybackApi = api
   return api
 }
-
-export const usePlayback = useInitPlayback
 
 export const usePlaybackRequired = () => {
   if (latestPlaybackApi) return latestPlaybackApi

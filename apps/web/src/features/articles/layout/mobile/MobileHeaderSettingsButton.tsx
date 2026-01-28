@@ -1,6 +1,7 @@
 import * as React from "react"
 
-import { useMobileMenu, useSidebarPanelView } from "@/features/articles"
+import { useMobileMenu } from "../../hooks/view/useMobileMenu"
+import { useSidebarPanelView } from "../../hooks/view/useSidebarPanelView"
 
 export const MobileHeaderSettingsButton = () => {
   const {

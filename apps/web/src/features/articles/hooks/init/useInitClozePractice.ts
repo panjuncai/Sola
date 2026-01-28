@@ -2,12 +2,9 @@ import * as React from "react"
 
 import type { ArticleDetail, ArticleSentence } from "@sola/shared"
 
-import { splitSentenceForCloze } from "@/features/articles"
-import {
-  useClozePracticeActions,
-  useClozePracticeState,
-  useSentenceSelectionActions,
-} from "@/features/articles"
+import { splitSentenceForCloze } from "../../utils/text"
+import { useClozePracticeActions, useClozePracticeState } from "../state/useClozePracticeState"
+import { useSentenceSelectionActions } from "../state/useSentenceSelectionState"
 
 type ClozeSegment = {
   kind: "same" | "extra" | "missing" | "mismatch"

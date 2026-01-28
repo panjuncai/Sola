@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next"
 import { useMobileMenu } from "./useMobileMenu"
 import { useArticleDialogsActions } from "../../atoms/articleDialogs"
 import { useArticlesContext } from "../init/useInitArticles"
-import { useArticleCreateInputRef } from "../../atoms/articleCreate"
+import { useArticleCreateInputRef } from "../state/useArticleCreateInputState"
 
 export const useSidebarView = () => {
   const { t } = useTranslation()

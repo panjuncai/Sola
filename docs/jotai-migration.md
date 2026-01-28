@@ -12,10 +12,9 @@
 - Dialog 开关状态（AI 设置、指令面板、语言设置等）。
 - 临时草稿类状态（AI provider/edit drafts、指令草稿等）。
 
-### 继续保留 Zustand 的全局状态
-- Auth 用户信息（`useAuthStore`）。
-- Settings 全局配置（`useSettingsStore`）。
-- Article 列表缓存/当前文章（`useArticleStore` / `useArticles` 逻辑）。
+### 全局状态（Jotai）
+- Auth 用户信息（`useGlobalAuthState`）。
+- Settings 全局配置（`useGlobalSettings`）。
 
 ## 迁移策略（分阶段）
 ### 阶段 1：局部单点试点
@@ -72,4 +71,3 @@ apps/web/src/atoms/
 ## 后续可选优化
 - 引入 `jotai/utils` 的 `atomWithStorage`，持久化局部 UI 偏好。
 - 对高频更新的 atom 使用 `selectAtom` 提升渲染性能。
-

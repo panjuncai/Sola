@@ -1,4 +1,4 @@
-export const normalizeTextForCompare = (value: string, language: string) => {
+const normalizeTextForCompare = (value: string, language: string) => {
   let text = value.toLowerCase().trim()
   if (language.toLowerCase().startsWith("fr")) {
     text = text.normalize("NFD").replace(/\p{Diacritic}/gu, "")

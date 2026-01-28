@@ -1,26 +1,26 @@
 import { atom, useAtomValue, useSetAtom } from "jotai"
 
-const isLoopingAllAtom = atom(false)
-const isLoopingTargetAtom = atom(false)
-const isLoopingSingleAtom = atom(false)
-const isLoopingShadowingAtom = atom(false)
-const isRandomModeAtom = atom(false)
-const isClozeEnabledAtom = atom(false)
+const uiIsLoopingAllAtom = atom(false)
+const uiIsLoopingTargetAtom = atom(false)
+const uiIsLoopingSingleAtom = atom(false)
+const uiIsLoopingShadowingAtom = atom(false)
+const uiIsRandomModeAtom = atom(false)
+const uiIsClozeEnabledAtom = atom(false)
 
 export const useArticleToolbarState = () => ({
-  isLoopingAll: useAtomValue(isLoopingAllAtom),
-  isLoopingTarget: useAtomValue(isLoopingTargetAtom),
-  isLoopingSingle: useAtomValue(isLoopingSingleAtom),
-  isLoopingShadowing: useAtomValue(isLoopingShadowingAtom),
-  isRandomMode: useAtomValue(isRandomModeAtom),
-  isClozeEnabled: useAtomValue(isClozeEnabledAtom),
+  isLoopingAll: useAtomValue(uiIsLoopingAllAtom),
+  isLoopingTarget: useAtomValue(uiIsLoopingTargetAtom),
+  isLoopingSingle: useAtomValue(uiIsLoopingSingleAtom),
+  isLoopingShadowing: useAtomValue(uiIsLoopingShadowingAtom),
+  isRandomMode: useAtomValue(uiIsRandomModeAtom),
+  isClozeEnabled: useAtomValue(uiIsClozeEnabledAtom),
 })
 
 export const useArticleToolbarActions = () => ({
-  setIsLoopingAll: useSetAtom(isLoopingAllAtom),
-  setIsLoopingTarget: useSetAtom(isLoopingTargetAtom),
-  setIsLoopingSingle: useSetAtom(isLoopingSingleAtom),
-  setIsLoopingShadowing: useSetAtom(isLoopingShadowingAtom),
-  setIsRandomMode: useSetAtom(isRandomModeAtom),
-  setIsClozeEnabled: useSetAtom(isClozeEnabledAtom),
+  setIsLoopingAll: useSetAtom(uiIsLoopingAllAtom),
+  setIsLoopingTarget: useSetAtom(uiIsLoopingTargetAtom),
+  setIsLoopingSingle: useSetAtom(uiIsLoopingSingleAtom),
+  setIsLoopingShadowing: useSetAtom(uiIsLoopingShadowingAtom),
+  setIsRandomMode: useSetAtom(uiIsRandomModeAtom),
+  setIsClozeEnabled: useSetAtom(uiIsClozeEnabledAtom),
 })

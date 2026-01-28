@@ -4,17 +4,15 @@ import type { TFunction } from "i18next"
 import type { ArticleDetail, ArticleSentence } from "@sola/shared"
 import { toast } from "@sola/ui"
 
+import { useQueryClient } from "@tanstack/react-query"
+
 import { trpc } from "@/lib/trpc"
+import { refreshArticleDetail } from "@/lib/queryRefresh"
 import {
   useSentenceOperationsState,
   useSetSentenceOperationsDeps,
 } from "../../atoms/sentenceOperations"
 import { useClozePracticeActions } from "../../atoms/clozePractice"
-
-type SentenceDetail = {
-  article: Pick<ArticleDetail, "id">
-  sentences: ArticleSentence[]
-}
 
 type UseSentenceOperationsParams = {
   t: TFunction<"translation">
@@ -22,6 +20,11 @@ type UseSentenceOperationsParams = {
   stopLoopPlayback: () => void
   clearSentenceSelection: (sentenceId: string) => void
   clearSentenceCache: (sentenceId: string) => Promise<void> | void
+}
+
+type SentenceDetail = {
+  article: Pick<ArticleDetail, "id">
+  sentences: ArticleSentence[]
 }
 
 const useSentenceOperationsLogic = ({
@@ -33,7 +36,7 @@ const useSentenceOperationsLogic = ({
 }: UseSentenceOperationsParams) => {
   const { setClozeInputs, setClozeResults, setClozeRevealed } =
     useClozePracticeActions()
-  const utils = trpc.useUtils()
+  const queryClient = useQueryClient()
   const updateSentenceMutation = trpc.article.updateSentence.useMutation()
   const deleteSentenceMutation = trpc.article.deleteSentence.useMutation()
   const {
@@ -47,38 +50,9 @@ const useSentenceOperationsLogic = ({
     setSentenceDeleteId,
   } = useSentenceOperationsState()
 
-  const updateSentenceLocal = React.useCallback(
-    (sentenceId: string, nativeText: string | null, targetText: string | null) => {
-      const articleId = detail?.article.id
-      if (!articleId) return
-      utils.article.get.setData({ articleId }, (current) => {
-        if (!current) return current
-        return {
-          ...current,
-          sentences: current.sentences.map((sentence) =>
-            sentence.id === sentenceId
-              ? { ...sentence, nativeText, targetText: targetText ?? "" }
-              : sentence
-          ),
-        }
-      })
-    },
-    [detail?.article.id, utils.article.get]
-  )
-
-  const deleteSentenceLocal = React.useCallback(
-    (sentenceId: string) => {
-      const articleId = detail?.article.id
-      if (!articleId) return
-      utils.article.get.setData({ articleId }, (current) => {
-        if (!current) return current
-        return {
-          ...current,
-          sentences: current.sentences.filter((sentence) => sentence.id !== sentenceId),
-        }
-      })
-    },
-    [detail?.article.id, utils.article.get]
+  const invalidateArticleDetail = React.useCallback(
+    (articleId: string) => refreshArticleDetail(queryClient, articleId),
+    [queryClient]
   )
 
   const handleSentenceEdit = React.useCallback(
@@ -109,21 +83,24 @@ const useSentenceOperationsLogic = ({
         nativeText: sentenceEditing.nativeText,
         targetText: sentenceEditing.targetText,
       })
-      updateSentenceLocal(result.sentenceId, result.nativeText, result.targetText)
+      if (detail?.article.id) {
+        invalidateArticleDetail(detail.article.id)
+      }
       await clearSentenceCache(result.sentenceId)
       toast.success(t("article.sentenceUpdateSuccess"))
       setSentenceEditOpen(false)
       setSentenceEditing(null)
     } catch {
-      toast.error(t("common.updateFailed"))
+      // Error toast handled by global tRPC error handler.
     }
   }, [
     clearSentenceCache,
+    detail,
+    invalidateArticleDetail,
     sentenceEditing,
     setSentenceEditOpen,
     setSentenceEditing,
     t,
-    updateSentenceLocal,
     updateSentenceMutation,
   ])
 
@@ -133,7 +110,9 @@ const useSentenceOperationsLogic = ({
     try {
       stopLoopPlayback()
       await deleteSentenceMutation.mutateAsync({ sentenceId: targetId })
-      deleteSentenceLocal(targetId)
+      if (detail?.article.id) {
+        invalidateArticleDetail(detail.article.id)
+      }
       clearSentenceSelection(targetId)
       await clearSentenceCache(targetId)
       setClozeInputs((prev) => {
@@ -158,13 +137,14 @@ const useSentenceOperationsLogic = ({
       setSentenceDeleteOpen(false)
       setSentenceDeleteId(null)
     } catch {
-      toast.error(t("common.deleteFailed"))
+      // Error toast handled by global tRPC error handler.
     }
   }, [
     clearSentenceCache,
     clearSentenceSelection,
-    deleteSentenceLocal,
+    detail,
     deleteSentenceMutation,
+    invalidateArticleDetail,
     sentenceDeleteId,
     setClozeInputs,
     setClozeResults,

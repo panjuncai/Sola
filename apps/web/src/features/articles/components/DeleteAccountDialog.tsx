@@ -11,12 +11,12 @@ import {
 } from "@sola/ui"
 
 import { DialogCancelButton } from "@sola/ui"
+import { DeleteAccountConfirmButton } from "./ArticleDialogActions"
 import {
-  DeleteAccountConfirmButton,
   DeleteAccountDialogDescription,
   DeleteAccountDialogTitle,
-  useSettingsDialogs,
-} from "@/features/articles"
+} from "./ArticleDialogStates"
+import { useSettingsDialogs } from "../hooks/init/useInitSettingsDialogs"
 
 export const DeleteAccountDialog = () => {
   const { t } = useTranslation()

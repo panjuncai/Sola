@@ -5,22 +5,20 @@ import { useTranslation } from "react-i18next"
 import { toast } from "@sola/ui"
 
 import { trpc } from "@/lib/trpc"
-import { useAuthStore } from "@/stores/useAuthStore"
+import { useGlobalAuthState } from "@/features/auth"
 import { useArticleToolbarState, useInitArticleToolbar } from "@/features/playback"
 import { useInitAiManagement } from "@/features/ai-management"
+import { useInitPlayback } from "@/features/playback"
+import { useInitCardMode } from "@/features/card-mode"
+import { useInitClozePractice } from "../init/useInitClozePractice"
+import { useInitSentenceOperations } from "../init/useInitSentenceOperations"
+import { useInitArticles } from "../init/useInitArticles"
+import { useInitSettingsDialogs, useSettingsDialogs } from "../init/useInitSettingsDialogs"
 import {
-  useInitClozePractice,
-  useInitSentenceOperations,
   useSentenceSelectionActions,
   useSentenceSelectionState,
-} from "@/features/articles"
-import { useInitArticles } from "@/features/articles"
-import { useSettingsView } from "@/features/articles"
-import {
-  useInitPlayback,
-} from "@/features/playback"
-import { useInitSettingsDialogs, useSettingsDialogs } from "@/features/articles"
-import { useInitCardMode } from "@/features/card-mode"
+} from "../state/useSentenceSelectionState"
+import { useSettingsView } from "./useSettingsView"
 
 function deriveTitle(content: string) {
   return content.trim().slice(0, 10)
@@ -53,8 +51,6 @@ export const useArticleListPageView = () => {
     playbackPauseSeconds,
     blurTarget,
     handleSetBlurTarget,
-    nativeVoiceId,
-    targetVoiceId,
     useAiUserKey,
     shadowingSpeeds,
   } = useSettingsView()
@@ -74,10 +70,11 @@ export const useArticleListPageView = () => {
     },
   })
   const settingsDialogs = useSettingsDialogs()
-  const {
-    ttsOptionsQuery,
-  } = settingsDialogs
-  const userId = useAuthStore((state) => state.user?.id ?? null)
+  const { ttsOptionsQuery } = settingsDialogs
+  const nativeVoiceId = ttsOptionsQuery.data?.nativeVoiceId ?? null
+  const targetVoiceId = ttsOptionsQuery.data?.targetVoiceId ?? null
+  const { user } = useGlobalAuthState()
+  const userId = user?.id ?? null
   useInitAiManagement({
     t,
     detail: detailQuery.data,
@@ -194,9 +191,14 @@ export const useArticleListPageView = () => {
     return () => document.removeEventListener("visibilitychange", handleVisibility)
   }, [stopPlayback, stopLoopPlayback])
 
+  const stopLoopPlaybackRef = React.useRef(stopLoopPlayback)
   React.useEffect(() => {
-    stopLoopPlayback()
-  }, [activeArticleId, showCreate, stopLoopPlayback])
+    stopLoopPlaybackRef.current = stopLoopPlayback
+  }, [stopLoopPlayback])
+
+  React.useEffect(() => {
+    stopLoopPlaybackRef.current()
+  }, [activeArticleId, showCreate])
 
   React.useEffect(() => {
     if (!routeArticleId) return

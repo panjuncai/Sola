@@ -1,4 +1,4 @@
-import { AiInstructionPanel } from "@/features/ai-management"
+import { AiInstructionPanel } from "../AiInstructionPanel"
 
 export const AiInstructionPanelDialog = () => {
   return <AiInstructionPanel />

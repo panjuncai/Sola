@@ -1,14 +1,14 @@
 import { atom, useAtom } from "jotai"
-const articleContentAtom = atom("")
-const selectedArticleIdsAtom = atom<string[]>([])
-const activeArticleIdAtom = atom<string | null>(null)
-const isCreatingArticleAtom = atom(false)
+const uiArticleContentAtom = atom("")
+const uiSelectedArticleIdsAtom = atom<string[]>([])
+const uiActiveArticleIdAtom = atom<string | null>(null)
+const uiIsCreatingArticleAtom = atom(false)
 
 export const useArticlesState = () => {
-  const [content, setContent] = useAtom(articleContentAtom)
-  const [selectedIds, setSelectedIds] = useAtom(selectedArticleIdsAtom)
-  const [activeArticleId, setActiveArticleId] = useAtom(activeArticleIdAtom)
-  const [isCreating, setIsCreating] = useAtom(isCreatingArticleAtom)
+  const [content, setContent] = useAtom(uiArticleContentAtom)
+  const [selectedIds, setSelectedIds] = useAtom(uiSelectedArticleIdsAtom)
+  const [activeArticleId, setActiveArticleId] = useAtom(uiActiveArticleIdAtom)
+  const [isCreating, setIsCreating] = useAtom(uiIsCreatingArticleAtom)
 
   return {
     content,

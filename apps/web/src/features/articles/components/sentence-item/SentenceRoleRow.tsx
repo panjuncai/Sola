@@ -3,9 +3,9 @@ import { useTranslation } from "react-i18next"
 
 import { cn, toast } from "@sola/ui"
 
-import { useClozePractice } from "@/features/articles"
-import { useSentenceSelectionState } from "@/features/articles"
-import { useSettingsView } from "@/features/articles"
+import { useClozePractice } from "../../hooks/init/useInitClozePractice"
+import { useSentenceSelectionState } from "../../hooks/state/useSentenceSelectionState"
+import { useSettingsView } from "../../hooks/view/useSettingsView"
 import { useArticleToolbarRequired } from "@/features/playback"
 import { useArticleToolbarState } from "@/features/playback"
 import { usePlaybackRequired, usePlaybackState } from "@/features/playback"
@@ -101,7 +101,8 @@ export const SentenceRoleRow = ({ sentence, role, text }: SentenceRoleRowProps) 
       <span
         className={cn(
           "leading-relaxed",
-          isPlaying && (role === "native" ? "text-blue-600" : "text-orange-500"),
+          (isPlaying || isSelected) &&
+            (role === "native" ? "text-blue-600" : "text-orange-500"),
           role === "native" && blurNative && "blur-sm",
           shouldBlur && "blur-sm"
         )}

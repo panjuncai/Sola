@@ -11,12 +11,12 @@ import {
 } from "@sola/ui"
 
 import { DialogCancelButton } from "@sola/ui"
+import { ArticleBulkDeleteConfirmButton } from "../ArticleDialogActions"
 import {
-  ArticleBulkDeleteConfirmButton,
   ArticleBulkDeleteDialogDescription,
   ArticleBulkDeleteDialogTitle,
-  useArticleBulkDeleteDialogView,
-} from "@/features/articles"
+} from "../ArticleDialogStates"
+import { useArticleBulkDeleteDialogView } from "../../hooks/view/useArticleBulkDeleteDialogView"
 
 export const ArticleBulkDeleteDialog = () => {
   const { t } = useTranslation()

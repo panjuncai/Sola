@@ -1,4 +1,5 @@
-import { useArticlesContext, useSidebarView } from "@/features/articles"
+import { useArticlesContext } from "../../hooks/init/useInitArticles"
+import { useSidebarView } from "../../hooks/view/useSidebarView"
 import { ArticleSidebarContentStates } from "./sidebar-content/ArticleSidebarContentStates"
 import { ArticleSidebarContentBody } from "./sidebar-content/ArticleSidebarContentBody"
 

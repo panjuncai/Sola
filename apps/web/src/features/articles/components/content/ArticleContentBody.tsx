@@ -1,10 +1,7 @@
 import { CardModeView, useCardModeState } from "@/features/card-mode"
-
-import {
-  ArticleContentLoadingState,
-  SentenceList,
-  useArticlesContext,
-} from "@/features/articles"
+import { ArticleContentLoadingState } from "../ArticleContentStates"
+import { SentenceList } from "../SentenceList"
+import { useArticlesContext } from "../../hooks/init/useInitArticles"
 import { ArticleContentBodyShell } from "./ArticleContentBodyShell"
 import { ArticleContentToolbar } from "./ArticleContentToolbar"
 

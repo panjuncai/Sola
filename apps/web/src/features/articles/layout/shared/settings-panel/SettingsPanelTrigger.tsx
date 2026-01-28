@@ -1,4 +1,4 @@
-import { useSidebarPanelView } from "@/features/articles"
+import { useSidebarPanelView } from "../../../hooks/view/useSidebarPanelView"
 
 import { SettingsPanelPopover } from "./SettingsPanelPopover"
 import { SettingsTriggerButton } from "./SettingsTriggerButton"

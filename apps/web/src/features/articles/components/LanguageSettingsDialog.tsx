@@ -11,7 +11,8 @@ import {
 } from "@sola/ui"
 
 import { DialogCloseButton } from "@sola/ui"
-import { useLanguageOptions, useSettingsDialogs } from "@/features/articles"
+import { useSettingsDialogs } from "../hooks/init/useInitSettingsDialogs"
+import { useLanguageOptions } from "../hooks/view/useLanguageOptions"
 
 type VoiceOption = {
   id: string

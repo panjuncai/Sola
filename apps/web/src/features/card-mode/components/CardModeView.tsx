@@ -2,7 +2,8 @@ import { useTranslation } from "react-i18next"
 
 import { Button, cn } from "@sola/ui"
 
-import { CardModeEmptyState, useCardMode } from "@/features/card-mode"
+import { CardModeEmptyState } from "./CardModeStates"
+import { useCardModeRequired } from "../hooks/init/useInitCardMode"
 import { useArticleToolbarState } from "@/features/playback"
 
 export const CardModeView = () => {
@@ -14,18 +15,54 @@ export const CardModeView = () => {
     cardDragX,
     cardDragging,
     cardCount,
-    cardFrontText,
-    cardBackText,
-    handleFlip,
-    handlePrev,
-    handleNext,
-    handlePlay,
+    cardFrontRole,
+    cardBackRole,
+    activeCardSentence,
+    setCardFlipped,
+    setCardDragging,
+    setCardDragX,
+    goCard,
+    playCardAudio,
+    cancelCardPlayback,
     handlePointerDown,
     handlePointerMove,
     handlePointerUp,
-    handlePointerCancel,
-  } = useCardMode()
+  } = useCardModeRequired()
   const { isRandomMode } = useArticleToolbarState()
+  const cardFrontText =
+    cardFrontRole === "native"
+      ? activeCardSentence?.nativeText ?? ""
+      : activeCardSentence?.targetText ?? ""
+  const cardBackText =
+    cardBackRole === "native"
+      ? activeCardSentence?.nativeText ?? ""
+      : activeCardSentence?.targetText ?? ""
+
+  const handleFlip = () => {
+    setCardFlipped(!cardFlipped)
+    cancelCardPlayback()
+  }
+
+  const handlePrev = () => {
+    goCard(cardIndex - 1)
+    cancelCardPlayback()
+  }
+
+  const handleNext = () => {
+    goCard(cardIndex + 1)
+    cancelCardPlayback()
+  }
+
+  const handlePlay = () => {
+    if (!activeCardSentence) return
+    const role = cardFlipped ? cardBackRole : cardFrontRole
+    playCardAudio(activeCardSentence.id, role)
+  }
+
+  const handlePointerCancel = () => {
+    setCardDragging(false)
+    setCardDragX(0)
+  }
 
   if (!isCardMode) return null
   if (cardCount === 0) {

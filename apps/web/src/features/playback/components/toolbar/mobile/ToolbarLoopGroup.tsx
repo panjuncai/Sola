@@ -1,22 +1,24 @@
+import { useTranslation } from "react-i18next"
 import { DialogCloseButton } from "@sola/ui"
 
-import { useArticleToolbarView } from "../../../hooks/view/useArticleToolbarView"
+import { useToolbarView } from "@/features/articles"
+import { useArticleToolbarRequired } from "../../../hooks/init/useInitArticleToolbar"
 import { ToolbarIconButton } from "./ToolbarIconButton"
 
 export const ToolbarLoopGroup = () => {
-  const { t, toolbar, mobile } = useArticleToolbarView()
+  const { t } = useTranslation()
+  const toolbar = useArticleToolbarRequired()
+  const mobile = useToolbarView()
   const { closeMobileToolbar } = mobile
   const {
-    isLoopingAll,
-    isLoopingTarget,
-    isLoopingSingle,
-    isLoopingShadowing,
     stopLoopPlayback,
     startLoopAll,
     startLoopTarget,
     startLoopSingle,
     handleToggleShadowing,
   } = toolbar
+  const { isLoopingAll, isLoopingTarget, isLoopingSingle, isLoopingShadowing } =
+    toolbar
 
   return (
     <>

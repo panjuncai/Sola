@@ -1,4 +1,1 @@
-export {
-  useArticleToolbarActions,
-  useArticleToolbarState,
-} from "../../atoms/articleToolbar"
+export { useArticleToolbarState } from "../../atoms/articleToolbar"

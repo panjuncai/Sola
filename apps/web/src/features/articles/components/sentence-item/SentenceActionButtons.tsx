@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next"
 
-import { useSentenceOperations } from "@/features/articles"
+import { useSentenceOperations } from "../../hooks/init/useInitSentenceOperations"
 import { useArticleToolbarRequired } from "@/features/playback"
 
 type SentenceActionButtonsProps = {

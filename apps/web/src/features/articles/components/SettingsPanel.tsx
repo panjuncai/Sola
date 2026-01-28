@@ -1,4 +1,4 @@
-import { useSidebarPanelView } from "@/features/articles"
+import { useSidebarPanelView } from "../hooks/view/useSidebarPanelView"
 
 import { SettingsPanelActionsSection } from "./settings/sections/SettingsPanelActionsSection"
 import { SettingsPanelAiSection } from "./settings/sections/SettingsPanelAiSection"

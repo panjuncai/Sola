@@ -1,6 +1,6 @@
 import { Button } from "@sola/ui"
 
-import { useSidebarPanelView } from "@/features/articles"
+import { useSidebarPanelView } from "../../../hooks/view/useSidebarPanelView"
 import { SettingsPanelRow } from "../SettingsPanelRow"
 
 export const SettingsPanelAiSection = () => {

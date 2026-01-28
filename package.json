@@ -10,7 +10,7 @@
     "check:web": "pnpm --filter @sola/web check && pnpm check:boundary",
     "check:shared": "pnpm -C packages/shared lint",
     "check:all": "pnpm check:web && pnpm check:shared",
-    "check:boundary": "node scripts/check-trpc-jotai-boundary.mjs && node scripts/check-feature-boundary.mjs && node scripts/check-atom-privacy.mjs",
+    "check:boundary": "node scripts/check-trpc-jotai-boundary.mjs && node scripts/check-feature-boundary.mjs && node scripts/check-atom-privacy.mjs && node scripts/check-no-refetch.mjs",
     "type-check": "turbo run type-check",
     "typecheck": "pnpm -r typecheck",
     "tts:sync:azure": "node scripts/sync-azure-voices.mjs",

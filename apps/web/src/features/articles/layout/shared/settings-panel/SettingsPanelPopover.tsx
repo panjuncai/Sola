@@ -1,4 +1,4 @@
-import { SettingsPanel } from "@/features/articles"
+import { SettingsPanel } from "../../../components/SettingsPanel"
 
 type SettingsPanelPopoverProps = {
   open: boolean

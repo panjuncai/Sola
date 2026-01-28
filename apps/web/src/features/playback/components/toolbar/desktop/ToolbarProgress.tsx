@@ -1,9 +1,11 @@
+import { useTranslation } from "react-i18next"
 import { Button } from "@sola/ui"
 
-import { useArticleToolbarView } from "../../../hooks/view/useArticleToolbarView"
+import { useAiManagementRequired } from "@/features/ai-management"
 
 export const ToolbarProgress = () => {
-  const { t, ai } = useArticleToolbarView()
+  const { t } = useTranslation()
+  const ai = useAiManagementRequired()
   const { aiProgress, missingNativeCount, cancelAiTranslation, retryMissingTranslations } =
     ai
 

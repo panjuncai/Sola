@@ -1,6 +1,6 @@
 import { Button } from "@sola/ui"
 
-import { useSidebarView } from "@/features/articles"
+import { useSidebarView } from "../../hooks/view/useSidebarView"
 
 export const ArticleSidebarBulkDeleteButton = () => {
   const { handleDeleteClick, deleteDisabled, bulkDeleteLabel } = useSidebarView()

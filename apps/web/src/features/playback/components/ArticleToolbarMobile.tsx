@@ -1,14 +1,14 @@
-import { useArticleToolbarView } from "../hooks/view/useArticleToolbarView"
+import { useTranslation } from "react-i18next"
+
+import { useToolbarView } from "@/features/articles"
 import { ToolbarLoopGroup } from "./toolbar/mobile/ToolbarLoopGroup"
 import { ToolbarModeGroup } from "./toolbar/mobile/ToolbarModeGroup"
 import { ToolbarAiGroup } from "./toolbar/mobile/ToolbarAiGroup"
 import { ToolbarProgress } from "./toolbar/mobile/ToolbarProgress"
 
 export const ArticleToolbarMobile = () => {
-  const {
-    t,
-    mobile,
-  } = useArticleToolbarView()
+  const { t } = useTranslation()
+  const mobile = useToolbarView()
   const { mobileToolbarOpen, toggleMobileToolbar } = mobile
 
   return (

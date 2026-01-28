@@ -10,11 +10,9 @@ import {
 } from "@sola/ui"
 
 import { DialogCancelButton } from "@sola/ui"
-import {
-  SentenceEditSaveButton,
-  SentenceEditDialogTitle,
-  useSentenceOperations,
-} from "@/features/articles"
+import { SentenceEditSaveButton } from "../ArticleDialogActions"
+import { SentenceEditDialogTitle } from "../ArticleDialogStates"
+import { useSentenceOperations } from "../../hooks/init/useInitSentenceOperations"
 
 export const SentenceEditDialog = () => {
   const { t } = useTranslation()

@@ -1,6 +1,6 @@
 import { SentenceListBody } from "./sentence-list/SentenceListBody"
 import { SentenceListEmptyState } from "./sentence-list/SentenceListEmptyState"
-import { useArticlesContext } from "@/features/articles"
+import { useArticlesContext } from "../hooks/init/useInitArticles"
 
 export const SentenceList = () => {
   const { detailQuery } = useArticlesContext()

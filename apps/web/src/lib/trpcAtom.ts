@@ -1,12 +1,13 @@
 import { atomWithQuery } from "jotai-tanstack-query"
-import type { QueryObserverOptions } from "@tanstack/query-core"
+import type { AtomWithQueryOptions } from "jotai-tanstack-query"
+import type { DefaultError, QueryKey } from "@tanstack/query-core"
 
 type QueryProcedure<TInput, TOutput> = {
   query: (input: TInput) => Promise<TOutput>
 }
 
 type TrpcAtomOptions<TOutput> = Omit<
-  QueryObserverOptions<TOutput, unknown, TOutput, TOutput, unknown[]>,
+  AtomWithQueryOptions<TOutput, DefaultError, TOutput, QueryKey>,
   "queryKey" | "queryFn"
 >
 
@@ -16,8 +17,12 @@ export const trpcAtom = <TInput, TOutput>(
   input: TInput,
   options: TrpcAtomOptions<TOutput> = {}
 ) =>
-  atomWithQuery<TOutput>(() => ({
-    queryKey: [key, input],
-    queryFn: () => procedure.query(input),
-    ...options,
-  }))
+  atomWithQuery<TOutput, DefaultError, TOutput, QueryKey>(() => {
+    const queryKey =
+      input === undefined ? ([key] as const) : ([key, input] as const)
+    return {
+      queryKey,
+      queryFn: () => procedure.query(input),
+      ...options,
+    }
+  })

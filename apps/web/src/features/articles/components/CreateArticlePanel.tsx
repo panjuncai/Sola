@@ -3,11 +3,9 @@ import { useTranslation } from "react-i18next"
 
 import { Button, Card, CardContent } from "@sola/ui"
 
-import {
-  ArticleCreateErrorState,
-  useArticlesContext,
-  useArticleCreateInputActions,
-} from "@/features/articles"
+import { ArticleCreateErrorState } from "./ArticleCreateStates"
+import { useArticlesContext } from "../hooks/init/useInitArticles"
+import { useArticleCreateInputActions } from "../hooks/state/useArticleCreateInputState"
 
 export const CreateArticlePanel = () => {
   const { t } = useTranslation()

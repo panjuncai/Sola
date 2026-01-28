@@ -1,4 +1,4 @@
-import { createTRPCProxyClient, httpBatchLink } from "@trpc/client"
+import { createTRPCProxyClient, httpLink } from "@trpc/client"
 import type { AppRouter } from "@sola/api"
 
 export const trpcUrl = (() => {
@@ -11,7 +11,7 @@ export const trpcUrl = (() => {
 
 export const trpcClient = createTRPCProxyClient<AppRouter>({
   links: [
-    httpBatchLink({
+    httpLink({
       url: trpcUrl,
       fetch(url, options) {
         return fetch(url, {

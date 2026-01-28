@@ -15,8 +15,8 @@ import { DialogCancelButton } from "@sola/ui"
 import {
   AiProviderResetDialogDescription,
   AiProviderResetDialogTitle,
-  useAiManagementRequired,
-} from "@/features/ai-management"
+} from "../AiDialogStates"
+import { useAiManagementRequired } from "../../hooks/init/useInitAiManagement"
 
 export const AiProviderResetDialog = () => {
   const { t } = useTranslation()

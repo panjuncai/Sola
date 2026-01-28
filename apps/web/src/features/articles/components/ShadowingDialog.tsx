@@ -13,7 +13,7 @@ import {
 } from "@sola/ui"
 
 import { DialogCancelButton } from "@sola/ui"
-import { useSettingsDialogs } from "@/features/articles"
+import { useSettingsDialogs } from "../hooks/init/useInitSettingsDialogs"
 
 export const ShadowingDialog = () => {
   const { t } = useTranslation()

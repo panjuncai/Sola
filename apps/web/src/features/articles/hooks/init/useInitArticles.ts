@@ -1,9 +1,11 @@
 import * as React from "react"
 import { useAtomValue } from "jotai"
+import { useQueryClient } from "@tanstack/react-query"
 
 import { trpc } from "@/lib/trpc"
 import { trpcAtom } from "@/lib/trpcAtom"
 import { trpcClient } from "@/lib/trpcClient"
+import { refreshArticleList } from "@/lib/queryRefresh"
 import { useArticlesState } from "../../atoms/articles"
 
 type UseArticlesParams = {
@@ -22,8 +24,6 @@ const useArticlesLogic = ({ deriveTitle, routeArticleId }: UseArticlesParams) =>
     isCreating,
     setIsCreating,
   } = useArticlesState()
-  const utils = trpc.useUtils()
-
   const listQuery = useAtomValue(
     React.useMemo(
       () => trpcAtom("article.list", trpcClient.article.list, undefined),
@@ -33,6 +33,7 @@ const useArticlesLogic = ({ deriveTitle, routeArticleId }: UseArticlesParams) =>
   const list = React.useMemo(() => listQuery.data ?? [], [listQuery.data])
   const isLoading = listQuery.isLoading
   const isError = listQuery.isError
+  const queryClient = useQueryClient()
 
   const showCreate = isCreating || list.length === 0
   const activeArticleExists = React.useMemo(() => {
@@ -53,29 +54,27 @@ const useArticlesLogic = ({ deriveTitle, routeArticleId }: UseArticlesParams) =>
               !showCreate &&
               (activeArticleExists || listQuery.isFetching),
             retry: false,
-            keepPreviousData: true,
-            onError: () => {
-              if (routeArticleId) return
-              setActiveArticleId(null)
-              setIsCreating(true)
-            },
+            placeholderData: (prev) => prev,
           }
         ),
       [
         activeArticleExists,
         activeArticleId,
         listQuery.isFetching,
-        routeArticleId,
-        setActiveArticleId,
-        setIsCreating,
         showCreate,
       ]
     )
   )
+  React.useEffect(() => {
+    if (routeArticleId) return
+    if (!detailQuery.isError) return
+    setActiveArticleId(null)
+    setIsCreating(true)
+  }, [detailQuery.isError, routeArticleId, setActiveArticleId, setIsCreating])
 
   const createMutation = trpc.article.create.useMutation({
     onSuccess: async (data) => {
-      await utils.article.list.invalidate()
+      await refreshArticleList(queryClient)
       setContent("")
       setSelectedIds([])
       setIsCreating(false)
@@ -91,7 +90,7 @@ const useArticlesLogic = ({ deriveTitle, routeArticleId }: UseArticlesParams) =>
       }
     },
     onSuccess: async () => {
-      await utils.article.list.invalidate()
+      await refreshArticleList(queryClient)
       setSelectedIds([])
       setIsCreating(false)
       setActiveArticleId(null)
@@ -183,5 +182,3 @@ export const useInitArticles = (params: UseArticlesParams) => {
   latestArticlesApi = api
   return api
 }
-
-export const useArticles = useInitArticles

@@ -1,21 +1,16 @@
 import * as React from "react"
 
-import { useSettings } from "@/stores/useSettings"
+import { useGlobalSettings } from "@/features/settings"
 import type { DisplayOrder, LanguageOption } from "@sola/shared"
 
 export const useSettingsView = () => {
-  const settings = useSettings()
+  const settings = useGlobalSettings()
   const {
     uiLanguage,
-    setUiLanguage,
     displayOrderSetting,
-    setDisplayOrderSetting,
     playbackNativeRepeat,
-    setPlaybackNativeRepeat,
     playbackTargetRepeat,
-    setPlaybackTargetRepeat,
     playbackPauseSeconds,
-    setPlaybackPauseSeconds,
     blurTarget,
     setBlurTarget,
     blurNative,
@@ -26,42 +21,37 @@ export const useSettingsView = () => {
 
   const handleUiLanguageChange = React.useCallback(
     (value: LanguageOption) => {
-      setUiLanguage(value)
       persistSettings({ uiLanguage: value })
     },
-    [persistSettings, setUiLanguage]
+    [persistSettings]
   )
 
   const handleDisplayOrderChange = React.useCallback(
     (value: DisplayOrder) => {
-      setDisplayOrderSetting(value)
       persistSettings({ displayOrder: value })
     },
-    [persistSettings, setDisplayOrderSetting]
+    [persistSettings]
   )
 
   const handlePlaybackNativeRepeatChange = React.useCallback(
     (value: number) => {
-      setPlaybackNativeRepeat(value)
       persistSettings({ playbackNativeRepeat: value })
     },
-    [persistSettings, setPlaybackNativeRepeat]
+    [persistSettings]
   )
 
   const handlePlaybackTargetRepeatChange = React.useCallback(
     (value: number) => {
-      setPlaybackTargetRepeat(value)
       persistSettings({ playbackTargetRepeat: value })
     },
-    [persistSettings, setPlaybackTargetRepeat]
+    [persistSettings]
   )
 
   const handlePlaybackPauseSecondsChange = React.useCallback(
     (value: number) => {
-      setPlaybackPauseSeconds(value)
       persistSettings({ playbackPauseSeconds: value })
     },
-    [persistSettings, setPlaybackPauseSeconds]
+    [persistSettings]
   )
 
   const handleToggleDarkMode = React.useCallback(() => {
