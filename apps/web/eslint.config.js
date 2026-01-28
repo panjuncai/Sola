@@ -27,6 +27,13 @@ export default defineConfig([
     languageOptions: {
       ecmaVersion: 2020,
       globals: globals.browser,
+      parserOptions: {
+        project: [
+          path.join(rootDir, 'tsconfig.app.json'),
+          path.join(rootDir, 'tsconfig.node.json'),
+        ],
+        tsconfigRootDir: rootDir,
+      },
     },
     settings: {
       'boundaries/root-path': repoRoot,
@@ -252,6 +259,12 @@ export default defineConfig([
     files: ['../../packages/shared/src/**/*.{ts,tsx}'],
     plugins: {
       boundaries,
+    },
+    languageOptions: {
+      parserOptions: {
+        project: [path.join(repoRoot, 'packages/shared/tsconfig.json')],
+        tsconfigRootDir: repoRoot,
+      },
     },
     settings: {
       'boundaries/elements': [
