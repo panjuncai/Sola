@@ -6,6 +6,12 @@ import fs from "node:fs"
 import path from "node:path"
 
 import {
+  deriveTitle,
+  splitArticleContent,
+  splitWordList,
+} from "@sola/logic"
+
+import {
   db,
   userArticles,
   userArticleSentences,
@@ -42,74 +48,6 @@ const updateSentenceInput = z.object({
 const deleteSentenceInput = z.object({
   sentenceId: z.string().min(1),
 })
-
-type SentenceDraft = {
-  orderIndex: number
-  paragraphIndex: number
-  targetText: string
-}
-
-function splitWordList(content: string): SentenceDraft[] {
-  const lines = content.split(/\r?\n/).map((line) => line.trim()).filter(Boolean)
-  return lines.map((line, index) => ({
-    orderIndex: index,
-    paragraphIndex: 0,
-    targetText: line,
-  }))
-}
-
-function splitArticleContent(content: string): SentenceDraft[] {
-  const normalized = content.replace(/\r\n/g, "\n").trim()
-  const paragraphs = normalized.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean)
-  const sentences: SentenceDraft[] = []
-  let orderIndex = 0
-
-  paragraphs.forEach((paragraph, paragraphIndex) => {
-    const lines = paragraph
-      .split(/\n+/)
-      .map((line) => line.trim())
-      .filter(Boolean)
-    if (lines.length === 0) return
-
-    for (const line of lines) {
-      const parts = line
-        .split(/(?<=[.!?。！？])\s+/)
-        .map((part) => part.trim())
-        .filter(Boolean)
-
-      if (parts.length === 0) {
-        sentences.push({
-          orderIndex: orderIndex++,
-          paragraphIndex,
-          targetText: line,
-        })
-        continue
-      }
-
-      for (const part of parts) {
-        sentences.push({
-          orderIndex: orderIndex++,
-          paragraphIndex,
-          targetText: part,
-        })
-      }
-    }
-  })
-
-  if (sentences.length === 0 && normalized) {
-    sentences.push({
-      orderIndex: 0,
-      paragraphIndex: 0,
-      targetText: normalized,
-    })
-  }
-
-  return sentences
-}
-
-function deriveTitle(content: string) {
-  return content.trim().slice(0, 10)
-}
 
 function toTimestamp(value: unknown) {
   if (value instanceof Date) return value.getTime()

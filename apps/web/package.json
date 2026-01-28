@@ -15,6 +15,7 @@
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
     "@sola/api": "workspace:*",
+    "@sola/logic": "workspace:*",
     "@sola/shared": "workspace:*",
     "@sola/ui": "workspace:*",
     "@tanstack/query-core": "^5.90.19",

@@ -2,6 +2,7 @@ import * as React from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { useTranslation } from "react-i18next"
 
+import { deriveTitle } from "@sola/logic"
 import { toast } from "@sola/ui"
 
 import { trpc } from "@/lib/trpc"
@@ -19,10 +20,6 @@ import {
   useSentenceSelectionState,
 } from "../state/useSentenceSelectionState"
 import { useSettingsView } from "./useSettingsView"
-
-function deriveTitle(content: string) {
-  return content.trim().slice(0, 10)
-}
 
 export const useArticleListPageView = () => {
   const { t } = useTranslation()

@@ -2,7 +2,7 @@ import * as React from "react"
 
 import type { ArticleDetail, ArticleSentence } from "@sola/shared"
 
-import { splitSentenceForCloze } from "../../utils/text"
+import { splitSentenceForCloze } from "@sola/logic"
 import { useClozePracticeActions, useClozePracticeState } from "../state/useClozePracticeState"
 import { useSentenceSelectionActions } from "../state/useSentenceSelectionState"
 
@@ -198,7 +198,9 @@ const useClozePracticeLogic = ({
       const segments = diffClozeTokens(expectedTokens, inputTokens)
       const correct =
         expectedTokens.length === inputTokens.length &&
-        expectedTokens.every((token, index) => token === inputTokens[index])
+        expectedTokens.every(
+          (token: string, index: number) => token === inputTokens[index]
+        )
       setClozeResults((prev: Record<string, ClozeResult>) => ({
         ...prev,
         [sentenceId]: { correct, segments },
