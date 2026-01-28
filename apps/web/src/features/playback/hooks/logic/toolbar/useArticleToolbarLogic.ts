@@ -1,6 +1,6 @@
 import * as React from "react"
 
-import { PlaybackEngine, buildRoleOrder } from "@sola/logic"
+import { ArticleEntity, PlaybackEngine, buildRoleOrder } from "@sola/logic"
 import type { DisplayOrder } from "@sola/shared"
 
 import {
@@ -111,6 +111,14 @@ const startLoopAll = async (params: LoopLogicParams) => {
   } = params
   if (!detail) return
   stopLoopPlayback(params)
+  const articleEntity = new ArticleEntity({
+    id: "loop-all",
+    displayOrder: displayOrderSetting,
+  })
+  if (!articleEntity.hasPlayableSentence(detail.sentences)) {
+    onPlayError()
+    return
+  }
   const token = loopTokenRef.current + 1
   loopTokenRef.current = token
   setIsLoopingAll(true)
@@ -181,6 +189,14 @@ const startLoopTarget = async (params: LoopLogicParams) => {
   } = params
   if (!detail) return
   stopLoopPlayback(params)
+  const articleEntity = new ArticleEntity({
+    id: "loop-target",
+    displayOrder: "target_first",
+  })
+  if (!articleEntity.hasPlayableSentence(detail.sentences, "target")) {
+    onPlayError()
+    return
+  }
   const token = loopTokenRef.current + 1
   loopTokenRef.current = token
   setIsLoopingTarget(true)
@@ -228,6 +244,7 @@ const startLoopTarget = async (params: LoopLogicParams) => {
 const startLoopSingle = async (params: LoopLogicParams) => {
   const {
     detail,
+    displayOrderSetting,
     playbackNativeRepeat,
     playbackTargetRepeat,
     selectedSentenceId,
@@ -245,6 +262,14 @@ const startLoopSingle = async (params: LoopLogicParams) => {
     return
   }
   stopLoopPlayback(params)
+  const articleEntity = new ArticleEntity({
+    id: "loop-single",
+    displayOrder: displayOrderSetting,
+  })
+  if (!articleEntity.hasPlayableSentence(detail.sentences, selectedSentenceRole)) {
+    onPlayError()
+    return
+  }
   const token = loopTokenRef.current + 1
   loopTokenRef.current = token
   setIsLoopingSingle(true)

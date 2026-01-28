@@ -2,6 +2,8 @@ import * as React from "react"
 import { useAtomValue } from "jotai"
 import { useQueryClient } from "@tanstack/react-query"
 
+import { ArticleEntity } from "@sola/logic"
+
 import { trpc } from "@/lib/trpc"
 import { trpcAtom } from "@/lib/trpcAtom"
 import { trpcClient } from "@/lib/trpcClient"
@@ -129,8 +131,13 @@ const useArticlesLogic = ({ deriveTitle, routeArticleId }: UseArticlesParams) =>
   const handleCreate = () => {
     const trimmed = content.trim()
     if (!trimmed) return
+    const title = new ArticleEntity({
+      id: "draft",
+      title: null,
+      content: trimmed,
+    }).getTitle()
     createMutation.mutate({
-      title: deriveTitle(trimmed),
+      title: title ?? deriveTitle(trimmed),
       content: trimmed,
       sourceType: "article",
     })

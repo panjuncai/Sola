@@ -1,5 +1,7 @@
 import { Card, CardContent } from "@sola/ui"
 
+import { SentenceEntity } from "@sola/logic"
+
 import { cn } from "@/lib/utils"
 import { useSettingsView } from "../../hooks/view/useSettingsView"
 import { useSentenceSelectionState } from "../../hooks/state/useSentenceSelectionState"
@@ -23,13 +25,10 @@ export const SentenceItem = ({ sentence }: SentenceItemProps) => {
   const { isClozeEnabled } = useArticleToolbarState()
   const { playingSentenceId } = usePlaybackState()
   const { selectedSentenceId } = useSentenceSelectionState()
-  const nativeFirst = displayOrderSetting === "native_first"
-  const items = [
-    { role: "native" as const, text: sentence.nativeText ?? "" },
-    { role: "target" as const, text: sentence.targetText ?? "" },
-  ]
-  const ordered = nativeFirst ? items : items.slice().reverse()
-  const isActive = sentence.id === playingSentenceId || sentence.id === selectedSentenceId
+  const entity = new SentenceEntity(sentence)
+  const ordered = entity.toDisplayItems(displayOrderSetting)
+  const isActive =
+    entity.id === playingSentenceId || entity.id === selectedSentenceId
 
   return (
     <Card className="border-0 shadow-none">
@@ -41,7 +40,6 @@ export const SentenceItem = ({ sentence }: SentenceItemProps) => {
       >
         <SentenceActionButtons sentence={sentence} />
         {ordered.map((item) => {
-          if (!item.text) return null
           const isTarget = item.role === "target"
           return (
             <div key={item.role} className="space-y-1">
@@ -50,13 +48,13 @@ export const SentenceItem = ({ sentence }: SentenceItemProps) => {
                 role={item.role}
                 text={item.text}
               />
-              {isTarget && isClozeEnabled ? (
+              {isTarget && isClozeEnabled && entity.canCloze() ? (
                 <div className="space-y-1 pl-4">
                   <SentenceClozeInput
-                    sentenceId={sentence.id}
-                    targetLength={sentence.targetText?.length ?? 8}
+                    sentenceId={entity.id}
+                    targetLength={entity.getText("target").length || 8}
                   />
-                  <SentenceClozeResult sentenceId={sentence.id} />
+                  <SentenceClozeResult sentenceId={entity.id} />
                 </div>
               ) : null}
             </div>

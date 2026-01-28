@@ -3,6 +3,8 @@ import { useTranslation } from "react-i18next"
 
 import { cn, toast } from "@sola/ui"
 
+import { SentenceEntity } from "@sola/logic"
+
 import { useClozePractice } from "../../hooks/init/useInitClozePractice"
 import { useSentenceSelectionState } from "../../hooks/state/useSentenceSelectionState"
 import { useSettingsView } from "../../hooks/view/useSettingsView"
@@ -29,6 +31,7 @@ export const SentenceRoleRow = ({ sentence, role, text }: SentenceRoleRowProps) 
   const { isClozeEnabled } = useArticleToolbarState()
   const { markUserSelected } = useArticleToolbarRequired()
   const { clozeRevealed, handleSentenceSelect } = useClozePractice()
+  const entity = new SentenceEntity(sentence)
 
   const isTarget = role === "target"
   const isPlaying = sentence.id === playingSentenceId && playingRole === role
@@ -61,6 +64,7 @@ export const SentenceRoleRow = ({ sentence, role, text }: SentenceRoleRowProps) 
           isRevealed
         )
         if (skipPlay) return
+        if (!entity.isPlayable(role)) return
         playSentenceRole(sentence, role)
           .then((ok) => {
             if (!ok) handlePlayError()
@@ -79,6 +83,7 @@ export const SentenceRoleRow = ({ sentence, role, text }: SentenceRoleRowProps) 
             isRevealed
           )
           if (skipPlay) return
+          if (!entity.isPlayable(role)) return
           playSentenceRole(sentence, role)
             .then((ok) => {
               if (!ok) handlePlayError()

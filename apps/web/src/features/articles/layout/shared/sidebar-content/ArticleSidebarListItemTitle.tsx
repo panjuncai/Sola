@@ -1,3 +1,4 @@
+import { ArticleEntity } from "@sola/logic"
 import { useTranslation } from "react-i18next"
 
 type ArticleSidebarListItemTitleProps = {
@@ -10,6 +11,7 @@ export const ArticleSidebarListItemTitle = ({
   onSelect,
 }: ArticleSidebarListItemTitleProps) => {
   const { t } = useTranslation()
+  const displayTitle = new ArticleEntity({ id: "sidebar", title }).getTitle()
 
   return (
     <button
@@ -17,7 +19,7 @@ export const ArticleSidebarListItemTitle = ({
       className="min-w-0 flex-1 truncate text-left font-medium"
       onClick={onSelect}
     >
-      {title ?? t("article.untitled")}
+      {displayTitle ?? t("article.untitled")}
     </button>
   )
 }

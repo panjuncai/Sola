@@ -2,7 +2,7 @@ import * as React from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { useTranslation } from "react-i18next"
 
-import { deriveTitle } from "@sola/logic"
+import { ArticleEntity, deriveTitle } from "@sola/logic"
 import { toast } from "@sola/ui"
 
 import { trpc } from "@/lib/trpc"
@@ -176,6 +176,18 @@ export const useArticleListPageView = () => {
     clearSentenceSelection,
     clearSentenceCache,
   })
+
+  React.useEffect(() => {
+    const article = detailQuery.data?.article
+    if (!article) return
+    const title = new ArticleEntity({
+      id: article.id,
+      title: article.title,
+      content: article.content,
+      displayOrder: article.displayOrder,
+    }).getTitle()
+    document.title = title ?? "Sola"
+  }, [detailQuery.data])
 
   React.useEffect(() => {
     const handleVisibility = () => {
