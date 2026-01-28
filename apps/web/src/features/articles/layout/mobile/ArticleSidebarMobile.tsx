@@ -1,11 +1,15 @@
+import * as React from "react"
 import { cn } from "@sola/ui"
 
 import { ArticleSidebarPanel } from "../shared/ArticleSidebarPanel"
-import { useMobileMenu } from "../../hooks/view/useMobileMenu"
+import { useMobileMenuApi } from "../../hooks/state/useMobileMenuState"
 import { useSidebarView } from "../../hooks/view/useSidebarView"
 
 export const ArticleSidebarMobile = () => {
-  const { mobileMenuOpen, closeMobileMenu } = useMobileMenu()
+  const { mobileMenuOpen, setMobileMenuOpen } = useMobileMenuApi()
+  const closeMobileMenu = React.useCallback(() => {
+    setMobileMenuOpen(false)
+  }, [setMobileMenuOpen])
   const { closeLabel } = useSidebarView()
 
   return (

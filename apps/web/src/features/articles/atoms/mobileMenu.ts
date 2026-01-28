@@ -9,3 +9,8 @@ export const useMobileMenuState = () => ({
 export const useMobileMenuActions = () => ({
   setMobileMenuOpen: useSetAtom(mobileMenuOpenAtom),
 })
+
+export const useMobileMenuApi = () => ({
+  ...useMobileMenuState(),
+  ...useMobileMenuActions(),
+})

@@ -6,8 +6,8 @@ import { useGlobalAuthState } from "@/features/auth"
 import { useAiDialogsActions, useAiDialogsState } from "@/features/ai-management"
 import { useSettingsDialogs } from "../init/useInitSettingsDialogs"
 import { useSettingsPanelActions, useSettingsPanelState } from "../../atoms/settingsPanel"
-import { useLanguageOptions } from "./useLanguageOptions"
 import { useSettingsView } from "./useSettingsView"
+import type { LanguageOption } from "@sola/shared"
 
 const sharedSettingsPanelRef = React.createRef<HTMLDivElement>()
 const sharedSettingsButtonRef = React.createRef<HTMLButtonElement>()
@@ -88,7 +88,15 @@ export const useSidebarPanelView = () => {
     mobileSettingsButtonRef,
   ])
 
-  const languages = useLanguageOptions()
+  const languages = React.useMemo(
+    () =>
+      [
+        { value: "zh-CN", label: t("lang.zhCN") },
+        { value: "en-US", label: t("lang.enUS") },
+        { value: "fr-FR", label: t("lang.frFR") },
+      ] as { value: LanguageOption; label: string }[],
+    [t]
+  )
 
   const toggleSettings = React.useCallback(() => {
     setSettingsOpen((prev) => !prev)

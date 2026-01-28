@@ -14,5 +14,8 @@
   "scripts": {
     "type-check": "tsc -p tsconfig.json",
     "typecheck": "pnpm run type-check"
+  },
+  "dependencies": {
+    "@sola/shared": "workspace:*"
   }
 }

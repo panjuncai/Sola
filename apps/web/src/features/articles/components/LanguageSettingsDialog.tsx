@@ -12,7 +12,7 @@ import {
 
 import { DialogCloseButton } from "@sola/ui"
 import { useSettingsDialogs } from "../hooks/init/useInitSettingsDialogs"
-import { useLanguageOptions } from "../hooks/view/useLanguageOptions"
+import { useSidebarPanelView } from "../hooks/view/useSidebarPanelView"
 
 type VoiceOption = {
   id: string
@@ -37,7 +37,7 @@ export const LanguageSettingsDialog = () => {
     handleNativeVoiceChange,
     handleTargetVoiceChange,
   } = useSettingsDialogs()
-  const languages = useLanguageOptions()
+  const { languages } = useSidebarPanelView()
 
   const voiceLabel = (voice: VoiceOption) =>
     voice.gender === "Female"

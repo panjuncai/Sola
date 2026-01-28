@@ -1,6 +1,5 @@
+import * as React from "react"
 import { useTranslation } from "react-i18next"
-
-import { useToolbarView } from "@/features/articles"
 import { ToolbarLoopGroup } from "./toolbar/mobile/ToolbarLoopGroup"
 import { ToolbarModeGroup } from "./toolbar/mobile/ToolbarModeGroup"
 import { ToolbarAiGroup } from "./toolbar/mobile/ToolbarAiGroup"
@@ -8,8 +7,13 @@ import { ToolbarProgress } from "./toolbar/mobile/ToolbarProgress"
 
 export const ArticleToolbarMobile = () => {
   const { t } = useTranslation()
-  const mobile = useToolbarView()
-  const { mobileToolbarOpen, toggleMobileToolbar } = mobile
+  const [mobileToolbarOpen, setMobileToolbarOpen] = React.useState(false)
+  const toggleMobileToolbar = React.useCallback(() => {
+    setMobileToolbarOpen((prev) => !prev)
+  }, [])
+  const closeMobileToolbar = React.useCallback(() => {
+    setMobileToolbarOpen(false)
+  }, [])
 
   return (
     <div className="md:hidden">
@@ -36,9 +40,9 @@ export const ArticleToolbarMobile = () => {
       {mobileToolbarOpen ? (
         <div className="fixed bottom-20 right-4 z-50 w-[min(92vw,320px)] rounded-2xl border bg-background/95 p-3 shadow-2xl backdrop-blur">
           <div className="flex flex-col gap-3">
-            <ToolbarLoopGroup />
+            <ToolbarLoopGroup closeMobileToolbar={closeMobileToolbar} />
             <ToolbarModeGroup />
-            <ToolbarAiGroup />
+            <ToolbarAiGroup closeMobileToolbar={closeMobileToolbar} />
             <ToolbarProgress />
           </div>
         </div>

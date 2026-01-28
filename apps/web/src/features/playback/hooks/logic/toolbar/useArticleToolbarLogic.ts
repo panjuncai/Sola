@@ -1,11 +1,13 @@
 import * as React from "react"
 
+import { PlaybackEngine, buildRoleOrder } from "@sola/logic"
+import type { DisplayOrder } from "@sola/shared"
+
 import {
   useArticleToolbarActions,
   useArticleToolbarState,
 } from "../../../atoms/articleToolbar"
 import { useCardModeActions } from "@/features/card-mode"
-import type { DisplayOrder } from "@sola/shared"
 
 type ToolbarPlaybackSentence = {
   id: string
@@ -60,13 +62,6 @@ type LoopLogicParams = {
   userSelectedRef: UserSelectedRef
   loopTokenRef: LoopTokenRef
   shadowingLoopRef: ShadowingRef
-  playWithShadowing: (
-    params: PlaybackHelpersParams,
-    sentence: ToolbarPlaybackSentence,
-    role: "native" | "target",
-    repeatTimes: number,
-    token?: number
-  ) => Promise<boolean>
   prefetchAudio: (
     params: PlaybackHelpersParams,
     sentences: ToolbarPlaybackSentence[],
@@ -74,6 +69,8 @@ type LoopLogicParams = {
     order: ("native" | "target")[]
   ) => void
   playbackHelpers: PlaybackHelpersParams
+  playbackEngine: PlaybackEngine
+  getShadowingSpeeds: (role: "native" | "target") => number[]
 }
 
 const stopLoopPlayback = (params: LoopLogicParams) => {
@@ -107,9 +104,10 @@ const startLoopAll = async (params: LoopLogicParams) => {
     setIsLoopingAll,
     userSelectedRef,
     loopTokenRef,
-    playWithShadowing,
     prefetchAudio,
     playbackHelpers,
+    playbackEngine,
+    getShadowingSpeeds,
   } = params
   if (!detail) return
   stopLoopPlayback(params)
@@ -130,10 +128,7 @@ const startLoopAll = async (params: LoopLogicParams) => {
       const sentence = sentences[sIndex]
       if (!sentence) continue
       if (loopTokenRef.current !== token) break
-      const order: Array<"native" | "target"> =
-        orderSetting === "native_first"
-          ? ["native", "target"]
-          : ["target", "native"]
+      const order = buildRoleOrder(orderSetting)
       const isFirstSentence = sIndex === startIndex
       const orderedRoles: Array<"native" | "target"> =
         userSelectedRef.current && isFirstSentence && selectedSentenceRole
@@ -145,26 +140,24 @@ const startLoopAll = async (params: LoopLogicParams) => {
               ]
           : order
 
-      for (const role of orderedRoles) {
-        if (loopTokenRef.current !== token) break
-        const text =
-          role === "native" ? sentence.nativeText ?? "" : sentence.targetText ?? ""
-        if (!text) continue
-
-        const repeatTimes =
-          role === "native" ? playbackNativeRepeat : playbackTargetRepeat
-        const ok = await playWithShadowing(
-          playbackHelpers,
-          sentence,
-          role,
-          repeatTimes,
-          token
-        )
-        if (!ok) {
-          stopLoopPlayback(params)
-          onPlayError()
-          return
+      const ok = await playbackEngine.playSentence(
+        sentence,
+        orderedRoles,
+        {
+          native: playbackNativeRepeat,
+          target: playbackTargetRepeat,
+        },
+        {
+          pauseMs: Math.max(0, Math.round(playbackHelpers.playbackPauseSeconds * 1000)),
+          shadowingSpeeds: playbackHelpers.shadowingSpeeds,
+          getShadowingSpeeds,
+          shouldStop: () => loopTokenRef.current !== token,
         }
+      )
+      if (!ok) {
+        stopLoopPlayback(params)
+        onPlayError()
+        return
       }
       prefetchAudio(playbackHelpers, sentences, sIndex, order)
     }
@@ -181,9 +174,10 @@ const startLoopTarget = async (params: LoopLogicParams) => {
     setIsLoopingTarget,
     userSelectedRef,
     loopTokenRef,
-    playWithShadowing,
     prefetchAudio,
     playbackHelpers,
+    playbackEngine,
+    getShadowingSpeeds,
   } = params
   if (!detail) return
   stopLoopPlayback(params)
@@ -205,12 +199,19 @@ const startLoopTarget = async (params: LoopLogicParams) => {
       const text = sentence.targetText ?? ""
       if (!text) continue
 
-      const ok = await playWithShadowing(
-        playbackHelpers,
+      const ok = await playbackEngine.playSentence(
         sentence,
-        "target",
-        playbackTargetRepeat,
-        token
+        ["target"],
+        {
+          native: playbackTargetRepeat,
+          target: playbackTargetRepeat,
+        },
+        {
+          pauseMs: Math.max(0, Math.round(playbackHelpers.playbackPauseSeconds * 1000)),
+          shadowingSpeeds: playbackHelpers.shadowingSpeeds,
+          getShadowingSpeeds,
+          shouldStop: () => loopTokenRef.current !== token,
+        }
       )
       if (!ok) {
         stopLoopPlayback(params)
@@ -235,8 +236,9 @@ const startLoopSingle = async (params: LoopLogicParams) => {
     onSelectSentenceRequired,
     setIsLoopingSingle,
     loopTokenRef,
-    playWithShadowing,
     playbackHelpers,
+    playbackEngine,
+    getShadowingSpeeds,
   } = params
   if (!detail || !selectedSentenceId || !selectedSentenceRole) {
     onSelectSentenceRequired()
@@ -257,12 +259,19 @@ const startLoopSingle = async (params: LoopLogicParams) => {
     selectedSentenceRole === "native" ? playbackNativeRepeat : playbackTargetRepeat
 
   while (loopTokenRef.current === token) {
-    const ok = await playWithShadowing(
-      playbackHelpers,
+    const ok = await playbackEngine.playSentence(
       sentence,
-      selectedSentenceRole,
-      repeatTimes,
-      token
+      [selectedSentenceRole],
+      {
+        native: repeatTimes,
+        target: repeatTimes,
+      },
+      {
+        pauseMs: Math.max(0, Math.round(playbackHelpers.playbackPauseSeconds * 1000)),
+        shadowingSpeeds: playbackHelpers.shadowingSpeeds,
+        getShadowingSpeeds,
+        shouldStop: () => loopTokenRef.current !== token,
+      }
     )
     if (!ok) {
       stopLoopPlayback(params)
@@ -327,15 +336,6 @@ export const useArticleToolbarLogic = ({
   onSelectSentenceRequired,
   stopPlayback,
 }: UseArticleToolbarParams) => {
-  const waitMs = React.useCallback(
-    (ms: number) =>
-      new Promise<void>((resolve) => {
-        if (!ms) return resolve()
-        setTimeout(resolve, ms)
-      }),
-    []
-  )
-
   const {
     isLoopingAll,
     isLoopingTarget,
@@ -398,49 +398,23 @@ export const useArticleToolbarLogic = ({
     ]
   )
 
-  const playWithShadowing = React.useCallback(
-    async (
-      params: PlaybackHelpersParams,
-      sentence: ToolbarPlaybackSentence,
-      role: "native" | "target",
-      repeatTimes: number,
-      token?: number
-    ) => {
-      const {
-        playbackPauseSeconds: pauseSeconds,
-        shadowingSpeeds: speedsInput,
-        shadowingLoopRef: shadowingRef,
-        loopTokenRef: tokenRef,
-        setSelectedSentenceId: setId,
-        setSelectedSentenceRole: setRole,
-        playSentenceRole: playRole,
-      } = params
-      const pauseMs = Math.max(0, Math.round(pauseSeconds * 1000))
-      const speeds =
-        shadowingRef.current && role === "target"
-          ? speedsInput.length > 0
-            ? speedsInput
-            : [1, 1, 1, 1]
-          : [1]
-      for (let i = 0; i < Math.max(1, repeatTimes); i += 1) {
-        for (const speed of speeds) {
-          if (token && tokenRef.current !== token) return false
-          setId(sentence.id)
-          setRole(role)
-          const ok = await playRole(
-            sentence,
-            role,
-            shadowingRef.current && role === "target" ? speed : undefined
-          )
-          if (!ok) return false
-          if (pauseMs > 0) {
-            await waitMs(pauseMs)
-          }
-        }
-      }
-      return true
+  const playbackEngine = React.useMemo(
+    () =>
+      new PlaybackEngine(async (sentence, role, speed) => {
+        setSelectedSentenceId(sentence.id)
+        setSelectedSentenceRole(role)
+        return playSentenceRole(sentence, role, speed)
+      }),
+    [playSentenceRole, setSelectedSentenceId, setSelectedSentenceRole]
+  )
+
+  const getShadowingSpeeds = React.useCallback(
+    (role: "native" | "target") => {
+      if (role !== "target") return [1]
+      if (!shadowingLoopRef.current) return [1]
+      return shadowingSpeeds.length > 0 ? shadowingSpeeds : [1, 1, 1, 1]
     },
-    [waitMs]
+    [shadowingSpeeds]
   )
 
   const prefetchAudio = React.useCallback(
@@ -496,9 +470,10 @@ export const useArticleToolbarLogic = ({
       userSelectedRef,
       loopTokenRef,
       shadowingLoopRef,
-      playWithShadowing,
       prefetchAudio,
       playbackHelpers,
+      playbackEngine,
+      getShadowingSpeeds,
     }),
     [
       detail,
@@ -517,9 +492,10 @@ export const useArticleToolbarLogic = ({
       userSelectedRef,
       loopTokenRef,
       shadowingLoopRef,
-      playWithShadowing,
       prefetchAudio,
       playbackHelpers,
+      playbackEngine,
+      getShadowingSpeeds,
     ]
   )
 
@@ -582,7 +558,20 @@ export const useArticleToolbarLogic = ({
       setSelectedSentenceId(targetSentence.id)
       setSelectedSentenceRole(role)
     }
-    const ok = await playWithShadowing(playbackHelpers, targetSentence, role, 1, token)
+    const ok = await playbackEngine.playSentence(
+      targetSentence,
+      [role],
+      {
+        native: 1,
+        target: 1,
+      },
+      {
+        pauseMs: Math.max(0, Math.round(playbackHelpers.playbackPauseSeconds * 1000)),
+        shadowingSpeeds: playbackHelpers.shadowingSpeeds,
+        getShadowingSpeeds,
+        shouldStop: () => loopTokenRef.current !== token,
+      }
+    )
     if (!ok) {
       stopLoopPlayback(loopParams)
       onPlayError()
@@ -605,7 +594,8 @@ export const useArticleToolbarLogic = ({
     setIsLoopingShadowing,
     onPlayError,
     playbackHelpers,
-    playWithShadowing,
+    playbackEngine,
+    getShadowingSpeeds,
     loopParams,
     loopTokenRef,
     shadowingLoopRef,

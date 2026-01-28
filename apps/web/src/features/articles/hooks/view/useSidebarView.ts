@@ -2,7 +2,7 @@ import * as React from "react"
 import { useNavigate } from "react-router-dom"
 import { useTranslation } from "react-i18next"
 
-import { useMobileMenu } from "./useMobileMenu"
+import { useMobileMenuActions } from "../../atoms/mobileMenu"
 import { useArticleDialogsActions } from "../../atoms/articleDialogs"
 import { useArticlesContext } from "../init/useInitArticles"
 import { useArticleCreateInputRef } from "../state/useArticleCreateInputState"
@@ -10,7 +10,7 @@ import { useArticleCreateInputRef } from "../state/useArticleCreateInputState"
 export const useSidebarView = () => {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const { closeMobileMenu } = useMobileMenu()
+  const { setMobileMenuOpen } = useMobileMenuActions()
   const { setBulkDeleteOpen } = useArticleDialogsActions()
   const { deleteTargets, deleteMutation, setIsCreating } = useArticlesContext()
   const inputRef = useArticleCreateInputRef()
@@ -19,8 +19,8 @@ export const useSidebarView = () => {
   const handleCreateClick = React.useCallback(() => {
     setIsCreating(true)
     inputRef?.current?.focus()
-    closeMobileMenu()
-  }, [closeMobileMenu, inputRef, setIsCreating])
+    setMobileMenuOpen(false)
+  }, [inputRef, setIsCreating, setMobileMenuOpen])
 
   const handleDeleteClick = React.useCallback(() => {
     if (deleteDisabled) return
@@ -31,9 +31,9 @@ export const useSidebarView = () => {
     (articleId: string) => {
       setIsCreating(false)
       navigate(`/articles/${articleId}`)
-      closeMobileMenu()
+      setMobileMenuOpen(false)
     },
-    [closeMobileMenu, navigate, setIsCreating]
+    [navigate, setIsCreating, setMobileMenuOpen]
   )
 
   return {

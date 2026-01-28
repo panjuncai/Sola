@@ -2,7 +2,6 @@
 export { useArticleListPageView } from "./hooks/view/useArticleListPageView"
 export { useSettingsDialogs } from "./hooks/init/useInitSettingsDialogs"
 export { useSettingsView } from "./hooks/view/useSettingsView"
-export { useToolbarView } from "./hooks/view/useToolbarView"
 export { ArticleContentView } from "./components/ArticleContentView"
 export { ArticlesDialogs } from "./components/ArticlesDialogs"
 export { ClearCacheDialogTitle, ClearCacheDialogDescription } from "./components/ArticleDialogStates"

@@ -1,7 +1,8 @@
-import { useMobileMenu } from "../../hooks/view/useMobileMenu"
+import { useMobileMenuApi } from "../../hooks/state/useMobileMenuState"
 
 export const MobileHeaderMenuButton = () => {
-  const { openMobileMenu } = useMobileMenu()
+  const { setMobileMenuOpen } = useMobileMenuApi()
+  const openMobileMenu = () => setMobileMenuOpen(true)
 
   return (
     <button

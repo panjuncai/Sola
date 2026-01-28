@@ -1,6 +1,6 @@
 import * as React from "react"
 
-import { useMobileMenu } from "../../hooks/view/useMobileMenu"
+import { useMobileMenuApi } from "../../hooks/state/useMobileMenuState"
 import { useSidebarPanelView } from "../../hooks/view/useSidebarPanelView"
 
 export const MobileHeaderSettingsButton = () => {
@@ -9,12 +9,12 @@ export const MobileHeaderSettingsButton = () => {
     toggleSettings,
     settingsButtonRef,
   } = useSidebarPanelView()
-  const { closeMobileMenu } = useMobileMenu()
+  const { setMobileMenuOpen } = useMobileMenuApi()
 
   const handleToggleSettings = React.useCallback(() => {
     toggleSettings()
-    closeMobileMenu()
-  }, [closeMobileMenu, toggleSettings])
+    setMobileMenuOpen(false)
+  }, [setMobileMenuOpen, toggleSettings])
 
   return (
     <button
