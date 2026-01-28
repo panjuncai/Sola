@@ -1,4 +1,4 @@
-import type { PlaybackMode, NextIndexStrategy } from "./scheduler.js"
+import type { PlaybackMode, NextIndexStrategy } from "./types.js"
 
 export const loopAllStrategy: NextIndexStrategy = (current, total) =>
   total <= 0 ? 0 : (current + 1) % total
