@@ -309,4 +309,71 @@ export default defineConfig([
       ],
     },
   },
+  {
+    files: ['../../packages/logic/src/**/*.{ts,tsx}'],
+    plugins: {
+      boundaries,
+    },
+    languageOptions: {
+      parserOptions: {
+        project: [path.join(repoRoot, 'packages/logic/tsconfig.json')],
+        tsconfigRootDir: repoRoot,
+      },
+    },
+    settings: {
+      'boundaries/elements': [
+        {
+          type: 'logicPkg',
+          pattern: '../../packages/logic/src/**',
+        },
+        {
+          type: 'sharedPkg',
+          pattern: '../../packages/shared/src/**',
+        },
+        {
+          type: 'uiPkg',
+          pattern: '../../packages/ui/src/**',
+        },
+        {
+          type: 'dbPkg',
+          pattern: '../../packages/db/src/**',
+        },
+        {
+          type: 'webApp',
+          pattern: '../../apps/web/src/**',
+        },
+      ],
+    },
+    rules: {
+      'boundaries/no-unknown': 'error',
+      'boundaries/element-types': [
+        'error',
+        {
+          default: 'disallow',
+          rules: [
+            {
+              from: ['logicPkg'],
+              allow: ['logicPkg', 'sharedPkg'],
+            },
+          ],
+        },
+      ],
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: [
+                '../../apps/web/**',
+                '../../packages/ui/**',
+                '../../packages/db/**',
+              ],
+              message:
+                'packages/logic must not import apps/web, packages/ui, or packages/db.',
+            },
+          ],
+        },
+      ],
+    },
+  },
 ])
