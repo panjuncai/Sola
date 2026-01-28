@@ -1,7 +1,7 @@
 import * as React from "react"
 import type { TFunction } from "i18next"
 
-import type { ArticleDetail, ArticleSentence } from "@sola/shared"
+import type { ArticleDetailResponse, ArticleSentence } from "@sola/shared"
 import { toast } from "@sola/ui"
 
 import { useQueryClient } from "@tanstack/react-query"
@@ -16,15 +16,10 @@ import { useClozePracticeActions } from "../../atoms/clozePractice"
 
 type UseSentenceOperationsParams = {
   t: TFunction<"translation">
-  detail: SentenceDetail | undefined
+  detail: ArticleDetailResponse | undefined
   stopLoopPlayback: () => void
   clearSentenceSelection: (sentenceId: string) => void
   clearSentenceCache: (sentenceId: string) => Promise<void> | void
-}
-
-type SentenceDetail = {
-  article: Pick<ArticleDetail, "id">
-  sentences: ArticleSentence[]
 }
 
 const useSentenceOperationsLogic = ({

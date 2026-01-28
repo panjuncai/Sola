@@ -1,7 +1,7 @@
 import * as React from "react"
 
 import { ArticleEntity, PlaybackEngine, buildRoleOrder } from "@sola/logic"
-import type { DisplayOrder } from "@sola/shared"
+import type { ArticleSentence, DisplayOrder } from "@sola/shared"
 
 import {
   useArticleToolbarActions,
@@ -9,11 +9,7 @@ import {
 } from "../../../atoms/articleToolbar"
 import { useCardModeActions } from "@/features/card-mode"
 
-type ToolbarPlaybackSentence = {
-  id: string
-  nativeText: string | null
-  targetText: string | null
-}
+type ToolbarPlaybackSentence = Pick<ArticleSentence, "id" | "nativeText" | "targetText">
 
 type LoopTokenRef = React.MutableRefObject<number>
 type ShadowingRef = React.MutableRefObject<boolean>

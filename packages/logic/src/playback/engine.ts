@@ -1,12 +1,8 @@
-import type { DisplayOrder } from "@sola/shared"
+import type { ArticleSentence, DisplayOrder } from "@sola/shared"
 
 export type PlaybackRole = "native" | "target"
 
-export type PlaybackSentence = {
-  id: string
-  nativeText: string | null
-  targetText: string | null
-}
+export type PlaybackSentence = Pick<ArticleSentence, "id" | "nativeText" | "targetText">
 
 export type PlaybackRepeat = {
   native: number

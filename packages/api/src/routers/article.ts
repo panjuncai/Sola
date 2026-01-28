@@ -5,11 +5,12 @@ import { z } from "zod"
 import fs from "node:fs"
 import path from "node:path"
 
-import {
-  deriveTitle,
-  splitArticleContent,
-  splitWordList,
-} from "@sola/logic"
+import { deriveTitle, splitArticleContent, splitWordList } from "@sola/logic"
+import type {
+  ArticleDetailResponse,
+  ArticleListItem,
+  ArticleSentence,
+} from "@sola/shared"
 
 import {
   db,
@@ -168,7 +169,7 @@ export const articleRouter = router({
       })
       .execute()
 
-    return rows.map((row) => ({
+    const result: ArticleListItem[] = rows.map((row) => ({
       id: row.id,
       title: row.title,
       sourceType: row.sourceType,
@@ -178,6 +179,7 @@ export const articleRouter = router({
       createdAt: toTimestamp(row.createdAt),
       updatedAt: toTimestamp(row.updatedAt),
     }))
+    return result
   }),
 
   get: publicProcedure.input(getArticleInput).query(async ({ input, ctx }) => {
@@ -206,7 +208,7 @@ export const articleRouter = router({
       })
       .execute()
 
-    return {
+    const result: ArticleDetailResponse = {
       article: {
         id: article.id,
         title: article.title,
@@ -218,7 +220,7 @@ export const articleRouter = router({
         createdAt: toTimestamp(article.createdAt),
         updatedAt: toTimestamp(article.updatedAt),
       },
-      sentences: sentences.map((row) => ({
+      sentences: sentences.map((row): ArticleSentence => ({
         id: row.id,
         orderIndex: row.orderIndex,
         paragraphIndex: row.paragraphIndex,
@@ -228,6 +230,7 @@ export const articleRouter = router({
         updatedAt: toTimestamp(row.updatedAt),
       })),
     }
+    return result
   }),
 
   deleteMany: publicProcedure.input(deleteManyInput).mutation(async ({ input, ctx }) => {

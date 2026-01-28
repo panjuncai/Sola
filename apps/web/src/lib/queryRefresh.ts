@@ -1,7 +1,7 @@
 import type { QueryClient } from "@tanstack/react-query"
+import type { TtsOptionsInput } from "@sola/shared"
 
 type ArticleGetInput = { articleId?: string }
-type TtsOptionsInput = { nativeLanguage: string; targetLanguage: string }
 
 export const refreshArticleList = (queryClient: QueryClient) =>
   queryClient.invalidateQueries({ queryKey: ["article.list"] })

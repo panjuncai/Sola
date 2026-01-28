@@ -14,6 +14,7 @@ import {
   users,
 } from "@sola/db"
 import { AI_INSTRUCTION_TYPES, AI_PROVIDER_TYPES } from "@sola/shared"
+import type { TtsOptionsResponse } from "@sola/shared"
 
 import { requireAuthSession } from "../auth-session.js"
 import { publicProcedure, router } from "../trpc.js"
@@ -52,7 +53,7 @@ const ttsVoiceOption = z.object({
   gender: z.string().nullable(),
 })
 
-const ttsOptionsOutput = z.object({
+const ttsOptionsOutput: z.ZodType<TtsOptionsResponse> = z.object({
   providerId: z.string(),
   providerType: z.string(),
   providerRegion: z.string().nullable(),

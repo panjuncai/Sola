@@ -1,28 +1,15 @@
 import * as React from "react"
 
-import type { ArticleDetail } from "@sola/shared"
+import type { ArticleDetailResponse, TtsOptionsResponse } from "@sola/shared"
 
 import { usePlaybackActions, usePlaybackState } from "../../atoms/playback"
 import { useTtsAudioProvider } from "../../providers/useTtsAudioProvider"
 
-type PlaybackDetail = {
-  article: Pick<ArticleDetail, "nativeLanguage" | "targetLanguage">
-}
-
-type TtsOptions =
-  | {
-      providerType: string
-      providerRegion?: string | null
-      nativeOptions: { id: string; voiceId: string }[]
-      targetOptions: { id: string; voiceId: string }[]
-    }
-  | undefined
-
 type UsePlaybackParams = {
   userId: string | null
   apiBaseUrl: string
-  detail: PlaybackDetail | null | undefined
-  ttsOptions: TtsOptions
+  detail: ArticleDetailResponse | null | undefined
+  ttsOptions: TtsOptionsResponse | undefined
   nativeVoiceId: string | null
   targetVoiceId: string | null
   sentenceAudioMutation: {

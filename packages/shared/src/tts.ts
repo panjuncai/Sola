@@ -10,6 +10,29 @@ export interface TtsCacheKeyInput {
 
 const TTS_CACHE_VERSION = "v2"
 
+export type TtsVoiceOption = {
+  id: string
+  name?: string | null
+  voiceId: string
+  lang: string
+  gender?: string | null
+}
+
+export type TtsOptionsResponse = {
+  providerId: string
+  providerType: string
+  providerRegion: string | null
+  nativeOptions: TtsVoiceOption[]
+  targetOptions: TtsVoiceOption[]
+  nativeVoiceId: string | null
+  targetVoiceId: string | null
+}
+
+export type TtsOptionsInput = {
+  nativeLanguage: string
+  targetLanguage: string
+}
+
 export function normalizeTtsSpeed(speed?: number | null) {
   const value = Number.isFinite(speed) ? Number(speed) : 1
   return value

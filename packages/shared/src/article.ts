@@ -27,4 +27,11 @@ export type ArticleSentence = {
   paragraphIndex: number
   targetText: string | null
   nativeText: string | null
+  createdAt?: number
+  updatedAt?: number
+}
+
+export type ArticleDetailResponse = {
+  article: ArticleDetail
+  sentences: ArticleSentence[]
 }

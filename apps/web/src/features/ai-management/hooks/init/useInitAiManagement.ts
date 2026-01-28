@@ -13,18 +13,13 @@ import {
   refreshAiProviders as refreshAiProvidersQuery,
   refreshArticleDetail as refreshArticleDetailQuery,
 } from "@/lib/queryRefresh"
-import type { ArticleDetail, ArticleSentence } from "@sola/shared"
+import type { ArticleDetailResponse } from "@sola/shared"
 import { useAiDialogsActions, useAiDialogsState } from "../../atoms/aiDialogs"
 import type { InstructionType } from "../../types"
 import {
   type AiInstruction,
   useAiManagementState as useAiManagementAtomState,
 } from "../../atoms/aiManagement"
-
-type ArticleDetailResponse = {
-  article: ArticleDetail
-  sentences: ArticleSentence[]
-}
 
 type UseAiManagementParams = {
   t: TFunction<"translation">

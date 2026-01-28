@@ -1,26 +1,11 @@
 import * as React from "react"
 
-import type { ArticleDetail, ArticleSentence } from "@sola/shared"
+import type { ArticleDetailResponse, ArticleSentence, TtsOptionsResponse } from "@sola/shared"
 
 import { buildCacheKey } from "../utils/tts"
 import { AudioPlayer } from "./audioPlayer"
 
 type PlaybackSentence = Pick<ArticleSentence, "id" | "nativeText" | "targetText">
-
-type VoiceOption = { id: string; voiceId: string }
-
-type PlaybackDetail = {
-  article: Pick<ArticleDetail, "nativeLanguage" | "targetLanguage">
-}
-
-type TtsOptions =
-  | {
-      providerType: string
-      providerRegion?: string | null
-      nativeOptions: VoiceOption[]
-      targetOptions: VoiceOption[]
-    }
-  | undefined
 
 type SentenceAudioMutation = {
   mutateAsync: (input: {
@@ -33,8 +18,8 @@ type SentenceAudioMutation = {
 type UseTtsAudioProviderParams = {
   userId: string | null
   apiBaseUrl: string
-  detail: PlaybackDetail | null | undefined
-  ttsOptions: TtsOptions
+  detail: ArticleDetailResponse | null | undefined
+  ttsOptions: TtsOptionsResponse | undefined
   nativeVoiceId: string | null
   targetVoiceId: string | null
   sentenceAudioMutation: SentenceAudioMutation

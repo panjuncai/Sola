@@ -1,20 +1,16 @@
-import type { DisplayOrder } from "@sola/shared"
+import type { ArticleDetail, ArticleSentence, DisplayOrder } from "@sola/shared"
 
 import { deriveTitle } from "./content-parser.js"
 
 export type SentenceRole = "native" | "target"
 
-export type SentenceLike = {
-  id: string
-  nativeText: string | null
-  targetText: string | null
-}
+export type SentenceLike = Pick<ArticleSentence, "id" | "nativeText" | "targetText">
 
 export type ArticleLike = {
-  id: string
-  title?: string | null
-  content?: string | null
-  displayOrder?: DisplayOrder | string | null
+  id: ArticleDetail["id"]
+  title?: ArticleDetail["title"]
+  content?: ArticleDetail["content"]
+  displayOrder?: ArticleDetail["displayOrder"] | DisplayOrder | null
 }
 
 const roleOrder = (displayOrder: DisplayOrder): SentenceRole[] =>
