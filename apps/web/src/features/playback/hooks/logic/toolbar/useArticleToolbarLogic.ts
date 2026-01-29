@@ -8,6 +8,7 @@ import {
   useArticleToolbarActions,
   useArticleToolbarState,
 } from "../../../atoms/articleToolbar"
+import { usePlaybackActions, usePlaybackState } from "../../../atoms/playback"
 import { useCardModeActions } from "@/features/card-mode"
 
 type ToolbarPlaybackSentence = Pick<ArticleSentence, "id" | "nativeText" | "targetText">
@@ -82,6 +83,8 @@ export const useArticleToolbarLogic = ({
     setIsClozeEnabled,
   } = useArticleToolbarActions()
   const { setIsCardMode } = useCardModeActions()
+  const { setPlayingSentenceId, setPlayingRole, setPlayingSpeed } = usePlaybackActions()
+  const { playingSentenceId, playingRole } = usePlaybackState()
 
   const firstRoleOverrideRef = React.useRef(false)
 
@@ -174,6 +177,18 @@ export const useArticleToolbarLogic = ({
 
   React.useEffect(() => {
     return scheduler.subscribe((snapshot) => {
+      if (snapshot.status === "idle") {
+        if (playingSentenceId !== null) setPlayingSentenceId(null)
+        if (playingRole !== null) setPlayingRole(null)
+        setPlayingSpeed(null)
+      } else {
+        if (snapshot.currentSentenceId !== playingSentenceId) {
+          setPlayingSentenceId(snapshot.currentSentenceId)
+        }
+        if (snapshot.currentRole !== playingRole) {
+          setPlayingRole(snapshot.currentRole)
+        }
+      }
       if (snapshot.currentSentenceId !== selectedSentenceId) {
         setSelectedSentenceId(snapshot.currentSentenceId)
       }
@@ -182,9 +197,14 @@ export const useArticleToolbarLogic = ({
       }
     })
   }, [
+    playingRole,
+    playingSentenceId,
     scheduler,
     selectedSentenceId,
     selectedSentenceRole,
+    setPlayingRole,
+    setPlayingSentenceId,
+    setPlayingSpeed,
     setSelectedSentenceId,
     setSelectedSentenceRole,
   ])
