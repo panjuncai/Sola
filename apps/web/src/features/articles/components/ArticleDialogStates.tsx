@@ -1,15 +1,5 @@
 import { useTranslation } from "react-i18next"
 
-export const DeleteAccountDialogTitle = () => {
-  const { t } = useTranslation()
-  return <>{t("settings.deleteAccountTitle")}</>
-}
-
-export const DeleteAccountDialogDescription = () => {
-  const { t } = useTranslation()
-  return <>{t("settings.deleteAccountDesc")}</>
-}
-
 export const ArticleBulkDeleteDialogTitle = () => {
   const { t } = useTranslation()
   return <>{t("article.confirmDeleteTitle")}</>
