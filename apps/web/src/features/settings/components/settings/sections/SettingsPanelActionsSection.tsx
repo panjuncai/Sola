@@ -1,4 +1,4 @@
-import { useSidebarPanelView } from "../../../hooks/view/useSidebarPanelView"
+import { useSidebarPanelView } from "../../../../articles/hooks/view/useSidebarPanelView"
 import { SettingsPanelActions } from "../SettingsPanelActions"
 
 export const SettingsPanelActionsSection = () => {

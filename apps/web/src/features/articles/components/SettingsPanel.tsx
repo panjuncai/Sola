@@ -1,10 +1,10 @@
 import { useSidebarPanelView } from "../hooks/view/useSidebarPanelView"
 
-import { SettingsPanelActionsSection } from "./settings/sections/SettingsPanelActionsSection"
-import { SettingsPanelAiSection } from "./settings/sections/SettingsPanelAiSection"
-import { SettingsPanelAppearanceSection } from "./settings/sections/SettingsPanelAppearanceSection"
-import { SettingsPanelLanguageSection } from "./settings/sections/SettingsPanelLanguageSection"
-import { SettingsPanelPlaybackSection } from "./settings/sections/SettingsPanelPlaybackSection"
+import { SettingsPanelActionsSection } from "../../settings/components/settings/sections/SettingsPanelActionsSection"
+import { SettingsPanelAiSection } from "../../settings/components/settings/sections/SettingsPanelAiSection"
+import { SettingsPanelAppearanceSection } from "../../settings/components/settings/sections/SettingsPanelAppearanceSection"
+import { SettingsPanelLanguageSection } from "../../settings/components/settings/sections/SettingsPanelLanguageSection"
+import { SettingsPanelPlaybackSection } from "../../settings/components/settings/sections/SettingsPanelPlaybackSection"
 
 type SettingsPanelProps = {
   className?: string

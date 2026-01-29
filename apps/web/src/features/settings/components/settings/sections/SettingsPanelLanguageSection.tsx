@@ -2,7 +2,7 @@ import type { DisplayOrder, LanguageOption } from "@sola/shared"
 
 import { Button } from "@sola/ui"
 
-import { useSidebarPanelView } from "../../../hooks/view/useSidebarPanelView"
+import { useSidebarPanelView } from "../../../../articles/hooks/view/useSidebarPanelView"
 import { SettingsPanelRow } from "../SettingsPanelRow"
 
 export const SettingsPanelLanguageSection = () => {
