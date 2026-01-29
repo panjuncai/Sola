@@ -2,7 +2,7 @@ import { atom, useAtomValue, useSetAtom } from "jotai"
 
 const mobileMenuOpenAtom = atom<boolean>(false)
 
-export const useMobileMenuState = () => ({
+const useMobileMenuState = () => ({
   mobileMenuOpen: useAtomValue(mobileMenuOpenAtom),
 })
 

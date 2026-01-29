@@ -1,5 +1,1 @@
-export {
-  useMobileMenuActions,
-  useMobileMenuState,
-  useMobileMenuApi,
-} from "../../atoms/mobileMenu"
+export { useMobileMenuApi } from "../../atoms/mobileMenu"

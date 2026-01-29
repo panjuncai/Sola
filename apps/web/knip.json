@@ -1,3 +1,3 @@
 {
-  "ignoreDependencies": ["@sola/api", "@sola/shared", "@sola/ui"]
+  "ignoreDependencies": ["@sola/api", "@sola/shared", "@sola/ui", "@sola/logic"]
 }

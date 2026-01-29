@@ -20,10 +20,10 @@ export const refreshArticleDetail = (
 export const refreshAiProviders = (queryClient: QueryClient) =>
   queryClient.invalidateQueries({ queryKey: ["user.getAiProviders"] })
 
-export const refreshUserAiInstructions = (queryClient: QueryClient) =>
+const refreshUserAiInstructions = (queryClient: QueryClient) =>
   queryClient.invalidateQueries({ queryKey: ["user.getUserAiInstructions"] })
 
-export const refreshPublicAiInstructions = (queryClient: QueryClient) =>
+const refreshPublicAiInstructions = (queryClient: QueryClient) =>
   queryClient.invalidateQueries({ queryKey: ["user.getPublicAiInstructions"] })
 
 export const refreshAiInstructions = (queryClient: QueryClient) =>
