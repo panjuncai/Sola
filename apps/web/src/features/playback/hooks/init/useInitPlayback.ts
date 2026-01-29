@@ -85,6 +85,22 @@ const usePlaybackLogic = ({
     [onPlayError, playSentenceRole]
   )
 
+  const getCachedAudioUrlRef = React.useRef(getCachedAudioUrl)
+  const setCachedAudioUrlRef = React.useRef(setCachedAudioUrl)
+  const sentenceAudioMutationRef = React.useRef(sentenceAudioMutation)
+
+  React.useEffect(() => {
+    getCachedAudioUrlRef.current = getCachedAudioUrl
+  }, [getCachedAudioUrl])
+
+  React.useEffect(() => {
+    setCachedAudioUrlRef.current = setCachedAudioUrl
+  }, [setCachedAudioUrl])
+
+  React.useEffect(() => {
+    sentenceAudioMutationRef.current = sentenceAudioMutation
+  }, [sentenceAudioMutation])
+
   const [audioProvider, setAudioProvider] = React.useState(
     () =>
       new WebAudioProvider({
@@ -101,33 +117,47 @@ const usePlaybackLogic = ({
       })
   )
 
+  const providerKey = React.useMemo(
+    () =>
+      [
+        userId ?? "anon",
+        apiBaseUrl,
+        detail?.article?.id ?? "no-article",
+        nativeVoiceId ?? "no-native",
+        targetVoiceId ?? "no-target",
+        ttsOptions?.providerType ?? "no-provider",
+        ttsOptions?.providerRegion ?? "no-region",
+      ].join("|"),
+    [
+      apiBaseUrl,
+      detail?.article?.id,
+      nativeVoiceId,
+      targetVoiceId,
+      ttsOptions?.providerRegion,
+      ttsOptions?.providerType,
+      userId,
+    ]
+  )
+
   React.useEffect(() => {
     setAudioProvider(
       new WebAudioProvider({
-      userId,
-      apiBaseUrl,
-      detail,
-      nativeVoiceId,
-      targetVoiceId,
-      providerType: ttsOptions?.providerType,
-      providerRegion: ttsOptions?.providerRegion,
-      sentenceAudioMutation,
-      getCachedAudioUrl,
-      setCachedAudioUrl,
+        userId,
+        apiBaseUrl,
+        detail,
+        nativeVoiceId,
+        targetVoiceId,
+        providerType: ttsOptions?.providerType,
+        providerRegion: ttsOptions?.providerRegion,
+        sentenceAudioMutation: {
+          mutateAsync: (...args) =>
+            sentenceAudioMutationRef.current.mutateAsync(...args),
+        },
+        getCachedAudioUrl: (...args) => getCachedAudioUrlRef.current(...args),
+        setCachedAudioUrl: (...args) => setCachedAudioUrlRef.current(...args),
       })
     )
-  }, [
-    apiBaseUrl,
-    detail,
-    getCachedAudioUrl,
-    nativeVoiceId,
-    sentenceAudioMutation,
-    setCachedAudioUrl,
-    targetVoiceId,
-    ttsOptions?.providerRegion,
-    ttsOptions?.providerType,
-    userId,
-  ])
+  }, [providerKey])
 
   return {
     playingSentenceId,
