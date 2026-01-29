@@ -95,13 +95,11 @@ export const useArticleListPageView = () => {
     onPlayError: handlePlayError,
   })
   const {
-    buildLocalCacheKey,
-    getCachedAudioUrl,
-    setCachedAudioUrl,
     playSentenceRole,
     stopPlayback,
     clearSentenceCache,
     clearPlaybackForSentence,
+    audioProvider,
   } = playback
 
   const clearSentenceSelection = React.useCallback(
@@ -120,11 +118,6 @@ export const useArticleListPageView = () => {
     ]
   )
 
-  const requestSentenceAudio = React.useCallback(
-    (input: { sentenceId: string; role: "native" | "target" }) =>
-      sentenceAudioMutation.mutateAsync(input),
-    [sentenceAudioMutation]
-  )
 
   const articleToolbar = useInitArticleToolbar({
     detail: detailQuery.data,
@@ -138,10 +131,7 @@ export const useArticleListPageView = () => {
     setSelectedSentenceId,
     setSelectedSentenceRole,
     playSentenceRole,
-    buildLocalCacheKey,
-    getCachedAudioUrl,
-    setCachedAudioUrl,
-    requestSentenceAudio,
+    audioProvider,
     onPlayError: handlePlayError,
     onSelectSentenceRequired: () => toast.error(t("tts.selectSentenceFirst")),
     stopPlayback,

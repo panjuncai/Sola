@@ -43,13 +43,7 @@ export type UseArticleToolbarParams = {
     role: "native" | "target",
     speed?: number
   ) => Promise<boolean>
-  buildLocalCacheKey: (sentenceId: string, role: "native" | "target") => string | null
-  getCachedAudioUrl: (cacheKey: string) => string | undefined
-  setCachedAudioUrl: (cacheKey: string, url: string) => void
-  requestSentenceAudio: (input: {
-    sentenceId: string
-    role: "native" | "target"
-  }) => Promise<{ cacheKey: string; url: string }>
+  audioProvider: AudioSourceProvider
   onPlayError: () => void
   onSelectSentenceRequired: () => void
   stopPlayback: () => void
@@ -67,10 +61,7 @@ export const useArticleToolbarLogic = ({
   setSelectedSentenceId,
   setSelectedSentenceRole,
   playSentenceRole,
-  buildLocalCacheKey,
-  getCachedAudioUrl,
-  setCachedAudioUrl,
-  requestSentenceAudio,
+  audioProvider: injectedAudioProvider,
   onPlayError,
   onSelectSentenceRequired,
   stopPlayback,
@@ -122,32 +113,7 @@ export const useArticleToolbarLogic = ({
     [isLoopingShadowing, shadowingSpeeds]
   )
 
-  const prefetchAudio = React.useCallback(
-    (sentence: ToolbarPlaybackSentence, role: "native" | "target") => {
-      const text = role === "native" ? sentence.nativeText ?? "" : sentence.targetText ?? ""
-      if (!text) return
-      const cacheKey = buildLocalCacheKey(sentence.id, role)
-      if (cacheKey) {
-        const cached = getCachedAudioUrl(cacheKey)
-        if (cached) return
-      }
-      requestSentenceAudio({ sentenceId: sentence.id, role })
-        .then((result) => {
-          setCachedAudioUrl(result.cacheKey, result.url)
-        })
-        .catch(() => {})
-    },
-    [buildLocalCacheKey, getCachedAudioUrl, requestSentenceAudio, setCachedAudioUrl]
-  )
-
-  const prefetchAudioRef = React.useRef(prefetchAudio)
-  React.useEffect(() => {
-    prefetchAudioRef.current = prefetchAudio
-  }, [prefetchAudio])
-
-  const [audioProvider] = React.useState<AudioSourceProvider>(() => ({
-    prefetch: (sentence, role) => prefetchAudioRef.current(sentence, role),
-  }))
+  // prefetch is handled by injected provider (AudioSourceProvider)
 
   const [scheduler] = React.useState(
     () =>
@@ -158,7 +124,7 @@ export const useArticleToolbarLogic = ({
           target: playbackTargetRepeat,
         },
         getShadowingSpeeds,
-        audioProvider,
+        audioProvider: injectedAudioProvider,
         prefetchCount: 5,
         onError: onPlayError,
         errorPolicy: "stop",
@@ -173,13 +139,13 @@ export const useArticleToolbarLogic = ({
         target: playbackTargetRepeat,
       },
       getShadowingSpeeds,
-      audioProvider,
+      audioProvider: injectedAudioProvider,
       onError: onPlayError,
       errorPolicy: "stop",
     })
   }, [
-    audioProvider,
     getShadowingSpeeds,
+    injectedAudioProvider,
     onPlayError,
     playbackNativeRepeat,
     playbackPauseSeconds,

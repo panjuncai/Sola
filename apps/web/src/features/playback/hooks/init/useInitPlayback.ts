@@ -4,6 +4,7 @@ import type { ArticleDetailResponse, TtsOptionsResponse } from "@sola/shared"
 
 import { usePlaybackActions, usePlaybackState } from "../../atoms/playback"
 import { useTtsAudioProvider } from "../../providers/useTtsAudioProvider"
+import { WebAudioProvider } from "../../providers/WebAudioProvider"
 
 type UsePlaybackParams = {
   userId: string | null
@@ -44,6 +45,7 @@ const usePlaybackLogic = ({
     clearSentenceCache,
     stopAudioPlayback,
     playSentenceRole,
+    requestSentenceAudio,
   } = useTtsAudioProvider({
     userId,
     apiBaseUrl,
@@ -83,6 +85,50 @@ const usePlaybackLogic = ({
     [onPlayError, playSentenceRole]
   )
 
+  const [audioProvider, setAudioProvider] = React.useState(
+    () =>
+      new WebAudioProvider({
+        userId,
+        apiBaseUrl,
+        detail,
+        nativeVoiceId,
+        targetVoiceId,
+        providerType: ttsOptions?.providerType,
+        providerRegion: ttsOptions?.providerRegion,
+        sentenceAudioMutation,
+        getCachedAudioUrl,
+        setCachedAudioUrl,
+      })
+  )
+
+  React.useEffect(() => {
+    setAudioProvider(
+      new WebAudioProvider({
+      userId,
+      apiBaseUrl,
+      detail,
+      nativeVoiceId,
+      targetVoiceId,
+      providerType: ttsOptions?.providerType,
+      providerRegion: ttsOptions?.providerRegion,
+      sentenceAudioMutation,
+      getCachedAudioUrl,
+      setCachedAudioUrl,
+      })
+    )
+  }, [
+    apiBaseUrl,
+    detail,
+    getCachedAudioUrl,
+    nativeVoiceId,
+    sentenceAudioMutation,
+    setCachedAudioUrl,
+    targetVoiceId,
+    ttsOptions?.providerRegion,
+    ttsOptions?.providerType,
+    userId,
+  ])
+
   return {
     playingSentenceId,
     stopPlayback,
@@ -93,6 +139,8 @@ const usePlaybackLogic = ({
     getCachedAudioUrl,
     setCachedAudioUrl,
     buildLocalCacheKey,
+    requestSentenceAudio,
+    audioProvider,
   }
 }
 
