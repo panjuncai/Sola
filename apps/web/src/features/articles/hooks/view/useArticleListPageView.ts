@@ -127,7 +127,6 @@ export const useArticleListPageView = () => {
 
   const articleToolbar = useInitArticleToolbar({
     detail: detailQuery.data,
-    activeArticleId,
     displayOrderSetting,
     playbackNativeRepeat,
     playbackTargetRepeat,

@@ -1,4 +1,5 @@
 import type { PlaybackEngine, PlaybackRole, PlaybackSentence, PlaybackRepeat } from "./engine.js"
+import type { AudioSourceProvider } from "./providers.js"
 import { getStrategyForMode } from "./strategies.js"
 import type {
   NextIndexStrategy,
@@ -12,10 +13,23 @@ export type PlaybackSchedulerOptions = {
   repeats: PlaybackRepeat
   getShadowingSpeeds?: (role: PlaybackRole) => number[]
   shouldStop?: () => boolean
+  getRoleOrder?: (
+    sentence: PlaybackSentence,
+    index: number,
+    total: number,
+    baseOrder: PlaybackRole[]
+  ) => PlaybackRole[]
+  getPrefetchRoles?: (
+    sentence: PlaybackSentence,
+    index: number,
+    total: number,
+    baseOrder: PlaybackRole[]
+  ) => PlaybackRole[]
+  audioProvider?: AudioSourceProvider
+  prefetchCount?: number
   onSentenceChange?: (sentenceId: string) => void
   onRoleChange?: (role: PlaybackRole | null) => void
   onStatusChange?: (status: SchedulerStatus) => void
-  prefetchNext?: (sentence: PlaybackSentence) => void
   nextIndex?: NextIndexStrategy
 }
 
@@ -85,6 +99,12 @@ export class PlaybackScheduler {
     await this.runLoop(roleOrder, runId)
   }
 
+  async playSingle(sentence: PlaybackSentence, role: PlaybackRole, mode: PlaybackMode) {
+    this.setMode(mode)
+    this.loadPlaylist([sentence], 0)
+    await this.start([role])
+  }
+
   stop() {
     this.status = "idle"
     this.currentRole = null
@@ -136,11 +156,14 @@ export class PlaybackScheduler {
         this.stop()
         return
       }
+      const roles =
+        this.options.getRoleOrder?.(sentence, this.currentIndex, this.queue.length, roleOrder) ??
+        roleOrder
       this.options.onSentenceChange?.(sentence.id)
-      this.options.prefetchNext?.(sentence)
+      this.prefetchUpcoming(sentence, roles)
       this.emit()
 
-      for (const role of roleOrder) {
+      for (const role of roles) {
         if (this.status !== "playing" || this.runId !== runId) return
         this.currentRole = role
         this.options.onRoleChange?.(role)
@@ -169,6 +192,24 @@ export class PlaybackScheduler {
       if (this.options.shouldStop?.()) {
         this.stop()
         return
+      }
+    }
+  }
+
+  private prefetchUpcoming(sentence: PlaybackSentence, baseOrder: PlaybackRole[]) {
+    const provider = this.options.audioProvider
+    if (!provider) return
+    const total = this.queue.length
+    const count = Math.max(0, this.options.prefetchCount ?? 5)
+    if (count === 0) return
+    const roles =
+      this.options.getPrefetchRoles?.(sentence, this.currentIndex, total, baseOrder) ?? baseOrder
+    for (let offset = 1; offset <= count; offset += 1) {
+      const index = (this.currentIndex + offset) % total
+      const nextSentence = this.queue[index]
+      if (!nextSentence) continue
+      for (const role of roles) {
+        provider.prefetch(nextSentence, role)
       }
     }
   }
