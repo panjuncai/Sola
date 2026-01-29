@@ -1,9 +1,9 @@
 import type { PlaybackEngine, PlaybackRole, PlaybackSentence, PlaybackRepeat } from "./engine.js"
 import type { AudioSourceProvider } from "./providers.js"
-import { getStrategyForMode } from "./strategies.js"
+import { getPlaybackStrategyForMode } from "./strategies.js"
 import type {
-  NextIndexStrategy,
   PlaybackMode,
+  PlaybackStrategy,
   SchedulerSnapshot,
   SchedulerStatus,
 } from "./types.js"
@@ -13,18 +13,6 @@ export type PlaybackSchedulerOptions = {
   repeats: PlaybackRepeat
   getShadowingSpeeds?: (role: PlaybackRole) => number[]
   shouldStop?: () => boolean
-  getRoleOrder?: (
-    sentence: PlaybackSentence,
-    index: number,
-    total: number,
-    baseOrder: PlaybackRole[]
-  ) => PlaybackRole[]
-  getPrefetchRoles?: (
-    sentence: PlaybackSentence,
-    index: number,
-    total: number,
-    baseOrder: PlaybackRole[]
-  ) => PlaybackRole[]
   audioProvider?: AudioSourceProvider
   prefetchCount?: number
   onSentenceChange?: (sentenceId: string) => void
@@ -32,13 +20,12 @@ export type PlaybackSchedulerOptions = {
   onStatusChange?: (status: SchedulerStatus) => void
   onError?: (error: unknown) => void
   errorPolicy?: "stop" | "skip"
-  nextIndex?: NextIndexStrategy
 }
 
 export class PlaybackScheduler {
   private readonly engine: PlaybackEngine
   private readonly options: PlaybackSchedulerOptions
-  private nextIndex: NextIndexStrategy
+  private strategy: PlaybackStrategy
   private queue: PlaybackSentence[] = []
   private currentIndex = 0
   private status: SchedulerStatus = "idle"
@@ -50,7 +37,7 @@ export class PlaybackScheduler {
   constructor(engine: PlaybackEngine, options: PlaybackSchedulerOptions) {
     this.engine = engine
     this.options = options
-    this.nextIndex = options.nextIndex ?? getStrategyForMode("loop-all")
+    this.strategy = getPlaybackStrategyForMode("loop-all")
   }
 
   loadPlaylist(sentences: PlaybackSentence[], startIndex = 0) {
@@ -61,15 +48,12 @@ export class PlaybackScheduler {
 
   setMode(mode: PlaybackMode) {
     this.mode = mode
-    this.nextIndex = getStrategyForMode(mode)
+    this.strategy = getPlaybackStrategyForMode(mode)
     this.emit()
   }
 
   updateOptions(next: Partial<PlaybackSchedulerOptions>) {
     Object.assign(this.options, next)
-    if (next.nextIndex) {
-      this.nextIndex = next.nextIndex
-    }
   }
 
   getSnapshot(): SchedulerSnapshot {
@@ -136,7 +120,7 @@ export class PlaybackScheduler {
       this.emit()
       return
     }
-    this.currentIndex = this.nextIndex(this.currentIndex, total)
+    this.currentIndex = this.strategy.nextIndex(this.currentIndex, total)
     this.emit()
   }
 
@@ -158,9 +142,7 @@ export class PlaybackScheduler {
         this.stop()
         return
       }
-      const roles =
-        this.options.getRoleOrder?.(sentence, this.currentIndex, this.queue.length, roleOrder) ??
-        roleOrder
+      const roles = this.strategy.getRoleOrder(roleOrder)
       this.options.onSentenceChange?.(sentence.id)
       this.prefetchUpcoming(sentence, roles)
       this.emit()
@@ -211,14 +193,13 @@ export class PlaybackScheduler {
     }
   }
 
-  private prefetchUpcoming(sentence: PlaybackSentence, baseOrder: PlaybackRole[]) {
+  private prefetchUpcoming(_sentence: PlaybackSentence, baseOrder: PlaybackRole[]) {
     const provider = this.options.audioProvider
     if (!provider) return
     const total = this.queue.length
     const count = Math.max(0, this.options.prefetchCount ?? 5)
     if (count === 0) return
-    const roles =
-      this.options.getPrefetchRoles?.(sentence, this.currentIndex, total, baseOrder) ?? baseOrder
+    const roles = baseOrder
     for (let offset = 1; offset <= count; offset += 1) {
       const index = (this.currentIndex + offset) % total
       const nextSentence = this.queue[index]

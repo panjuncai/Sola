@@ -1,4 +1,4 @@
-import type { PlaybackMode, NextIndexStrategy } from "./types.js"
+import type { PlaybackMode, NextIndexStrategy, PlaybackStrategy } from "./types.js"
 
 export const loopAllStrategy: NextIndexStrategy = (current, total) =>
   total <= 0 ? 0 : (current + 1) % total
@@ -31,3 +31,29 @@ export const getStrategyForMode = (mode: PlaybackMode): NextIndexStrategy => {
       return loopAllStrategy
   }
 }
+
+export const playbackStrategies: Record<PlaybackMode, PlaybackStrategy> = {
+  "loop-all": {
+    nextIndex: loopAllStrategy,
+    getRoleOrder: (baseOrder) => baseOrder,
+  },
+  "loop-target": {
+    nextIndex: loopTargetStrategy,
+    getRoleOrder: () => ["target"],
+  },
+  single: {
+    nextIndex: loopSingleStrategy,
+    getRoleOrder: (baseOrder) => baseOrder,
+  },
+  shadowing: {
+    nextIndex: loopAllStrategy,
+    getRoleOrder: (baseOrder) => baseOrder,
+  },
+  random: {
+    nextIndex: randomStrategy,
+    getRoleOrder: (baseOrder) => baseOrder,
+  },
+}
+
+export const getPlaybackStrategyForMode = (mode: PlaybackMode): PlaybackStrategy =>
+  playbackStrategies[mode] ?? playbackStrategies["loop-all"]

@@ -1,6 +1,12 @@
 import * as React from "react"
 
-import { ArticleEntity, PlaybackEngine, PlaybackScheduler, buildRoleOrder } from "@sola/logic"
+import {
+  ArticleEntity,
+  PlaybackEngine,
+  PlaybackScheduler,
+  buildRoleOrder,
+  type PlayRole,
+} from "@sola/logic"
 import type { AudioSourceProvider } from "@sola/logic"
 import type { ArticleSentence } from "@sola/shared"
 
@@ -12,6 +18,9 @@ import { usePlaybackActions, usePlaybackState } from "../../../atoms/playback"
 import { useCardModeActions } from "@/features/card-mode"
 
 type ToolbarPlaybackSentence = Pick<ArticleSentence, "id" | "nativeText" | "targetText">
+
+const noopPlayRole: PlayRole = async () => false
+let playSentenceRoleLatest: PlayRole = noopPlayRole
 
 export type UseArticleToolbarParams = {
   detail:
@@ -86,18 +95,22 @@ export const useArticleToolbarLogic = ({
   const { setPlayingSentenceId, setPlayingRole, setPlayingSpeed } = usePlaybackActions()
   const { playingSentenceId, playingRole } = usePlaybackState()
 
-  const firstRoleOverrideRef = React.useRef(false)
 
   const markUserSelected = React.useCallback(() => {
     // selection is tracked by state; no-op keeps API stable
   }, [])
 
-  const playbackEngine = React.useMemo(
-    () =>
-      new PlaybackEngine(async (sentence, role, speed) =>
-        playSentenceRole(sentence, role, speed)
-      ),
-    [playSentenceRole]
+  React.useEffect(() => {
+    playSentenceRoleLatest = playSentenceRole
+  }, [playSentenceRole])
+
+  const playSentenceRoleProxy = React.useCallback<PlayRole>(
+    (sentence, role, speed) => playSentenceRoleLatest(sentence, role, speed),
+    []
+  )
+
+  const [playbackEngine] = React.useState(
+    () => new PlaybackEngine(playSentenceRoleProxy)
   )
 
   const getShadowingSpeeds = React.useCallback(
@@ -127,14 +140,16 @@ export const useArticleToolbarLogic = ({
     [buildLocalCacheKey, getCachedAudioUrl, requestSentenceAudio, setCachedAudioUrl]
   )
 
-  const audioProvider = React.useMemo<AudioSourceProvider>(
-    () => ({
-      prefetch: prefetchAudio,
-    }),
-    [prefetchAudio]
-  )
+  const prefetchAudioRef = React.useRef(prefetchAudio)
+  React.useEffect(() => {
+    prefetchAudioRef.current = prefetchAudio
+  }, [prefetchAudio])
 
-  const scheduler = React.useMemo(
+  const [audioProvider] = React.useState<AudioSourceProvider>(() => ({
+    prefetch: (sentence, role) => prefetchAudioRef.current(sentence, role),
+  }))
+
+  const [scheduler] = React.useState(
     () =>
       new PlaybackScheduler(playbackEngine, {
         pauseMs: Math.max(0, Math.round(playbackPauseSeconds * 1000)),
@@ -147,16 +162,7 @@ export const useArticleToolbarLogic = ({
         prefetchCount: 5,
         onError: onPlayError,
         errorPolicy: "stop",
-      }),
-    [
-      audioProvider,
-      getShadowingSpeeds,
-      onPlayError,
-      playbackEngine,
-      playbackNativeRepeat,
-      playbackPauseSeconds,
-      playbackTargetRepeat,
-    ]
+      })
   )
 
   React.useEffect(() => {
@@ -180,6 +186,8 @@ export const useArticleToolbarLogic = ({
     playbackTargetRepeat,
     scheduler,
   ])
+
+  React.useEffect(() => () => scheduler.stop(), [scheduler])
 
   React.useEffect(() => {
     return scheduler.subscribe((snapshot) => {
@@ -248,26 +256,6 @@ export const useArticleToolbarLogic = ({
         ? Math.max(0, sentences.findIndex((sentence) => sentence.id === selectedSentenceId))
         : 0
     const order = buildRoleOrder(displayOrderSetting)
-    firstRoleOverrideRef.current = true
-    scheduler.updateOptions({
-      getRoleOrder: (_sentence, index, _total, baseOrder) => {
-        if (
-          firstRoleOverrideRef.current &&
-          index === startIndex &&
-          selectedSentenceRole
-        ) {
-          firstRoleOverrideRef.current = false
-          return selectedSentenceRole === "target"
-            ? ["target"]
-            : [
-                selectedSentenceRole,
-                ...baseOrder.filter((role) => role !== selectedSentenceRole),
-              ]
-        }
-        return baseOrder
-      },
-      getPrefetchRoles: (_sentence, _index, _total, baseOrder) => baseOrder,
-    })
     scheduler.setMode("loop-all")
     scheduler.loadPlaylist(sentences, startIndex)
     scheduler.start(order)
@@ -278,7 +266,6 @@ export const useArticleToolbarLogic = ({
     onPlayError,
     scheduler,
     selectedSentenceId,
-    selectedSentenceRole,
     setIsLoopingAll,
     stopLoopPlayback,
   ])
@@ -299,10 +286,6 @@ export const useArticleToolbarLogic = ({
       selectedSentenceId != null
         ? Math.max(0, sentences.findIndex((sentence) => sentence.id === selectedSentenceId))
         : 0
-    scheduler.updateOptions({
-      getRoleOrder: () => ["target"],
-      getPrefetchRoles: () => ["target"],
-    })
     scheduler.setMode("loop-target")
     scheduler.loadPlaylist(sentences, startIndex)
     scheduler.start(["target"])
@@ -325,10 +308,6 @@ export const useArticleToolbarLogic = ({
     }
     const sentence = detail.sentences.find((item) => item.id === selectedSentenceId)
     if (!sentence) return
-    scheduler.updateOptions({
-      getRoleOrder: () => [selectedSentenceRole],
-      getPrefetchRoles: () => [selectedSentenceRole],
-    })
     scheduler.playSingle(sentence, selectedSentenceRole, "single")
     setIsLoopingSingle(true)
   }, [
@@ -375,10 +354,6 @@ export const useArticleToolbarLogic = ({
         ? "target"
         : (selectedSentenceRole ?? "target")
     setIsLoopingShadowing(true)
-    scheduler.updateOptions({
-      getRoleOrder: () => [role],
-      getPrefetchRoles: () => [role],
-    })
     scheduler.playSingle(targetSentence, role, "shadowing")
   }, [
     detail,

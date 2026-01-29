@@ -12,3 +12,8 @@ export type SchedulerSnapshot = {
 }
 
 export type NextIndexStrategy = (current: number, total: number) => number
+
+export type PlaybackStrategy = {
+  nextIndex: NextIndexStrategy
+  getRoleOrder: (baseOrder: PlaybackRole[]) => PlaybackRole[]
+}
