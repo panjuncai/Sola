@@ -20,6 +20,7 @@ type UsePlaybackParams = {
     }) => Promise<{ cacheKey: string; url: string }>
   }
   onCacheCleared?: () => void
+  onPlayError?: () => void
 }
 
 const usePlaybackLogic = ({
@@ -31,6 +32,7 @@ const usePlaybackLogic = ({
   targetVoiceId,
   sentenceAudioMutation,
   onCacheCleared,
+  onPlayError,
 }: UsePlaybackParams) => {
   const { setPlayingSentenceId, setPlayingRole, setPlayingSpeed } = usePlaybackActions()
   const { playingSentenceId } = usePlaybackState()
@@ -70,13 +72,24 @@ const usePlaybackLogic = ({
     [playingSentenceId, setPlayingRole, setPlayingSentenceId, setPlayingSpeed]
   )
 
+  const playSentenceRoleSafe = React.useCallback(
+    async (sentence: Parameters<typeof playSentenceRole>[0], role: "native" | "target", speed?: number) => {
+      const ok = await playSentenceRole(sentence, role, speed)
+      if (!ok) {
+        onPlayError?.()
+      }
+      return ok
+    },
+    [onPlayError, playSentenceRole]
+  )
+
   return {
     playingSentenceId,
     stopPlayback,
     clearTtsCache,
     clearSentenceCache,
     clearPlaybackForSentence,
-    playSentenceRole,
+    playSentenceRole: playSentenceRoleSafe,
     getCachedAudioUrl,
     setCachedAudioUrl,
     buildLocalCacheKey,

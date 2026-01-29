@@ -33,7 +33,6 @@ type UseClozePracticeParams = {
     sentence: ArticleSentence,
     role: "native" | "target"
   ) => Promise<boolean>
-  onPlayError: () => void
 }
 
 const useClozePracticeLogic = ({
@@ -44,7 +43,6 @@ const useClozePracticeLogic = ({
   detail,
   stopLoopPlayback,
   playSentenceRole,
-  onPlayError,
 }: UseClozePracticeParams) => {
   const { clozeInputs, clozeRevealed, clozeResults } = useClozePracticeState()
   const { setClozeInputs, setClozeRevealed, setClozeResults } =
@@ -210,10 +208,7 @@ const useClozePracticeLogic = ({
       setSelectedSentenceId(sentenceId)
       setSelectedSentenceRole("target")
       const ok = await playSentenceRole(sentence, "target")
-      if (!ok) {
-        onPlayError()
-        return
-      }
+      if (!ok) return
       if (!correct) return
 
       const currentIndex = detail.sentences.findIndex((item) => item.id === sentenceId)
@@ -229,7 +224,6 @@ const useClozePracticeLogic = ({
       clozeInputs,
       detail,
       diffClozeTokens,
-      onPlayError,
       playSentenceRole,
       setClozeResults,
       setSelectedSentenceId,

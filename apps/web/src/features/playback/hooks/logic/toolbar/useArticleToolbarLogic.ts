@@ -145,10 +145,13 @@ export const useArticleToolbarLogic = ({
         getShadowingSpeeds,
         audioProvider,
         prefetchCount: 5,
+        onError: onPlayError,
+        errorPolicy: "stop",
       }),
     [
       audioProvider,
       getShadowingSpeeds,
+      onPlayError,
       playbackEngine,
       playbackNativeRepeat,
       playbackPauseSeconds,
@@ -165,10 +168,13 @@ export const useArticleToolbarLogic = ({
       },
       getShadowingSpeeds,
       audioProvider,
+      onError: onPlayError,
+      errorPolicy: "stop",
     })
   }, [
     audioProvider,
     getShadowingSpeeds,
+    onPlayError,
     playbackNativeRepeat,
     playbackPauseSeconds,
     playbackTargetRepeat,

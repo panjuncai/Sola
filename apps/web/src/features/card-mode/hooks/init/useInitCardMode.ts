@@ -17,7 +17,6 @@ type UseCardModeParams = {
   playbackTargetRepeat: number
   playbackPauseSeconds: number
   playSentenceRole: (sentence: CardSentence, role: "native" | "target") => Promise<boolean>
-  onPlayError: () => void
 }
 
 const useCardModeLogic = ({
@@ -28,7 +27,6 @@ const useCardModeLogic = ({
   playbackTargetRepeat,
   playbackPauseSeconds,
   playSentenceRole,
-  onPlayError,
 }: UseCardModeParams) => {
   const { isCardMode, cardIndex, cardFlipped, cardDragX, cardDragging } =
     useCardModeState()
@@ -148,17 +146,13 @@ const useCardModeLogic = ({
         if (cardPlayTokenRef.current !== token) return
         const ok = await playSentenceRole(sentence, role)
         if (cardPlayTokenRef.current !== token) return
-        if (!ok) {
-          onPlayError()
-          return
-        }
+        if (!ok) return
         if (pauseMs > 0) {
           await waitMs(pauseMs)
         }
       }
     },
     [
-      onPlayError,
       playSentenceRole,
       playbackNativeRepeat,
       playbackPauseSeconds,

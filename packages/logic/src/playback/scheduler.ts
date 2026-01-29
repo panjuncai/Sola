@@ -30,6 +30,8 @@ export type PlaybackSchedulerOptions = {
   onSentenceChange?: (sentenceId: string) => void
   onRoleChange?: (role: PlaybackRole | null) => void
   onStatusChange?: (status: SchedulerStatus) => void
+  onError?: (error: unknown) => void
+  errorPolicy?: "stop" | "skip"
   nextIndex?: NextIndexStrategy
 }
 
@@ -170,7 +172,9 @@ export class PlaybackScheduler {
         this.emit()
         const repeatTimes =
           role === "native" ? this.options.repeats.native : this.options.repeats.target
-        const ok = await this.engine.playWithShadowing(sentence, role, repeatTimes, {
+        let ok = false
+        try {
+          ok = await this.engine.playWithShadowing(sentence, role, repeatTimes, {
           pauseMs: this.options.pauseMs,
           shadowingSpeeds: this.options.getShadowingSpeeds?.(role) ?? [1],
           getShadowingSpeeds: this.options.getShadowingSpeeds ?? (() => [1]),
@@ -178,10 +182,21 @@ export class PlaybackScheduler {
             this.status !== "playing" ||
             this.runId !== runId ||
             this.options.shouldStop?.() === true,
-        })
+          })
+        } catch (error) {
+          this.options.onError?.(error)
+          if ((this.options.errorPolicy ?? "stop") === "stop") {
+            this.stop()
+            return
+          }
+          ok = false
+        }
         if (!ok) {
-          this.stop()
-          return
+          if ((this.options.errorPolicy ?? "stop") === "stop") {
+            this.stop()
+            return
+          }
+          break
         }
         if (this.options.pauseMs > 0) {
           await new Promise((resolve) => setTimeout(resolve, this.options.pauseMs))

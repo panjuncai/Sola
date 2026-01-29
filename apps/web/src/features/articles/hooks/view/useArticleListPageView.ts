@@ -92,6 +92,7 @@ export const useArticleListPageView = () => {
     targetVoiceId,
     sentenceAudioMutation,
     onCacheCleared: () => toast.success(t("settings.cacheCleared")),
+    onPlayError: handlePlayError,
   })
   const {
     buildLocalCacheKey,
@@ -154,7 +155,6 @@ export const useArticleListPageView = () => {
     detail: detailQuery.data,
     stopLoopPlayback,
     playSentenceRole,
-    onPlayError: handlePlayError,
   })
 
   useInitCardMode({
@@ -165,7 +165,6 @@ export const useArticleListPageView = () => {
     playbackTargetRepeat,
     playbackPauseSeconds,
     playSentenceRole,
-    onPlayError: handlePlayError,
   })
 
   useInitSentenceOperations({
