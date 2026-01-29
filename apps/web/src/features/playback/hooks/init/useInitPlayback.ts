@@ -117,20 +117,19 @@ const usePlaybackLogic = ({
       })
   )
 
-  const providerKey = React.useMemo(
-    () =>
-      [
-        userId ?? "anon",
-        apiBaseUrl,
-        detail?.article?.id ?? "no-article",
-        nativeVoiceId ?? "no-native",
-        targetVoiceId ?? "no-target",
-        ttsOptions?.providerType ?? "no-provider",
-        ttsOptions?.providerRegion ?? "no-region",
-      ].join("|"),
+  const providerConfig = React.useMemo(
+    () => ({
+      userId,
+      apiBaseUrl,
+      detail,
+      nativeVoiceId,
+      targetVoiceId,
+      providerType: ttsOptions?.providerType,
+      providerRegion: ttsOptions?.providerRegion,
+    }),
     [
       apiBaseUrl,
-      detail?.article?.id,
+      detail,
       nativeVoiceId,
       targetVoiceId,
       ttsOptions?.providerRegion,
@@ -142,13 +141,7 @@ const usePlaybackLogic = ({
   React.useEffect(() => {
     setAudioProvider(
       new WebAudioProvider({
-        userId,
-        apiBaseUrl,
-        detail,
-        nativeVoiceId,
-        targetVoiceId,
-        providerType: ttsOptions?.providerType,
-        providerRegion: ttsOptions?.providerRegion,
+        ...providerConfig,
         sentenceAudioMutation: {
           mutateAsync: (...args) =>
             sentenceAudioMutationRef.current.mutateAsync(...args),
@@ -157,7 +150,7 @@ const usePlaybackLogic = ({
         setCachedAudioUrl: (...args) => setCachedAudioUrlRef.current(...args),
       })
     )
-  }, [providerKey])
+  }, [providerConfig])
 
   return {
     playingSentenceId,
